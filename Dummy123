@@ -1,1 +1,32 @@
-
+{data && !filtersExpanded && (
+  <Stack
+    direction="row"
+    spacing={1}
+    sx={{
+      mt: 2,
+      flexWrap: "wrap",
+    }}
+  >
+    {[
+      `Branch: ${userInputs?.branch}`,
+      `Currency: ${userInputs?.currency}`,
+      `CGL: ${userInputs?.cgl}`,
+      `Date: ${dayjs(userInputs?.fromDate).format("DD MMM")} - ${dayjs(userInputs?.toDate).format("DD MMM YYYY")}`,
+    ].map((item, index) => (
+      <Box
+        key={index}
+        sx={{
+          px: 1.5,
+          py: 0.7,
+          borderRadius: "20px",
+          bgcolor: "rgba(88, 70, 159, 0.08)",
+          border: "1px solid rgba(88, 70, 159, 0.15)",
+          fontSize: "0.78rem",
+          fontWeight: 500,
+        }}
+      >
+        {item}
+      </Box>
+    ))}
+  </Stack>
+)}
