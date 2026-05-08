@@ -1,3 +1,48 @@
+{/* DATE RANGE PICKER */}
+
+import { DateRangePicker } from "@mui/x-date-pickers-pro/DateRangePicker";
+
+const [dateRange, setDateRange] = useState([
+  userInputs?.fromDate || null,
+  userInputs?.toDate || null,
+]);
+
+<LocalizationProvider dateAdapter={AdapterDayjs}>
+  <StyledFormBox sx={{ flex: 1 }}>
+    <DateRangePicker
+      value={dateRange}
+      onChange={(newValue) => {
+        setDateRange(newValue);
+
+        update("fromDate", newValue[0]);
+        update("toDate", newValue[1]);
+      }}
+      minDate={dayjs("2026-03-31")}
+      maxDate={etlDate}
+      format="DD-MM-YYYY"
+      slotProps={{
+        textField: {
+          fullWidth: true,
+          label: "Transaction Date Range*",
+          InputLabelProps: { shrink: true },
+          readOnly: true,
+          sx: {
+            "& .MuiInputLabel-root": {
+              fontWeight: 500,
+            },
+            "& .MuiInputBase-input": {
+              caretColor: "transparent",
+            },
+          },
+        },
+      }}
+    />
+  </StyledFormBox>
+</LocalizationProvider>
+
+
+
+
 {/* START DATE */}
 <LocalizationProvider dateAdapter={AdapterDayjs}>
   <StyledFormBox sx={{ flex: 1 }}>
