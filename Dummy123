@@ -1,1 +1,63 @@
+renderTags={(value, getTagProps) => {
+  const allSelected =
+    value.length === sourceOptions.length;
 
+  if (allSelected) {
+    return (
+      <Typography
+        variant="body2"
+        sx={{
+          fontWeight: 500,
+          color: "text.secondary",
+          ml: 0.5,
+        }}
+      >
+        Select All
+      </Typography>
+    );
+  }
+
+  if (value.length === 0) return null;
+
+  const moreCount = value.length - 1;
+
+  const { onDelete: _onDelete, ...tagProps } =
+    getTagProps({
+      index: 0,
+    });
+
+  return (
+    <Box
+      sx={{
+        display: "flex",
+        alignItems: "center",
+        gap: 0.5,
+      }}
+    >
+      <Chip
+        {...tagProps}
+        key={value[0].flagId}
+        label={value[0].flagName}
+        size="small"
+        sx={{
+          borderRadius: "6px",
+          pointerEvents: "none",
+          height: "24px",
+        }}
+      />
+
+      {moreCount > 0 && (
+        <Typography
+          variant="caption"
+          sx={{
+            fontWeight: 600,
+            color: "text.secondary",
+            whiteSpace: "nowrap",
+          }}
+        >
+          +{moreCount} more
+        </Typography>
+      )}
+    </Box>
+  );
+}}
