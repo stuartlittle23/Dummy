@@ -1,1 +1,41 @@
 
+<Box
+  key={index}
+  sx={{
+    px: 1.4,
+    py: 0.38,
+    borderRadius: "999px",
+    backgroundColor: "#f8f7fc",
+    border: "1px solid #ece8f7",
+    fontSize: "0.72rem",
+    fontWeight: 500,
+    color: "#5c5470",
+    whiteSpace: "nowrap",
+    display: "flex",
+    alignItems: "center",
+    lineHeight: 1.1,
+  }}
+>
+  {item.value}
+</Box>
+
+
+
+[
+  {
+    value: `Branch: ${branch}`,
+  },
+  {
+    value: `Currency: ${currency}`,
+  },
+  {
+    value: `CGL: ${cgl}`,
+  },
+  {
+    value: `Date: ${dayjs(start).format(
+      "DD MMM"
+    )} - ${dayjs(end).format(
+      "DD MMM YYYY"
+    )}`,
+  },
+]
