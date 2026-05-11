@@ -1,1 +1,125 @@
+import SearchIcon from "@mui/icons-material/Search";
+import RestartAltIcon from "@mui/icons-material/RestartAlt";
 
+
+
+<ButtonBox>
+  <StyledButton
+    variant="contained"
+    startIcon={<RestartAltIcon />}
+    onClick={resetState}
+  >
+    Reset
+  </StyledButton>
+
+  &nbsp;&nbsp;
+
+  <StyledButton
+    variant="contained"
+    startIcon={<SearchIcon />}
+    disabled={!(cgl && currency && branch && start && end)}
+    onClick={handleSubmit}
+  >
+    Search
+  </StyledButton>
+</ButtonBox>
+
+
+
+
+{data && !filtersExpanded && (
+  <Stack
+    direction="row"
+    spacing={1}
+    sx={{
+      mt: 2,
+      mb: 1,
+      flexWrap: "wrap",
+    }}
+  >
+    {[
+      {
+        label: "BRANCH",
+        value: branch,
+      },
+      {
+        label: "CURRENCY",
+        value: currency,
+      },
+      {
+        label: "CGL",
+        value: cgl,
+      },
+      {
+        label: "DATE",
+        value: `${dayjs(start).format(
+          "DD MMM"
+        )} - ${dayjs(end).format(
+          "DD MMM YYYY"
+        )}`,
+      },
+    ]
+      .filter((item) => item.value)
+      .map((item, index) => (
+        <Box
+          key={index}
+          sx={{
+            px: 1.5,
+            py: 0.8,
+            borderRadius: "14px",
+            background: "#fcfbff",
+            border: "1px solid #e3dcff",
+            borderLeft:
+              "4px solid #7c4dff",
+          }}
+        >
+          <Typography
+            sx={{
+              fontSize: "9px",
+              fontWeight: 700,
+              color: "#7b6ba8",
+              letterSpacing: "1px",
+              textTransform: "uppercase",
+            }}
+          >
+            {item.label}
+          </Typography>
+
+          <Typography
+            sx={{
+              fontSize: "12px",
+              fontWeight: 600,
+              color: "#2d1f54",
+            }}
+          >
+            {item.value}
+          </Typography>
+        </Box>
+      ))}
+  </Stack>
+)}
+
+
+
+
+
+
+sx={{
+  mt: -1,
+  backgroundColor: "#ffffff6b",
+  border: "none",
+
+  "& .MuiDataGrid-columnHeaders": {
+    backgroundColor: "#f5f5f5 !important",
+    borderBottom:
+      "2px solid rgba(88, 70, 159, 0.2)",
+  },
+
+  "& .MuiDataGrid-footerContainer": {
+    borderTop: "none",
+  },
+
+  "& .MuiDataGrid-withBorderColor": {
+    borderColor: "transparent",
+  },
+}}
