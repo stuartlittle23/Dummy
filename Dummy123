@@ -1,1 +1,143 @@
 
+// ================= ONLY REQUIRED CHANGES =================
+// FILE: BalanceEnquiryScreen.jsx
+
+
+// 1. ADD THIS IMPORT WITH OTHER ICON IMPORTS
+
+import ManageSearchOutlinedIcon from "@mui/icons-material/ManageSearchOutlined";
+
+
+
+// 2. ADD THIS STATE WITH OTHER useState
+
+const [filtersExpanded, setFiltersExpanded] = useState(true);
+
+
+
+// 3. REPLACE handleSubmit FUNCTION
+
+const handleSubmit = () => {
+  setFiltersExpanded(false);
+  setData(null);
+  fetchBalance();
+};
+
+
+
+
+// 4. REPLACE THIS HEADER BLOCK
+
+<Box
+  sx={{
+    mb: 2,
+    p: 2,
+    borderRadius: 2,
+    bgcolor: "background.paper",
+    boxShadow: 2,
+    borderLeft: "6px solid",
+    borderColor: "primary.main",
+  }}
+>
+  <Stack
+    direction="row"
+    justifyContent="space-between"
+    alignItems="center"
+  >
+    <Stack direction="row" spacing={2} alignItems="center">
+      <AccountBalanceIcon
+        color="primary"
+        fontSize="medium"
+      />
+
+      <Box>
+        <Typography
+          variant="subtitle1"
+          fontWeight={700}
+          lineHeight={1.2}
+        >
+          Balance Search & Records Enquiry
+        </Typography>
+
+        <Typography
+          variant="body2"
+          color="text.secondary"
+          sx={{ mt: 0.5 }}
+        >
+          Enter the required details below to retrieve
+          and view Balance records.
+        </Typography>
+      </Box>
+    </Stack>
+
+    {data && (
+      <StyledButton
+        variant="contained"
+        size="small"
+        startIcon={<ManageSearchOutlinedIcon />}
+        onClick={() =>
+          setFiltersExpanded((prev) => !prev)
+        }
+        sx={{
+          textTransform: "none",
+          borderRadius: "8px",
+          fontWeight: 600,
+        }}
+      >
+        Edit Search
+      </StyledButton>
+    )}
+  </Stack>
+</Box>
+
+
+
+
+// 5. REPLACE THIS
+
+<BalanceFilters
+
+
+// WITH THIS
+
+{filtersExpanded && (
+  <BalanceFilters
+
+
+
+// 6. AFTER BalanceFilters CLOSING ADD
+
+/>
+)}
+
+
+
+
+
+
+
+
+
+import SearchIcon from "@mui/icons-material/Search";
+import RestartAltIcon from "@mui/icons-material/RestartAlt";
+
+<ButtonBox>
+  <StyledButton
+    variant="contained"
+    startIcon={<RestartAltIcon />}
+    onClick={resetState}
+  >
+    Reset
+  </StyledButton>
+
+  &nbsp;&nbsp;
+
+  <StyledButton
+    variant="contained"
+    startIcon={<SearchIcon />}
+    disabled={!(cgl && currency && branch && start && end)}
+    onClick={handleSubmit}
+  >
+    Search
+  </StyledButton>
+</ButtonBox>
