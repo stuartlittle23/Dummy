@@ -1,1 +1,32 @@
 
+import { encrypt } from "../security/AES-GCM256";
+
+
+let updatedPayload = payload;
+
+if (
+  payload &&
+  method !== "GET" &&
+  service === "UM"
+) {
+  const iv = crypto.getRandomValues(new Uint8Array(12));
+  const salt = crypto.getRandomValues(new Uint8Array(16));
+
+  const ivBase64 = btoa(String.fromCharCode(...iv));
+  const saltBase64 = btoa(String.fromCharCode(...salt));
+
+  const encryptedData = await encrypt(
+    iv,
+    salt,
+    JSON.stringify(payload),
+  );
+
+  updatedPayload = {
+    iv: ivBase64,
+    salt: saltBase64,
+    encryptedData,
+  };
+}
+
+data: method !== "GET" ? updatedPayload : undefined,
+params: method === "GET" ? updatedPayload : undefined,
