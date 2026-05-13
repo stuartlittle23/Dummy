@@ -4,6 +4,12 @@ import { useLocation } from "react-router-dom";
 import api from "../config/axiosConfig";
 import { resolveConfig } from "../config/EnvironmentConfig";
 import { convertToKebabCase } from "../utils/CommonUtilities";
+import { decrypt, encrypt } from "../security/AES-GCM256";
+
+const iv = crypto.getRandomValues(new Uint8Array(12));
+const ivBase64 = btoa(String.fromCharCode.apply(null, iv));
+const salt = crypto.getRandomValues(new Uint8Array(16));
+const saltBase64 = btoa(String.fromCharCode.apply(null, salt));
 
 const useApi = () => {
   const [data, setData] = useState(null);
@@ -67,12 +73,40 @@ const useApi = () => {
       const controller = new AbortController();
       activeRequests.current.add(controller);
 
+      let data = payload;
+      console.log("service >", service);
+      console.log(data);
+
+      console.log(typeof data);
+
+      const encryptedData = await encrypt(iv, salt, JSON.stringify(data));
+
+      const decryptedData = await decrypt(
+        ivBase64,
+        saltBase64,
+        encryptedData?.data,
+      );
+
+      const encryptedPayload = {
+        iv: ivBase64,
+        salt: saltBase64,
+        data: encryptedData,
+      };
+
+      console.log(finalUrl);
+      console.log("encryptedPayload >", encryptedPayload);
+      console.log("decryptedData >", decryptedData);
+
+      const updatedPayload = service == "UM" ? encryptedPayload : payload;
+
+      console.log("Final passed Payload >", updatedPayload);
+
       try {
         const config = {
           method,
           url: finalUrl,
-          data: method !== "GET" ? payload : undefined,
-          params: method === "GET" ? payload : undefined,
+          data: method !== "GET" ? updatedPayload : undefined,
+          params: method === "GET" ? updatedPayload : undefined,
           responseType,
           signal: controller.signal,
           headers: {
@@ -108,3 +142,5 @@ const useApi = () => {
 };
 
 export default useApi;
+
+ 
