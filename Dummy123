@@ -1,209 +1,110 @@
-AES-GCM256
+import { useState, useCallback, useRef, useEffect } from "react";
+import { useSelector } from "react-redux";
+import { useLocation } from "react-router-dom";
+import api from "../config/axiosConfig";
+import { resolveConfig } from "../config/EnvironmentConfig";
+import { convertToKebabCase } from "../utils/CommonUtilities";
 
+const useApi = () => {
+  const [data, setData] = useState(null);
+  const [error, setError] = useState(null);
+  const [loading, setLoading] = useState(false);
 
-const passphrase = "juVI+XqX90tQSqYPAmtVxg==";
+  const activeRequests = useRef(new Set());
+  const location = useLocation();
 
-function base64ToArrayBuffer(base64Text) {
-  const binaryString = atob(base64Text);
-  const len = binaryString.length;
-  const bytes = new Uint8Array(len);
-  for (let i = 0; i < len; i++) {
-    bytes[i] = binaryString.charCodeAt(i);
-  }
-  return bytes.buffer;
-}
+  const menus = useSelector((state) => state.menus.menus);
+  const selectedMenuItem = useSelector((state) => state.menus.selectedMenuItem);
 
-async function encryptData(iv, salt, passphrase, data) {
-  const encoder = new TextEncoder();
-  const passphraseBuffer = encoder.encode(passphrase);
-  const keyMaterial = await window.crypto.subtle.importKey(
-    "raw",
-    passphraseBuffer,
-    { name: "PBKDF2" },
-    false,
-    ["deriveKey"],
-  );
-
-  const derivedKey = await window.crypto.subtle.deriveKey(
-    {
-      name: "PBKDF2",
-      salt: salt, //crypto.getRandomValues(new Uint8Array(16)),
-      iterations: 1000,
-      hash: "SHA-256",
-    },
-    keyMaterial,
-    {
-      name: "AES-GCM",
-      length: 256,
-    },
-    true,
-    ["encrypt", "decrypt"],
-  );
-  const encodedData = new TextEncoder().encode(data);
-  const encryptedData = await window.crypto.subtle.encrypt(
-    { name: "AES-GCM", iv },
-    derivedKey,
-    encodedData,
-  );
-
-  return { iv, salt, encryptedData };
-}
-
-async function decryptData(iv, salt, passphrase, encryptedData) {
-  const encoder = new TextEncoder();
-  const passphraseBuffer = encoder.encode(passphrase);
-
-  const encryptedArray = base64ToArrayBuffer(encryptedData);
-  const keyMaterial = await window.crypto.subtle.importKey(
-    "raw",
-    passphraseBuffer,
-    { name: "PBKDF2" },
-    false,
-    ["deriveKey"],
-  );
-
-  salt = base64ToArrayBuffer(salt);
-  iv = base64ToArrayBuffer(iv);
-
-  try {
-    const derivedKey = await window.crypto.subtle.deriveKey(
-      {
-        name: "PBKDF2",
-        salt: salt, //crypto.getRandomValues(new Uint8Array(16)),
-        iterations: 1000,
-        hash: "SHA-256",
-      },
-      keyMaterial,
-      {
-        name: "AES-GCM",
-        length: 256,
-      },
-      true,
-      ["encrypt", "decrypt"],
-    );
-    const decryptedData = await window.crypto.subtle.decrypt(
-      { name: "AES-GCM", iv },
-      derivedKey,
-      encryptedArray,
-    );
-    const dec = new TextDecoder();
-    return dec.decode(decryptedData);
-  } catch (e) {
-    console.error(e);
-  }
-}
-
-async function decrypt(iv, salt, data) {
-  return decryptData(iv, salt, passphrase, data)
-    .then((value) => {
-      try {
-        return value;
-      } catch (e) {
-        console.error("decrypt  " + e);
+  const findMenuItem = useCallback((items, route) => {
+    if (!items?.length) return null;
+    for (const item of items) {
+      if (item.route === route) return item;
+      if (item.children?.length) {
+        if (route.includes("/choose-option/")) {
+          const param = route.split("/choose-option/")[1];
+          if (param === convertToKebabCase(item.title)) return item;
+        }
+        const found = findMenuItem(item.children, route);
+        if (found) return found;
       }
-    })
-    .catch(() => {});
-}
+    }
+    return null;
+  }, []);
 
-function encrypt(iv, salt, data) {
-  return encryptData(iv, salt, passphrase, data)
-    .then((value) => {
-      return arrayBufferToBase64(value.encryptedData);
-    })
-    .catch((e) => {
-      console.error(e);
-    });
-}
+  const xRequestType = (() => {
+    const currentMenu = findMenuItem(menus, location.pathname);
+    return currentMenu?.requestType || selectedMenuItem?.requestType || "*";
+  })();
 
-function arrayBufferToBase64(buffer) {
-  let binary = "";
-  const bytes = new Uint8Array(buffer);
-  for (let i = 0; i < bytes.length; i++) {
-    binary += String.fromCharCode(bytes[i]);
-  }
-  return btoa(binary);
-}
+  const cancelAllRequests = useCallback(() => {
+    activeRequests.current.forEach((controller) => controller.abort());
+    activeRequests.current.clear();
+  }, []);
 
-export { encrypt, decrypt };
+  useEffect(() => () => cancelAllRequests(), [cancelAllRequests]);
 
+  const callApi = useCallback(
+    async (
+      url,
+      payload = null,
+      method = "GET",
+      responseType = "json",
+      contentType = "application/json",
+      extraConfig = {},
+      returnDataOnly = true,
+    ) => {
+      setLoading(true);
+      setError(null);
 
+      // Build final URL using service resolution
+      const parts = url.split("/");
+      const service = parts[1];
+      const resolved = resolveConfig(`/${service}`);
+      parts[1] = resolved;
+      const finalUrl = parts.slice(1).join("/");
 
-==========================================
+      const controller = new AbortController();
+      activeRequests.current.add(controller);
 
-AES-GCM256
+      try {
+        const config = {
+          method,
+          url: finalUrl,
+          data: method !== "GET" ? payload : undefined,
+          params: method === "GET" ? payload : undefined,
+          responseType,
+          signal: controller.signal,
+          headers: {
+            "Content-Type": contentType,
+            "X-Request-Type": xRequestType,
+            ...(extraConfig.headers || {}),
+          },
+          ...extraConfig,
+        };
 
-import CryptoJS from "crypto-js";
-var AesUtil = function (keySize, iterationCount) {
-  this.keySize = keySize / 32;
-  this.iterationCount = iterationCount;
+        const response = await api(config);
+        setData(response.data);
+        return returnDataOnly ? response.data : response;
+      } catch (err) {
+        setError(err);
+        if (err.response?.status !== 401) {
+          console.error(
+            err.response?.data?.message ||
+              err.response?.data?.error ||
+              "An error occurred",
+          );
+        }
+        throw err?.response?.data;
+      } finally {
+        activeRequests.current.delete(controller);
+        setLoading(false);
+      }
+    },
+    [xRequestType],
+  );
+
+  return { data, error, loading, callApi, cancelAllRequests };
 };
 
-AesUtil.prototype.generateKey = function (salt, passPhrase) {
-  var key = CryptoJS.PBKDF2(passPhrase, CryptoJS.enc.Hex.parse(salt), {
-    keySize: this.keySize,
-    iterations: this.iterationCount,
-  });
-  return key;
-};
-
-AesUtil.prototype.encrypt = function (salt, iv, passPhrase, plainText) {
-  var key = this.generateKey(salt, passPhrase);
-  var encrypted = CryptoJS.AES.encrypt(plainText, key, {
-    iv: CryptoJS.enc.Hex.parse(iv),
-  });
-
-  return encrypted.ciphertext.toString(CryptoJS.enc.Base64);
-};
-
-AesUtil.prototype.decrypt = function (salt, iv, passPhrase, cipherText) {
-  var key = this.generateKey(salt, passPhrase);
-  var cipherParams = CryptoJS.lib.CipherParams.create({
-    ciphertext: CryptoJS.enc.Base64.parse(cipherText),
-  });
-  var decrypted = CryptoJS.AES.decrypt(cipherParams, key, {
-    iv: CryptoJS.enc.Hex.parse(iv),
-  });
-  return decrypted.toString(CryptoJS.enc.Utf8);
-};
-
-export default AesUtil;
-======================================
-EncryptionUtilities
-
-import AesUtil from "./AesUtil";
-
-var keySize = 256;
-var iterationCount = 1000;
-var passPhrase = '1234';
-var iv = 'deafe42005047586b5a4f495628011ac';
-var salt = '5b1df819b20c0add7a1e10c815b672b7';
-var aesUtil = new AesUtil(keySize, iterationCount);
-export function parseJwt (token)  {
-    var base64Url = JSON.stringify(token).split('.')[1];
-    var base64 = base64Url.replace('-', '+').replace('_', '/');
-    return JSON.parse(window.atob(base64));
-}
-export async function encryptLoginData   (userId) {
-    const aesUtil = new AesUtil(256, 1000);
-      const encryptedData = await aesUtil.encrypt(
-        "5b1df819b20c0add7a1e10c815b672b7",
-        "deafe42005047586b5a4f495628011ac",
-        "1234",
-        userId
-      );
-    return encryptedData  
-}
-export async function encryptData (data) {
-  if(data===null) return
- 
-   return aesUtil.encrypt(salt, iv, passPhrase, data);     
-
-}
-export async function decryptData(encryptedData) {
-  if(encryptedData===null) return
- 
-   return aesUtil.decrypt(salt, iv, passPhrase, encryptedData); 
-}
-
-
-
+export default useApi;
