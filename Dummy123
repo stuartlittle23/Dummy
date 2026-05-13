@@ -1,1 +1,209 @@
+AES-GCM256
+
+
+const passphrase = "juVI+XqX90tQSqYPAmtVxg==";
+
+function base64ToArrayBuffer(base64Text) {
+  const binaryString = atob(base64Text);
+  const len = binaryString.length;
+  const bytes = new Uint8Array(len);
+  for (let i = 0; i < len; i++) {
+    bytes[i] = binaryString.charCodeAt(i);
+  }
+  return bytes.buffer;
+}
+
+async function encryptData(iv, salt, passphrase, data) {
+  const encoder = new TextEncoder();
+  const passphraseBuffer = encoder.encode(passphrase);
+  const keyMaterial = await window.crypto.subtle.importKey(
+    "raw",
+    passphraseBuffer,
+    { name: "PBKDF2" },
+    false,
+    ["deriveKey"],
+  );
+
+  const derivedKey = await window.crypto.subtle.deriveKey(
+    {
+      name: "PBKDF2",
+      salt: salt, //crypto.getRandomValues(new Uint8Array(16)),
+      iterations: 1000,
+      hash: "SHA-256",
+    },
+    keyMaterial,
+    {
+      name: "AES-GCM",
+      length: 256,
+    },
+    true,
+    ["encrypt", "decrypt"],
+  );
+  const encodedData = new TextEncoder().encode(data);
+  const encryptedData = await window.crypto.subtle.encrypt(
+    { name: "AES-GCM", iv },
+    derivedKey,
+    encodedData,
+  );
+
+  return { iv, salt, encryptedData };
+}
+
+async function decryptData(iv, salt, passphrase, encryptedData) {
+  const encoder = new TextEncoder();
+  const passphraseBuffer = encoder.encode(passphrase);
+
+  const encryptedArray = base64ToArrayBuffer(encryptedData);
+  const keyMaterial = await window.crypto.subtle.importKey(
+    "raw",
+    passphraseBuffer,
+    { name: "PBKDF2" },
+    false,
+    ["deriveKey"],
+  );
+
+  salt = base64ToArrayBuffer(salt);
+  iv = base64ToArrayBuffer(iv);
+
+  try {
+    const derivedKey = await window.crypto.subtle.deriveKey(
+      {
+        name: "PBKDF2",
+        salt: salt, //crypto.getRandomValues(new Uint8Array(16)),
+        iterations: 1000,
+        hash: "SHA-256",
+      },
+      keyMaterial,
+      {
+        name: "AES-GCM",
+        length: 256,
+      },
+      true,
+      ["encrypt", "decrypt"],
+    );
+    const decryptedData = await window.crypto.subtle.decrypt(
+      { name: "AES-GCM", iv },
+      derivedKey,
+      encryptedArray,
+    );
+    const dec = new TextDecoder();
+    return dec.decode(decryptedData);
+  } catch (e) {
+    console.error(e);
+  }
+}
+
+async function decrypt(iv, salt, data) {
+  return decryptData(iv, salt, passphrase, data)
+    .then((value) => {
+      try {
+        return value;
+      } catch (e) {
+        console.error("decrypt  " + e);
+      }
+    })
+    .catch(() => {});
+}
+
+function encrypt(iv, salt, data) {
+  return encryptData(iv, salt, passphrase, data)
+    .then((value) => {
+      return arrayBufferToBase64(value.encryptedData);
+    })
+    .catch((e) => {
+      console.error(e);
+    });
+}
+
+function arrayBufferToBase64(buffer) {
+  let binary = "";
+  const bytes = new Uint8Array(buffer);
+  for (let i = 0; i < bytes.length; i++) {
+    binary += String.fromCharCode(bytes[i]);
+  }
+  return btoa(binary);
+}
+
+export { encrypt, decrypt };
+
+
+
+==========================================
+
+AES-GCM256
+
+import CryptoJS from "crypto-js";
+var AesUtil = function (keySize, iterationCount) {
+  this.keySize = keySize / 32;
+  this.iterationCount = iterationCount;
+};
+
+AesUtil.prototype.generateKey = function (salt, passPhrase) {
+  var key = CryptoJS.PBKDF2(passPhrase, CryptoJS.enc.Hex.parse(salt), {
+    keySize: this.keySize,
+    iterations: this.iterationCount,
+  });
+  return key;
+};
+
+AesUtil.prototype.encrypt = function (salt, iv, passPhrase, plainText) {
+  var key = this.generateKey(salt, passPhrase);
+  var encrypted = CryptoJS.AES.encrypt(plainText, key, {
+    iv: CryptoJS.enc.Hex.parse(iv),
+  });
+
+  return encrypted.ciphertext.toString(CryptoJS.enc.Base64);
+};
+
+AesUtil.prototype.decrypt = function (salt, iv, passPhrase, cipherText) {
+  var key = this.generateKey(salt, passPhrase);
+  var cipherParams = CryptoJS.lib.CipherParams.create({
+    ciphertext: CryptoJS.enc.Base64.parse(cipherText),
+  });
+  var decrypted = CryptoJS.AES.decrypt(cipherParams, key, {
+    iv: CryptoJS.enc.Hex.parse(iv),
+  });
+  return decrypted.toString(CryptoJS.enc.Utf8);
+};
+
+export default AesUtil;
+======================================
+EncryptionUtilities
+
+import AesUtil from "./AesUtil";
+
+var keySize = 256;
+var iterationCount = 1000;
+var passPhrase = '1234';
+var iv = 'deafe42005047586b5a4f495628011ac';
+var salt = '5b1df819b20c0add7a1e10c815b672b7';
+var aesUtil = new AesUtil(keySize, iterationCount);
+export function parseJwt (token)  {
+    var base64Url = JSON.stringify(token).split('.')[1];
+    var base64 = base64Url.replace('-', '+').replace('_', '/');
+    return JSON.parse(window.atob(base64));
+}
+export async function encryptLoginData   (userId) {
+    const aesUtil = new AesUtil(256, 1000);
+      const encryptedData = await aesUtil.encrypt(
+        "5b1df819b20c0add7a1e10c815b672b7",
+        "deafe42005047586b5a4f495628011ac",
+        "1234",
+        userId
+      );
+    return encryptedData  
+}
+export async function encryptData (data) {
+  if(data===null) return
+ 
+   return aesUtil.encrypt(salt, iv, passPhrase, data);     
+
+}
+export async function decryptData(encryptedData) {
+  if(encryptedData===null) return
+ 
+   return aesUtil.decrypt(salt, iv, passPhrase, encryptedData); 
+}
+
+
 
