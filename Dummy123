@@ -1,1 +1,55 @@
+// 4. Encrypt POST/PUT/PATCH request payloads
+    if (
+      ["post", "put", "patch"].includes(
+        config.method?.toLowerCase()
+      ) &&
+      config.data &&
+      !(config.data instanceof FormData)
+    ) {
+      const sessionKey = localStorage.getItem(
+        "payloadEncryptionKey"
+      );
+
+      if (sessionKey) {
+        const encryptedString =
+          await encryptPayload(
+            config.data,
+            sessionKey
+          );
+
+        config.data = encryptedString;
+
+        config.headers[
+          "X-Encrypted-Payload"
+        ] = "true";
+
+        config.headers["Content-Type"] =
+          "text/plain";
+      }
+    }
+
+
+
+
+const {
+  accessToken,
+  payloadEncryptionKey,
+} = response?.data?.data || {};
+
+
+
+if (payloadEncryptionKey) {
+  localStorage.setItem(
+    "payloadEncryptionKey",
+    payloadEncryptionKey
+  );
+}
+
+localStorage.setItem(
+  "payloadEncryptionKey",
+  response.payloadEncryptionKey
+);
+
+
+
 
