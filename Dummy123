@@ -1,1 +1,65 @@
 
+need to add a **Response Interceptor** to catch the `encryptedPayload`, decrypt it, and trick the React app into thinking the API responded normally.
+ 
+```javascript
+
+// src/api/axiosSetup.js (Add this below your Request Interceptor)
+ 
+import { decryptPayload } from '../utils/cryptoUtil'; // They need to write the reverse decrypt util
+ 
+// Response Interceptor
+
+apiClient.interceptors.response.use(async (response) => {
+
+    // Check if the backend flagged this response as encrypted
+
+    const isEncrypted = response.headers['x-encrypted-response'] === 'true';
+ 
+    // Check if the response contains our wrapper map
+
+    if (isEncrypted && response.data && response.data.encryptedResponse) {
+
+        const sessionKey = getSessionKeyFromState();
+
+        if (sessionKey) {
+
+            try {
+
+                // 1. Decrypt the payload
+
+                const decryptedJsonString = await decryptPayload(response.data.encryptedResponse, sessionKey);
+
+                // 2. Parse the JSON back into an object
+
+                const decryptedObject = JSON.parse(decryptedJsonString);
+
+                // 3. Replace the response data so React components don't even know it was encrypted!
+
+                response.data = decryptedObject;
+
+            } catch (error) {
+
+                console.error("Failed to decrypt server response", error);
+
+                return Promise.reject(error);
+
+            }
+
+        }
+
+    }
+ 
+    return response;
+
+}, (error) => {
+
+    return Promise.reject(error);
+
+});
+
+ encrypting responses which are required to hide sensitive data.
+
+only user related apis 
+ 
+user management apis only 
+ 
