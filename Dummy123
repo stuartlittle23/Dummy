@@ -1,1 +1,109 @@
+export async function decryptPayload(
+  encryptedText,
+  base64Key
+) {
+  if (!base64Key) {
+    throw new Error("No session key found");
+  }
+
+  const [base64Iv, base64CipherText] =
+    encryptedText.split(":");
+
+  const iv = Uint8Array.from(
+    atob(base64Iv),
+    (c) => c.charCodeAt(0)
+  );
+
+  const encryptedBytes = Uint8Array.from(
+    atob(base64CipherText),
+    (c) => c.charCodeAt(0)
+  );
+
+  const keyBytes = Uint8Array.from(
+    atob(base64Key),
+    (c) => c.charCodeAt(0)
+  );
+
+  const cryptoKey =
+    await window.crypto.subtle.importKey(
+      "raw",
+      keyBytes,
+      { name: "AES-GCM" },
+      false,
+      ["decrypt"]
+    );
+
+  const decryptedBuffer =
+    await window.crypto.subtle.decrypt(
+      {
+        name: "AES-GCM",
+        iv,
+      },
+      cryptoKey,
+      encryptedBytes
+    );
+
+  return new TextDecoder().decode(
+    decryptedBuffer
+  );
+}
+
+
+
+
+
+
+....
+import {
+  encryptPayload,
+  decryptPayload,
+} from "../utils/cryptoUtil";
+
+
+....
+
+
+api.interceptors.response.use(
+  async (response) => {
+
+    const isEncrypted =
+      response.headers["x-encrypted-response"] ===
+      "true";
+
+    if (
+      isEncrypted &&
+      response.data &&
+      response.data.encryptedResponse
+    ) {
+      const sessionKey =
+        localStorage.getItem(
+          "payloadEncryptionKey"
+        );
+
+      if (sessionKey) {
+        try {
+          const decryptedJsonString =
+            await decryptPayload(
+              response.data.encryptedResponse,
+              sessionKey
+            );
+
+          response.data = JSON.parse(
+            decryptedJsonString
+          );
+        } catch (error) {
+          console.error(
+            "Failed to decrypt response",
+            error
+          );
+
+          return Promise.reject(error);
+        }
+      }
+    }
+
+    return response;
+  },
+
+
 
