@@ -1,312 +1,502 @@
-// import React, { useState } from "react";
-import { DataGrid } from "@mui/x-data-grid";
-import { 
-  Button, 
-  Typography, 
-  Stack, 
-  Box, 
-  styled, 
-  Avatar, 
-  Grid, 
-  Divider 
+import { useCallback, useEffect, useState } from "react";
+import useApi from "../../hooks/useApi";
+import useCustomSnackbar from "../../utils/useCustomSnackbar";
+import downloadFile from "../../utils/DownloadUtils";
+import dayjs from "dayjs";
+import ReceiptIcon from "@mui/icons-material/Receipt";
+import ManageSearchIcon from '@mui/icons-material/ManageSearch';
+import LinearProgress from "@mui/material/LinearProgress";
+
+import {
+  Box,
+  Paper,
+  Typography,
+  Stack,
+  Button,
 } from "@mui/material";
-import FileDownloadIcon from "@mui/icons-material/FileDownload";
-import ErrorOutlineIcon from "@mui/icons-material/ErrorOutline";
-import AccountBalanceWalletIcon from '@mui/icons-material/AccountBalanceWallet';
-import EventIcon from '@mui/icons-material/Event';
-import TrendingUpIcon from '@mui/icons-material/TrendingUp';
-import TrendingDownIcon from '@mui/icons-material/TrendingDown';
-import LockIcon from '@mui/icons-material/Lock';
-import { transactionColumns } from "./TransactionColumns";
-import { StyledDataBox } from "./TransactionStyles";
-import { GridToolbar } from "@mui/x-data-grid/internals";
-import CircularProgress from "@mui/material/CircularProgress";
 
-const OverlayBox = styled(Box)(() => ({
-  display: "flex",
-  flexDirection: "column",
-  height: "100%",
-  justifyContent: "center",
-  alignItems: "center",
-}));
+import {
+  StyledBox,
+  StyledFormHeader,
+} from "./components/TransactionStyles";
 
-const CustomNoRowsOverlay = () => (
-  <OverlayBox>
-    <ErrorOutlineIcon fontSize="large" color="action" />
-    <Typography variant="h5" fontSize="1.2rem" color="text.secondary">
-      No transactions available for the selected criteria
-    </Typography>
-  </OverlayBox>
-);
-  const TransactionTable = ({ data, loading, onDownload, rowCount, paginationModel, setPaginationModel, userInputs, sourceOptions ,exportLoading }) => {
-  const rows = data?.data || [];
-  const balances = data?.extraData || {};
+import TransactionFilters from "./components/TransactionFilters";
+import TransactionTable from "./components/TransactionTable";
+import { areUserInputsValid } from "./utils/InputValidations";
+import { useSelector } from "react-redux";
 
- const showBalances = 
-    userInputs?.sourceFlags?.length === sourceOptions?.length && 
-    !userInputs?.minAmount && 
-    !userInputs?.maxAmount &&
-    rows.length > 0; 
+const TransactionEnquiryScreen = () => {
+  const { callApi } = useApi();
+  const snackbar = useCustomSnackbar();
+
+  const user = useSelector((state) => state.auth.user);
+
+  const [currencies, setCurrencies] = useState([]);
+  const [data, setData] = useState(null);
+  const [loading, setLoading] = useState(false);
+  const [sourceOptions, setSourceOptions] = useState([]);
+  const [etlDate, setEtlDate] = useState(null);
+  const [exportLoading , setExportLoading] = useState(false);
+  const [searchLoading ,setSearchLoading] =useState(false);
+
+  const [filtersExpanded, setFiltersExpanded] =
+    useState(true);
+
+  const [userInputs, setUserInputs] = useState({
+    branch:
+      user?.isCircle === false
+        ? `${user.branch}-${user.branchName}`
+        : "",
+    currency: null,
+    cgl: "",
+    fromDate: null,
+    toDate: null,
+    minAmount: "",
+    maxAmount: "",
+    sourceFlags: [],
+  });
+
+  const fetchCurrencies = useCallback(async () => {
+    const res = await callApi(
+      "/CM/common-master/currency-code-name-only",
+      null,
+      "GET"
+    );
+
+    const formattedCurrencies =
+      res?.data?.map(
+        (c) =>
+          `${c.currencyCode} (${c.currencyName})`
+      ) || [];
+
+    const sortedCurrencies =
+      formattedCurrencies.sort((a, b) => {
+        if (a.startsWith("INR")) return -1;
+        if (b.startsWith("INR")) return 1;
+        return a.localeCompare(b);
+      });
+
+    setCurrencies(sortedCurrencies);
+  }, [callApi]);
+
+  const [rowCount, setRowCount] = useState(0);
+
+  const [paginationModel, setPaginationModel] =
+    useState({
+      page: 0,
+      pageSize: 10,
+    });
+
+  const fetchTransactions = useCallback(async () => {
+    try {
+      if (!areUserInputsValid(userInputs)) return;
+
+      setLoading(true);
+
+      const payload = {
+        branch:
+          userInputs?.branch?.split(" (")[0],
+        currency:
+          userInputs?.currency?.split(" (")[0],
+        cgl:
+          userInputs?.cgl?.split(" - ")[0],
+        fromDate: dayjs(
+          userInputs?.fromDate
+        ).format("DD/MM/YYYY"),
+        toDate: dayjs(
+          userInputs?.toDate
+        ).format("DD/MM/YYYY"),
+        minAmount: userInputs.minAmount
+          ? Number(userInputs.minAmount)
+          : null,
+        maxAmount: userInputs.maxAmount
+          ? Number(userInputs.maxAmount)
+          : null,
+        sourceFlags: (
+          userInputs.sourceFlags || []
+        ).map((item) => item.flagId),
+        page: paginationModel.page,
+        size: paginationModel.pageSize,
+      };
+
+      setSearchLoading(true);
+
+      const res = await callApi(
+        "/ES/transaction-con/transactions",
+        payload,
+        "POST"
+      );
+
+      if (res?.data?.length > 0) {
+        setData(res);
+        setFiltersExpanded(false);
+        setRowCount(res.totalElements || 0);
+      } else {
+        setData({
+          data: [],
+          extraData: null,
+        });
+        setRowCount(0);
+      }
+    } catch {
+      snackbar(
+        "Failed to fetch transactions",
+        "error"
+      );
+    } finally {
+      setLoading(false);
+      setSearchLoading(false);
+    }
+  }, [
+    userInputs,
+    callApi,
+    paginationModel,
+    snackbar,
+  ]);
+
+  const handleDownload = async () => {
+    try{
+      setExportLoading(true);
+    const payload = {
+      branch:
+        userInputs?.branch
+          ?.split("-")[0]
+          .trim(),
+      currency:
+        userInputs?.currency?.split(" (")[0],
+      cgl:
+        userInputs?.cgl?.split(" -")[0],
+      fromDate: dayjs(
+        userInputs?.fromDate
+      ).format("DD/MM/YYYY"),
+      toDate: dayjs(
+        userInputs?.toDate
+      ).format("DD/MM/YYYY"),
+      minAmount: userInputs.minAmount
+        ? Number(userInputs.minAmount)
+        : null,
+      maxAmount: userInputs.maxAmount
+        ? Number(userInputs.maxAmount)
+        : null,
+      sourceFlags: (
+        userInputs.sourceFlags || []
+      ).map((item) => item.flagId),
+    };
+
+    const res = await callApi(
+      "/ES/transaction-con/transactions-download",
+      payload,
+      "POST",
+      "arraybuffer"
+    );
+
+    if (res?.byteLength) {
+      downloadFile(
+        res,
+        "excel",
+        "transactions"
+      );
+    }
+  } finally {
+    setExportLoading(false);
+  }
+  };
+
+  useEffect(() => {
+    if (rowCount > 0) fetchTransactions();
+  }, [
+    paginationModel.page,
+    paginationModel.pageSize,
+    // fetchTransactions,
+    // rowCount,
+  ]);
+
+  const resetState = () => {
+    setData(null);
+    setRowCount(0);
+    setLoading(false);
+
+    // NEW
+    setFiltersExpanded(true);
+
+    setUserInputs({
+      branch: "",
+      currency: null,
+      cgl: "",
+      fromDate: null,
+      toDate: null,
+      minAmount: "",
+      maxAmount: "",
+      sourceFlags:[
+        {
+          flagId:"ALL",
+          flagName: "Select All",
+        },
+      ],
+    });
+
+    setPaginationModel({
+      page: 0,
+      pageSize: 10,
+    });
+  };
+
+  // Date Requirement
+useEffect(() => {
+  const fetchSystemDate = async () => {
+    try {
+      const dateRes = await callApi("/PS/file/fincore-date", {}, "GET");
+      
+      const etlRaw = dateRes?.data?.etlDate;
+      const etl = etlRaw ? dayjs(etlRaw.split("T")[0]) : dayjs();
+      // const startDate = dayjs("2026-03-31");
+
+      setEtlDate(etl);
+      // setUserInputs((prev) => ({
+      //   ...prev,
+      //   fromDate: startDate,
+      //   toDate: etl,
+      // }));
+    } catch (e) {
+      console.error("System Date Fetch Error:", e);
+    }
+  };
+  fetchSystemDate();
+}, [callApi]); 
+
+
+  useEffect(() => {
+    const fetchFlags = async () => {
+      try {
+        const res = await callApi(
+          "/CM/common-master/source-flag",
+          null,
+          "GET"
+        );
+
+        const flags = res?.data || [];
+
+        setSourceOptions(flags);
+
+        if (flags.length > 0) {
+          setUserInputs((prev) => ({
+            ...prev,
+            sourceFlags: flags,
+          }));
+        }
+      } catch (e) {
+        console.error("Flags error:", e);
+      }
+    };
+
+    fetchFlags();
+  }, [callApi]);
 
   return (
-    <StyledDataBox sx={{ mt: 2, height : "auto" ,display: "block", overflow:"visible"}}>
-      
-      {/* MASTER HEADER: Unified Actions & Balances */}
-      <Box 
-        sx={{ 
-          p: 1.2, 
-          mb: 3, 
-          mt: -2,
-          borderRadius: '16px',
-          background: "rgba(255, 255, 255, 0.1)",
-          backdropFilter: "blur(12px)",
-          border: "1px solid rgba(255, 255, 255, 0.3)",
-          boxShadow: "0 4px 20px rgba(0,0,0,0.03)",
-          display: 'flex',
-          flexDirection: 'column',
-          gap: 0.8
-        }}
-      >
-        {/* ROW 1: TITLE, RECORDS & EXPORT */}
-        <Stack direction="row" justifyContent="space-between" alignItems="center">
-          <Box sx={{ display: 'flex', alignItems: 'baseline', gap: 1.5 }}>
-            <Typography variant="subtitle1" fontWeight={800} sx={{ color: "#1a1a1a", letterSpacing: "-0.5px" }}>
-              Transaction Ledger
-            </Typography>
-            
-            <Typography 
-              variant="caption" 
-              fontWeight={700} 
-              sx={{ 
-                color: "#58469f", 
-                textTransform: "uppercase", 
-                bgcolor: "rgba(88, 70, 159, 0.1)", 
-                px: 1.2, 
-                py: 0.3, 
-                borderRadius: 1.5,
-                fontSize: '0.65rem'
-              }}
-            >
-              {rowCount > 0 ? `${rowCount.toLocaleString()} Records Found` : "No Records"}
-            </Typography>
-          </Box>
-
-          <Button
-            variant="contained"
-            size="small"
-            startIcon={exportLoading?(<CircularProgress size={16} color="inherit"/>):(<FileDownloadIcon/>)}
-            onClick={onDownload}
-            disabled={!rowCount || loading || exportLoading}
-            sx={{ 
-              textTransform: 'none',
-              bgcolor: '#58469f',
-              fontWeight: 700,
-              borderRadius: '8px',
-              px: 3,
-              boxShadow: '0 4px 12px rgba(88, 70, 159, 0.3)',
-              '&:hover': { bgcolor: '#45357a' } 
+    <>
+      <Box sx={{ p: 1 }}>
+        <Paper
+          elevation={0}
+          sx={{
+            p:2,
+            mt:-2,
+            mb: 3,
+            bgcolor:
+              "rgba(255, 255, 255, 0.4)",
+            backdropFilter: "blur(4px)",
+            border: "1px solid",
+            borderColor: "divider",
+            borderRadius: 3,
+          }}
+        >
+          <Box
+            sx={{
+              mb: filtersExpanded ? 1 : 0.5,
+              p: 1.2,
+              borderRadius: 2,
+              bgcolor: "background.paper",
+              boxShadow: 2,
+              borderLeft: "6px solid",
+              borderColor: "primary.main",
             }}
           >
-            {exportLoading? "Exporting...":"Export" } 
-          </Button>
-
-        </Stack>
-
-        {/* ROW 2: BALANCES */}
-        {showBalances && balances && (
-        <Stack direction="row" spacing={2}> 
-          {[
-            { 
-              label: "Opening Balance", 
-              date: balances.openingDate || balances.OpeningDate, 
-              amt: balances.openingBalance, 
-              icon: <AccountBalanceWalletIcon />,
-            },
-            { 
-              label: "Closing Balance", 
-              date: balances.closingDate || balances.ClosingDate,
-              amt: balances.closingBalance, 
-              icon: <AccountBalanceWalletIcon />,
-            }
-          ].map((item, index) => {
-            const isNeg = item.amt < 0;
-            const indicator = isNeg ? "DR" : "CR";
-            const absVal = Math.abs(item.amt || 0).toFixed(4);
-
-            const activeColor = isNeg ? "#b84646f3" : "#427a44"; 
-            const activeBg = isNeg 
-              ? "linear-gradient(135deg, #fff5f5 0%, #fed7d759 100%)" 
-              : "linear-gradient(135deg, #f6fdf9 0%, #c6f6d556 100%)";
-
-            return (
-              <Box 
-                key={index}
-                sx={{ 
-                  flex: 1, 
-                  p: 0.8, 
-                  borderRadius: '12px', 
-                  background: activeBg,
-                  border: '1px solid rgba(255, 255, 255, 0.3)',
-                  borderBottom: `4px solid ${activeColor}`,
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "space-between",
-                  position: "relative",
-                  overflow: "hidden"
-                }}
+            <Stack
+              direction="row"
+              alignItems="center"
+              justifyContent="space-between"
+            >
+              {/* LEFT */}
+              <Stack
+                direction="row"
+                spacing={2}
+                alignItems="center"
               >
-                <Stack direction="row" alignItems="center" sx={{ zIndex: 1 }}>
-                  <Box sx={{ p: 0.6, borderRadius: '10px', bgcolor: '#fff', display: 'flex', mr: 1.5, boxShadow: '0 2px 6px rgba(0,0,0,0.05)', color: activeColor }}>
-                    {item.icon}
-                  </Box>
-                  <Box>
-                    <Typography variant="caption" color="text.secondary" fontWeight={700} sx={{ textTransform: 'uppercase', fontSize: '0.72rem' }}>
-                      {item.label}
-                    </Typography>
-                    <Typography variant="body2" fontWeight={800} sx={{ color: '#2c3e50', lineHeight: 1 }}>
-                      {absVal}
-                      <Box component="span" sx={{ fontSize: '0.7rem', ml: 0.5, color: activeColor, fontWeight: 900 }}>
-                        {indicator}
-                      </Box>
-                    </Typography>
-                  </Box>
-                </Stack>
+                <ReceiptIcon
+                  color="primary"
+                  fontSize="medium"
+                />
 
-                {isNeg ? (
-                  <TrendingDownIcon sx={{ 
-                    position: 'absolute', left: '50%', top: '50%', transform: 'translate(-50%, -50%)',
-                    fontSize: '2.8rem', opacity: 0.25, color: activeColor, zIndex: 0 
-                  }} />
-                ) : (
-                  <TrendingUpIcon sx={{ 
-                    position: 'absolute', left: '50%', top: '50%', transform: 'translate(-50%, -50%)',
-                    fontSize: '2.8rem', opacity: 0.25, color: activeColor, zIndex: 0 
-                  }} />
-                )}
+                <Box>
+                  <Typography
+                    variant="subtitle1"
+                    fontWeight={700}
+                    lineHeight={1.2}
+                  >
+                    Transaction Search &
+                    Records Enquiry
+                  </Typography>
 
-                <Box sx={{ textAlign: 'right', zIndex: 1 }}>
-                  <Stack direction="row" alignItems="center" spacing={0.5} justifyContent="flex-end">
-                    <EventIcon sx={{ fontSize: '0.8rem', color: 'text.secondary' }} />
-                    <Typography variant="caption" sx={{ color: 'text.secondary', fontWeight: 700 ,fontSize: '0.72rem' }}>
-                      AS OF
-                    </Typography>
-                  </Stack>
-                  <Typography variant="caption" sx={{ color: '#2c3e50', fontWeight: 700, display: 'block' }}>
-                    {item.date || 'N/A'}
+                  <Typography
+                    variant="body2"
+                    color="text.secondary"
+                    sx={{ mt: 0.2 }}
+                  >
+                    Enter the required
+                    details below to retrieve
+                    and view historical
+                    transaction records.
                   </Typography>
                 </Box>
-              </Box>
-            );
-          })}
-        </Stack>
+              </Stack>
+
+              {/* BUTTON */}
+              {data && (
+                <Button
+                startIcon={<ManageSearchIcon />}
+                  variant="contained"
+                  size="small"
+                  onClick={() =>
+                    setFiltersExpanded(
+                      (prev) => !prev
+                    )
+                  }
+                  sx={{
+                    textTransform: "none",
+                    borderRadius: "8px",
+                    fontWeight: 600,
+                    minWidth: "90px",
+                  }}
+                >
+                  {filtersExpanded
+                    ? "Hide Filters"
+                    : "Edit Search"}
+                </Button>
+              )}
+            </Stack>
+
+            {/* SUMMARY CHIPS */}
+            {data && !filtersExpanded && (
+              <Stack
+                direction="row"
+                spacing={1}
+                sx={{
+                  mt: 2,
+                  flexWrap: "wrap",
+                }}
+              >
+                {[
+                `Branch: ${userInputs?.branch}`,
+                `Currency: ${userInputs?.currency}`,
+                `CGL: ${userInputs?.cgl}`,
+                `Date: ${dayjs(userInputs?.fromDate).format(
+                  "DD MMM"
+                )} - ${dayjs(userInputs?.toDate).format(
+                  "DD MMM YYYY"
+                )}`,
+                ...(
+                  userInputs?.minAmount || userInputs?.maxAmount
+                    ? [
+                        `Amount: ${
+                          userInputs?.minAmount || 0
+                        } - ${
+                          userInputs?.maxAmount || "∞"
+                        }`,
+                      ]
+                    : []
+                ),
+              ].map((item, index) => (
+                  <Box
+                    key={index}
+                    sx={{
+                      px: 1.5,
+                      py: 0.45,
+                      borderRadius: "20px",
+                      bgcolor:
+                        "rgba(88, 70, 159, 0.08)",
+                      border:
+                        "1px solid rgba(88, 70, 159, 0.15)",
+                      fontSize: "0.72rem",
+                      fontWeight: 500,
+                    }}
+                  >
+                    {item}
+                  </Box>
+                ))}
+              </Stack>
+            )}
+          </Box>
+
+          {/* FILTERS */}
+          {filtersExpanded && (
+            <>
+            {searchLoading && !data?.data?.length && (
+              <LinearProgress
+              sx={{height:3,
+                borderRadius:999,
+                mb:2,
+                bgcolor:"rgba(88,70,159,0.08)",
+                "& .MuiLinearProgress-bar":{
+                  bgcolor:"#58469f",
+                },
+              }}
+              />
+            )}
+            <TransactionFilters
+              userInputs={userInputs}
+              setUserInputs={setUserInputs}
+              currencies={currencies}
+              fetchCurrencies={fetchCurrencies}
+              onSubmit={() => {
+                // setFiltersExpanded(false);
+                if(paginationModel.page===0){
+                  fetchTransactions();
+                }
+                else{
+                  setPaginationModel((prev) => ({
+                  ...prev,
+                  page: 0,
+                }));
+                }
+              }}
+              resetState={resetState}
+              user={user}
+              sourceOptions={sourceOptions}
+              etlDate={etlDate}
+            />
+            </>
+          )}
+        </Paper>
+
+        {data && (
+          <TransactionTable
+            data={data}
+            loading={loading}
+            userInputs={userInputs}
+            sourceOptions={sourceOptions}
+            onDownload={handleDownload}
+            rowCount={rowCount}
+            paginationModel={
+              paginationModel
+            }
+            setPaginationModel={
+              setPaginationModel
+            }
+            exportLoading= {exportLoading}
+          />
         )}
       </Box>
-
-      {/* DATA GRID SECTION */}
-
-      <DataGrid
-      density="compact"
-      autoHeight
-        rows={rows}
-        columns={transactionColumns}
-        loading={loading}
-        disableRowSelectionOnClick
-        getRowId={(row) => row.transactionId} 
-        paginationMode="server"
-        rowCount={rowCount}
-        paginationModel={paginationModel}
-        onPaginationModelChange={setPaginationModel}
-        pageSizeOptions={[5, 10, 25, 50]}
-        slots={{
-          noRowsOverlay: CustomNoRowsOverlay,
-        }}
-        sx={{
-          mt:-2,
-          backgroundColor: "#ffffff6b", 
-          border: 'none',
-          "& .MuiDataGrid-columnHeaders": {
-            backgroundColor: "#f5f5f5 !important", 
-            fontWeight: 700,
-            borderBottom: "2px solid rgba(88, 70, 159, 0.2)",
-            // position: 'sticky', 
-            // top: 0,
-            // zIndex: 1,
-          },
-          //  "& .MuiDataGrid-virtualScroller": {
-          //    overflowY: 'auto' 
-          // },
-          "& .MuiDataGrid-main": {
-            border :"none",
-          },
-          // "& .MuiDataGrid-withBorderColor":{
-          //   borderColor:"transparent",
-          // }
-        }}
-      />
-
-    </StyledDataBox>
+    </>
   );
 };
 
-export default TransactionTable;
-
-
-import { Box, FormControl, Stack, Typography, styled } from "@mui/material";
-
-export const StyledBox = styled(Box)(({ theme }) => ({
-  backgroundColor: "rgba(255, 255, 255, 0.15)",
-  backdropFilter: "blur(20px)",
-  padding: "2%",
-  borderRadius: "15px",
-  marginBottom: "2%",
-  border: `0.5px solid ${theme.palette.primary.light}`,
-}));
-
-export const StyledDataBox = styled(StyledBox)(() => ({
-  minHeight: "650px",
-}));
-
-export const StyledStack = styled(Stack)(() => ({
-  display: "flex",
-  justifyContent: "space-between",
-  alignItems: "end",
-  flexWrap: "wrap",
-}));
-
-export const StyledFormBox = styled(Box)(() => ({
-  padding: "10px",
-  flexGrow: 1,
-  minWidth: "18%",
-  flexBasis: "200px",
-}));
-
-export const StyledFormControl = styled(FormControl)(() => ({
-  padding: "10px",
-  flexGrow: 1,
-  flexBasis: "200px",
-}));
-
-export const StyledDateBox = styled(Box)(() => ({
-  padding: "10px",
-  minWidth: "38%",
-}));
-
-export const ButtonBox = styled(Box)(() => ({
-  marginTop: "2%",
-  display: "flex",
-  justifyContent: "flex-end",
-  alignItems: "center",
-}));
-
-export const StyledFormHeader = styled(Typography)(({ theme }) => ({
-  fontSize: "1.18rem",
-  marginBottom: theme.spacing(3),
-  borderBottom: `2px solid ${theme.palette.divider}`,
-  paddingBottom: theme.spacing(1),
-}));
-
-
-
-
-
-
+export default TransactionEnquiryScreen;
