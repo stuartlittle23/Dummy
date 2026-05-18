@@ -1,154 +1,250 @@
-export async function decryptPayload(
-  encryptedText,
-  base64Key
-) {
-  if (!base64Key) {
-    throw new Error("No session key found");
-  }
+// import React, { useState } from "react";
+import { DataGrid } from "@mui/x-data-grid";
+import { 
+  Button, 
+  Typography, 
+  Stack, 
+  Box, 
+  styled, 
+  Avatar, 
+  Grid, 
+  Divider 
+} from "@mui/material";
+import FileDownloadIcon from "@mui/icons-material/FileDownload";
+import ErrorOutlineIcon from "@mui/icons-material/ErrorOutline";
+import AccountBalanceWalletIcon from '@mui/icons-material/AccountBalanceWallet';
+import EventIcon from '@mui/icons-material/Event';
+import TrendingUpIcon from '@mui/icons-material/TrendingUp';
+import TrendingDownIcon from '@mui/icons-material/TrendingDown';
+import LockIcon from '@mui/icons-material/Lock';
+import { transactionColumns } from "./TransactionColumns";
+import { StyledDataBox } from "./TransactionStyles";
+import { GridToolbar } from "@mui/x-data-grid/internals";
+import CircularProgress from "@mui/material/CircularProgress";
 
-  const [base64Iv, base64CipherText] =
-    encryptedText.split(":");
+const OverlayBox = styled(Box)(() => ({
+  display: "flex",
+  flexDirection: "column",
+  justifyContent: "center",
+  alignItems: "center",
+}));
 
-  const iv = Uint8Array.from(
-    atob(base64Iv),
-    (c) => c.charCodeAt(0)
-  );
+const CustomNoRowsOverlay = () => (
+  <OverlayBox>
+    <ErrorOutlineIcon fontSize="large" color="action" />
+    <Typography variant="h5" fontSize="1.2rem" color="text.secondary">
+      No transactions available for the selected criteria
+    </Typography>
+  </OverlayBox>
+);
+  const TransactionTable = ({ data, loading, onDownload, rowCount, paginationModel, setPaginationModel, userInputs, sourceOptions ,exportLoading }) => {
+  const rows = data?.data || [];
+  const balances = data?.extraData || {};
 
-  const encryptedBytes = Uint8Array.from(
-    atob(base64CipherText),
-    (c) => c.charCodeAt(0)
-  );
+ const showBalances = 
+    userInputs?.sourceFlags?.length === sourceOptions?.length && 
+    !userInputs?.minAmount && 
+    !userInputs?.maxAmount &&
+    rows.length > 0; 
 
-  const keyBytes = Uint8Array.from(
-    atob(base64Key),
-    (c) => c.charCodeAt(0)
-  );
+  return (
+    <StyledDataBox sx={{ mt: 2,display: 'flex', flexDirection: 'column' }}>
+      
+      {/* MASTER HEADER: Unified Actions & Balances */}
+      <Box 
+        sx={{ 
+          p: 1.2, 
+          mb: 3, 
+          mt: -2,
+          borderRadius: '16px',
+          background: "rgba(255, 255, 255, 0.1)",
+          backdropFilter: "blur(12px)",
+          border: "1px solid rgba(255, 255, 255, 0.3)",
+          boxShadow: "0 4px 20px rgba(0,0,0,0.03)",
+          display: 'flex',
+          flexDirection: 'column',
+          gap: 0.8
+        }}
+      >
+        {/* ROW 1: TITLE, RECORDS & EXPORT */}
+        <Stack direction="row" justifyContent="space-between" alignItems="center">
+          <Box sx={{ display: 'flex', alignItems: 'baseline', gap: 1.5 }}>
+            <Typography variant="subtitle1" fontWeight={800} sx={{ color: "#1a1a1a", letterSpacing: "-0.5px" }}>
+              Transaction Ledger
+            </Typography>
+            
+            <Typography 
+              variant="caption" 
+              fontWeight={700} 
+              sx={{ 
+                color: "#58469f", 
+                textTransform: "uppercase", 
+                bgcolor: "rgba(88, 70, 159, 0.1)", 
+                px: 1.2, 
+                py: 0.3, 
+                borderRadius: 1.5,
+                fontSize: '0.65rem'
+              }}
+            >
+              {rowCount > 0 ? `${rowCount.toLocaleString()} Records Found` : "No Records"}
+            </Typography>
+          </Box>
 
-  const cryptoKey =
-    await window.crypto.subtle.importKey(
-      "raw",
-      keyBytes,
-      { name: "AES-GCM" },
-      false,
-      ["decrypt"]
-    );
+          <Button
+            variant="contained"
+            size="small"
+            startIcon={exportLoading?(<CircularProgress size={16} color="inherit"/>):(<FileDownloadIcon/>)}
+            onClick={onDownload}
+            disabled={!rowCount || loading || exportLoading}
+            sx={{ 
+              textTransform: 'none',
+              bgcolor: '#58469f',
+              fontWeight: 700,
+              borderRadius: '8px',
+              px: 3,
+              boxShadow: '0 4px 12px rgba(88, 70, 159, 0.3)',
+              '&:hover': { bgcolor: '#45357a' } 
+            }}
+          >
+            {exportLoading? "Exporting...":"Export" } 
+          </Button>
 
-  const decryptedBuffer =
-    await window.crypto.subtle.decrypt(
-      {
-        name: "AES-GCM",
-        iv,
-      },
-      cryptoKey,
-      encryptedBytes
-    );
+        </Stack>
 
-  return new TextDecoder().decode(
-    decryptedBuffer
-  );
-}
+        {/* ROW 2: BALANCES */}
+        {showBalances && balances && (
+        <Stack direction="row" spacing={2}> 
+          {[
+            { 
+              label: "Opening Balance", 
+              date: balances.openingDate || balances.OpeningDate, 
+              amt: balances.openingBalance, 
+              icon: <AccountBalanceWalletIcon />,
+            },
+            { 
+              label: "Closing Balance", 
+              date: balances.closingDate || balances.ClosingDate,
+              amt: balances.closingBalance, 
+              icon: <AccountBalanceWalletIcon />,
+            }
+          ].map((item, index) => {
+            const isNeg = item.amt < 0;
+            const indicator = isNeg ? "DR" : "CR";
+            const absVal = Math.abs(item.amt || 0).toFixed(4);
 
+            const activeColor = isNeg ? "#b84646f3" : "#427a44"; 
+            const activeBg = isNeg 
+              ? "linear-gradient(135deg, #fff5f5 0%, #fed7d759 100%)" 
+              : "linear-gradient(135deg, #f6fdf9 0%, #c6f6d556 100%)";
 
+            return (
+              <Box 
+                key={index}
+                sx={{ 
+                  flex: 1, 
+                  p: 0.8, 
+                  borderRadius: '12px', 
+                  background: activeBg,
+                  border: '1px solid rgba(255, 255, 255, 0.3)',
+                  borderBottom: `4px solid ${activeColor}`,
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "space-between",
+                  position: "relative",
+                  overflow: "hidden"
+                }}
+              >
+                <Stack direction="row" alignItems="center" sx={{ zIndex: 1 }}>
+                  <Box sx={{ p: 0.6, borderRadius: '10px', bgcolor: '#fff', display: 'flex', mr: 1.5, boxShadow: '0 2px 6px rgba(0,0,0,0.05)', color: activeColor }}>
+                    {item.icon}
+                  </Box>
+                  <Box>
+                    <Typography variant="caption" color="text.secondary" fontWeight={700} sx={{ textTransform: 'uppercase', fontSize: '0.72rem' }}>
+                      {item.label}
+                    </Typography>
+                    <Typography variant="body2" fontWeight={800} sx={{ color: '#2c3e50', lineHeight: 1 }}>
+                      {absVal}
+                      <Box component="span" sx={{ fontSize: '0.7rem', ml: 0.5, color: activeColor, fontWeight: 900 }}>
+                        {indicator}
+                      </Box>
+                    </Typography>
+                  </Box>
+                </Stack>
 
+                {isNeg ? (
+                  <TrendingDownIcon sx={{ 
+                    position: 'absolute', left: '50%', top: '50%', transform: 'translate(-50%, -50%)',
+                    fontSize: '2.8rem', opacity: 0.25, color: activeColor, zIndex: 0 
+                  }} />
+                ) : (
+                  <TrendingUpIcon sx={{ 
+                    position: 'absolute', left: '50%', top: '50%', transform: 'translate(-50%, -50%)',
+                    fontSize: '2.8rem', opacity: 0.25, color: activeColor, zIndex: 0 
+                  }} />
+                )}
 
-
-
-....
-import {
-  encryptPayload,
-  decryptPayload,
-} from "../utils/cryptoUtil";
-
-
-....
-
-
-api.interceptors.response.use(
-  async (response) => {
-
-    const isEncrypted =
-      response.headers["x-encrypted-response"] ===
-      "true";
-
-    if (
-      isEncrypted &&
-      response.data &&
-      response.data.encryptedResponse
-    ) {
-      const sessionKey =
-        localStorage.getItem(
-          "payloadEncryptionKey"
-        );
-
-      if (sessionKey) {
-        try {
-          const decryptedJsonString =
-            await decryptPayload(
-              response.data.encryptedResponse,
-              sessionKey
+                <Box sx={{ textAlign: 'right', zIndex: 1 }}>
+                  <Stack direction="row" alignItems="center" spacing={0.5} justifyContent="flex-end">
+                    <EventIcon sx={{ fontSize: '0.8rem', color: 'text.secondary' }} />
+                    <Typography variant="caption" sx={{ color: 'text.secondary', fontWeight: 700 ,fontSize: '0.72rem' }}>
+                      AS OF
+                    </Typography>
+                  </Stack>
+                  <Typography variant="caption" sx={{ color: '#2c3e50', fontWeight: 700, display: 'block' }}>
+                    {item.date || 'N/A'}
+                  </Typography>
+                </Box>
+              </Box>
             );
+          })}
+        </Stack>
+        )}
+      </Box>
 
-          response.data = JSON.parse(
-            decryptedJsonString
-          );
-        } catch (error) {
-          console.error(
-            "Failed to decrypt response",
-            error
-          );
-
-          return Promise.reject(error);
-        }
-      }
-    }
-
-    return response;
-  },
-
-// 4. Encrypt POST/PUT/PATCH request payloads
-
-const excludedUrls = [
-  "/login",
-  "/check-user",
-];
-
-const shouldSkipEncryption =
-  excludedUrls.some((url) =>
-    config.url?.includes(url)
+      {/* DATA GRID SECTION */}
+      <Box sx={{ flex: 1}}>
+      <DataGrid
+      density="compact"
+      autoHeight
+        rows={rows}
+        columns={transactionColumns}
+        loading={loading}
+        disableRowSelectionOnClick
+        getRowId={(row) => row.transactionId} 
+        paginationMode="server"
+        rowCount={rowCount}
+        paginationModel={paginationModel}
+        onPaginationModelChange={setPaginationModel}
+        pageSizeOptions={[5, 10, 25, 50]}
+        slots={{
+          noRowsOverlay: CustomNoRowsOverlay,
+        }}
+        sx={{
+          mt:-2,
+          backgroundColor: "#ffffff6b", 
+          border: 'none',
+          "& .MuiDataGrid-columnHeaders": {
+            backgroundColor: "#f5f5f5 !important", 
+            fontWeight: 700,
+            borderBottom: "2px solid rgba(88, 70, 159, 0.2)",
+            position: 'sticky', 
+            top: 0,
+            zIndex: 1,
+          },
+           "& .MuiDataGrid-virtualScroller": {
+             overflowY: 'auto' 
+          },
+          "& .MuiDataGrid-main": {
+            border :"none",
+          },
+          // "& .MuiDataGrid-withBorderColor":{
+          //   borderColor:"transparent",
+          // }
+        }}
+      />
+      </Box>
+    </StyledDataBox>
   );
+};
 
-if (
-  !shouldSkipEncryption &&
-  ["post", "put", "patch"].includes(
-    config.method?.toLowerCase()
-  ) &&
-  config.data &&
-  !(config.data instanceof FormData)
-) {
-  const sessionKey =
-    localStorage.getItem(
-      "payloadEncryptionKey"
-    );
-
-  if (sessionKey) {
-    const encryptedString =
-      await encryptPayload(
-        config.data,
-        sessionKey
-      );
-
-    config.data = {
-      encryptedRequest:
-        encryptedString,
-    };
-
-    config.headers[
-      "X-Encrypted-Payload"
-    ] = "true";
-
-    config.headers[
-      "Content-Type"
-    ] = "application/json";
-  }
-}
-
+export default TransactionTable;
