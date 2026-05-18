@@ -25,6 +25,7 @@ import CircularProgress from "@mui/material/CircularProgress";
 const OverlayBox = styled(Box)(() => ({
   display: "flex",
   flexDirection: "column",
+  height: "100%",
   justifyContent: "center",
   alignItems: "center",
 }));
@@ -48,7 +49,7 @@ const CustomNoRowsOverlay = () => (
     rows.length > 0; 
 
   return (
-    <StyledDataBox sx={{ mt: 2,display: 'flex', flexDirection: 'column' }}>
+    <StyledDataBox sx={{ mt: 2, height : "auto" ,display: "block", overflow:"visible"}}>
       
       {/* MASTER HEADER: Unified Actions & Balances */}
       <Box 
@@ -202,7 +203,7 @@ const CustomNoRowsOverlay = () => (
       </Box>
 
       {/* DATA GRID SECTION */}
-      <Box sx={{ flex: 1}}>
+
       <DataGrid
       density="compact"
       autoHeight
@@ -227,13 +228,13 @@ const CustomNoRowsOverlay = () => (
             backgroundColor: "#f5f5f5 !important", 
             fontWeight: 700,
             borderBottom: "2px solid rgba(88, 70, 159, 0.2)",
-            position: 'sticky', 
-            top: 0,
-            zIndex: 1,
+            // position: 'sticky', 
+            // top: 0,
+            // zIndex: 1,
           },
-           "& .MuiDataGrid-virtualScroller": {
-             overflowY: 'auto' 
-          },
+          //  "& .MuiDataGrid-virtualScroller": {
+          //    overflowY: 'auto' 
+          // },
           "& .MuiDataGrid-main": {
             border :"none",
           },
@@ -242,9 +243,70 @@ const CustomNoRowsOverlay = () => (
           // }
         }}
       />
-      </Box>
+
     </StyledDataBox>
   );
 };
 
 export default TransactionTable;
+
+
+import { Box, FormControl, Stack, Typography, styled } from "@mui/material";
+
+export const StyledBox = styled(Box)(({ theme }) => ({
+  backgroundColor: "rgba(255, 255, 255, 0.15)",
+  backdropFilter: "blur(20px)",
+  padding: "2%",
+  borderRadius: "15px",
+  marginBottom: "2%",
+  border: `0.5px solid ${theme.palette.primary.light}`,
+}));
+
+export const StyledDataBox = styled(StyledBox)(() => ({
+  minHeight: "650px",
+}));
+
+export const StyledStack = styled(Stack)(() => ({
+  display: "flex",
+  justifyContent: "space-between",
+  alignItems: "end",
+  flexWrap: "wrap",
+}));
+
+export const StyledFormBox = styled(Box)(() => ({
+  padding: "10px",
+  flexGrow: 1,
+  minWidth: "18%",
+  flexBasis: "200px",
+}));
+
+export const StyledFormControl = styled(FormControl)(() => ({
+  padding: "10px",
+  flexGrow: 1,
+  flexBasis: "200px",
+}));
+
+export const StyledDateBox = styled(Box)(() => ({
+  padding: "10px",
+  minWidth: "38%",
+}));
+
+export const ButtonBox = styled(Box)(() => ({
+  marginTop: "2%",
+  display: "flex",
+  justifyContent: "flex-end",
+  alignItems: "center",
+}));
+
+export const StyledFormHeader = styled(Typography)(({ theme }) => ({
+  fontSize: "1.18rem",
+  marginBottom: theme.spacing(3),
+  borderBottom: `2px solid ${theme.palette.divider}`,
+  paddingBottom: theme.spacing(1),
+}));
+
+
+
+
+
+
