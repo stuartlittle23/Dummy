@@ -1,1 +1,25 @@
 
+@GetMapping("/voucher-categories")
+public List<VoucherCategory> getVoucherCategories() {
+
+    return journalRequestService.getVoucherCategories();
+}
+
+
+
+
+List<VoucherCategory> getVoucherCategories();
+
+
+
+@Override
+public List<VoucherCategory> getVoucherCategories() {
+
+    return voucherCategoryRepository.findAll();
+}
+
+
+
+import java.util.List;
+
+import com.fincore.JournalService.Models.VoucherCategory;
