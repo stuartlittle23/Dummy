@@ -1,43 +1,89 @@
-RequestVoucher terminateVoucher(
-        Long id,
-        String terminatedBy);
+@Query("""
+       SELECT r FROM RequestVoucher r
+       WHERE (:vid IS NULL
+              OR LOWER(r.vid) LIKE LOWER(CONCAT('%', :vid, '%')))
+       AND (:fromDate IS NULL
+              OR :toDate IS NULL
+              OR r.createdAt BETWEEN :fromDate AND :toDate)
+       """)
+List<RequestVoucher> searchVoucher(
+        @Param("vid") String vid,
+        @Param("fromDate") Timestamp fromDate,
+        @Param("toDate") Timestamp toDate);
+
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
+
+import java.sql.Timestamp;
+import java.util.List;
+
+
+
+List<RequestVoucher> searchVoucher(
+        String vid,
+        Timestamp fromDate,
+        Timestamp toDate);
+
 
 
 
 
 @Override
-public RequestVoucher terminateVoucher(
-        Long id,
-        String terminatedBy) {
-
-    RequestVoucher requestVoucher =
-            requestVoucherRepository.findById(id)
-            .orElseThrow(() ->
-                    new RuntimeException("Voucher not found"));
-
-    requestVoucher.setStatus("TERMINATED");
-
-    requestVoucher.setTerminatedBy(
-            terminatedBy);
-
-    requestVoucher.setTerminatedAt(
-            new Timestamp(System.currentTimeMillis()));
+public List<RequestVoucher> searchVoucher(
+        String vid,
+        Timestamp fromDate,
+        Timestamp toDate) {
 
     return requestVoucherRepository
-            .save(requestVoucher);
+            .searchVoucher(
+                    vid,
+                    fromDate,
+                    toDate);
 }
 
 
 
 
-@PutMapping("/terminate-voucher/{id}")
-public RequestVoucher terminateVoucher(
-        @PathVariable Long id,
-        @RequestParam String terminatedBy) {
+@GetMapping("/search-voucher")
+public List<RequestVoucher> searchVoucher(
+
+        @RequestParam(required = false)
+        String vid,
+
+        @RequestParam(required = false)
+        Timestamp fromDate,
+
+        @RequestParam(required = false)
+        Timestamp toDate) {
 
     return journalRequestService
-            .terminateVoucher(id, terminatedBy);
+            .searchVoucher(
+                    vid,
+                    fromDate,
+                    toDate);
 }
+
+
+
+
+
+GET
+http://localhost:9999/api/journals/search-voucher?vid=VID-2605
+
+
+GET
+http://localhost:9999/api/journals/search-voucher?fromDate=2026-05-01 00:00:00&toDate=2026-05-31 23:59:59
+
+
+
+
+GET
+http://localhost:9999/api/journals/search-voucher?vid=VID-2605&fromDate=2026-05-01 00:00:00&toDate=2026-05-31 23:59:59
+
+
+
+
+
 
 
 
