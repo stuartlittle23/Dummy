@@ -1,19 +1,45 @@
-long countByVidStartingWith(String prefix);
+RequestVoucher terminateVoucher(
+        Long id,
+        String terminatedBy);
 
 
-private String generateVid() {
 
-    String yearMonth = LocalDate.now()
-            .format(DateTimeFormatter.ofPattern("yyMM"));
 
-    String prefix = "VID-" + yearMonth + "-";
+@Override
+public RequestVoucher terminateVoucher(
+        Long id,
+        String terminatedBy) {
 
-    long count =
-            requestVoucherRepository
-                    .countByVidStartingWith(prefix) + 1;
+    RequestVoucher requestVoucher =
+            requestVoucherRepository.findById(id)
+            .orElseThrow(() ->
+                    new RuntimeException("Voucher not found"));
 
-    String sequence =
-            String.format("%05d", count);
+    requestVoucher.setStatus("TERMINATED");
 
-    return prefix + sequence;
+    requestVoucher.setTerminatedBy(
+            terminatedBy);
+
+    requestVoucher.setTerminatedAt(
+            new Timestamp(System.currentTimeMillis()));
+
+    return requestVoucherRepository
+            .save(requestVoucher);
 }
+
+
+
+
+@PutMapping("/terminate-voucher/{id}")
+public RequestVoucher terminateVoucher(
+        @PathVariable Long id,
+        @RequestParam String terminatedBy) {
+
+    return journalRequestService
+            .terminateVoucher(id, terminatedBy);
+}
+
+
+
+
+
