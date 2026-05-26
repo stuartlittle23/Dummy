@@ -1,8 +1,72 @@
-{
-  "category": "Merger",
-  "description": "Testing voucher",
-  "allowedRole": "MAKER",
-  "sdReqNo": "12345",
-  "createdBy": "niharika",
-  "remarks": "testing"
+@Override
+public RequestVoucher createRequest(RequestVoucherDto dto) {
+
+    Long categoryId = dto.getCategoryId();
+
+    VoucherCategory voucherCategory =
+            voucherCategoryRepository.findById(categoryId)
+            .orElseThrow(() ->
+                    new RuntimeException("Category not found"));
+
+    String categoryName =
+            voucherCategory.getCategoryName();
+
+    if ("Other".equalsIgnoreCase(categoryName)) {
+
+        if (dto.getCustomCategory() != null
+                && !dto.getCustomCategory().isBlank()) {
+
+            if (!voucherCategoryRepository
+                    .existsByCategoryName(
+                            dto.getCustomCategory())) {
+
+                VoucherCategory newCategory =
+                        new VoucherCategory();
+
+                newCategory.setCategoryName(
+                        dto.getCustomCategory());
+
+                newCategory.setCreatedDate(
+                        new Timestamp(
+                                System.currentTimeMillis()));
+
+                newCategory =
+                        voucherCategoryRepository
+                                .save(newCategory);
+
+                categoryId = newCategory.getId();
+            }
+        }
+    }
+
+    RequestVoucher requestVoucher =
+            new RequestVoucher();
+
+    requestVoucher.setVid(generateVid());
+
+    requestVoucher.setCategoryId(categoryId);
+
+    requestVoucher.setDescription(
+            dto.getDescription());
+
+    requestVoucher.setAllowedRole(
+            dto.getAllowedRole());
+
+    requestVoucher.setSdReqNo(
+            dto.getSdReqNo());
+
+    requestVoucher.setCreatedBy(
+            dto.getCreatedBy());
+
+    requestVoucher.setRemarks(
+            dto.getRemarks());
+
+    requestVoucher.setStatus("AVAILABLE");
+
+    requestVoucher.setCreatedAt(
+            new Timestamp(
+                    System.currentTimeMillis()));
+
+    return requestVoucherRepository
+            .save(requestVoucher);
 }
