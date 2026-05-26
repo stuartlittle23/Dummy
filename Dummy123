@@ -1,25 +1,8 @@
-
-@GetMapping("/voucher-categories")
-public List<VoucherCategory> getVoucherCategories() {
-
-    return journalRequestService.getVoucherCategories();
+{
+  "category": "Merger",
+  "description": "Testing voucher",
+  "allowedRole": "MAKER",
+  "sdReqNo": "12345",
+  "createdBy": "niharika",
+  "remarks": "testing"
 }
-
-
-
-
-List<VoucherCategory> getVoucherCategories();
-
-
-
-@Override
-public List<VoucherCategory> getVoucherCategories() {
-
-    return voucherCategoryRepository.findAll();
-}
-
-
-
-import java.util.List;
-
-import com.fincore.JournalService.Models.VoucherCategory;
