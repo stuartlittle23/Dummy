@@ -1,91 +1,43 @@
-@Query("""
-       SELECT r FROM RequestVoucher r
-       WHERE (:vid IS NULL
-              OR LOWER(r.vid) LIKE LOWER(CONCAT('%', :vid, '%')))
-       AND (:fromDate IS NULL
-              OR :toDate IS NULL
-              OR r.createdAt BETWEEN :fromDate AND :toDate)
-       """)
-List<RequestVoucher> searchVoucher(
-        @Param("vid") String vid,
-        @Param("fromDate") Timestamp fromDate,
-        @Param("toDate") Timestamp toDate);
-
-import org.springframework.data.jpa.repository.Query;
-import org.springframework.data.repository.query.Param;
-
-import java.sql.Timestamp;
-import java.util.List;
+CREATE SEQUENCE REQUEST_VOUCHER_SEQ
+START WITH 1
+INCREMENT BY 1
+NOCACHE;
 
 
 
-List<RequestVoucher> searchVoucher(
-        String vid,
-        Timestamp fromDate,
-        Timestamp toDate);
+import org.springframework.jdbc.core.JdbcTemplate;
+
+import java.time.YearMonth;
+import java.time.format.DateTimeFormatter;
 
 
 
+@Autowired
+private JdbcTemplate jdbcTemplate;
 
 
-@Override
-public List<RequestVoucher> searchVoucher(
-        String vid,
-        Timestamp fromDate,
-        Timestamp toDate) {
+long countByVidStartingWith(String prefix);
 
-    return requestVoucherRepository
-            .searchVoucher(
-                    vid,
-                    fromDate,
-                    toDate);
+
+
+private String generateVid() {
+
+    Long sequence = jdbcTemplate.queryForObject(
+            "SELECT REQUEST_VOUCHER_SEQ.NEXTVAL FROM DUAL",
+            Long.class);
+
+    String monthPrefix = YearMonth.now()
+            .format(DateTimeFormatter.ofPattern("yyMM"));
+
+    return "VID-"
+            + monthPrefix
+            + "-"
+            + String.format("%05d", sequence);
 }
 
 
 
-
-@GetMapping("/search-voucher")
-public List<RequestVoucher> searchVoucher(
-
-        @RequestParam(required = false)
-        String vid,
-
-        @RequestParam(required = false)
-        Timestamp fromDate,
-
-        @RequestParam(required = false)
-        Timestamp toDate) {
-
-    return journalRequestService
-            .searchVoucher(
-                    vid,
-                    fromDate,
-                    toDate);
-}
-
-
-
-
-
-GET
-http://localhost:9999/api/journals/search-voucher?vid=VID-2605
-
-
-GET
-http://localhost:9999/api/journals/search-voucher?fromDate=2026-05-01 00:00:00&toDate=2026-05-31 23:59:59
-
-
-
-
-GET
-http://localhost:9999/api/journals/search-voucher?vid=VID-2605&fromDate=2026-05-01 00:00:00&toDate=2026-05-31 23:59:59
-
-
-
-
-
-
-
+requestVoucher.setVid(generateVid());
 
 
 
