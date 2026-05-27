@@ -1,143 +1,28 @@
-@GetMapping("/search-vid")
-public List<RequestVoucher> searchVid(
+CREATE OR REPLACE TRIGGER REQUEST_VID_TRIGGER
+BEFORE INSERT ON REQUEST_VOUCHER
+FOR EACH ROW
 
-        @RequestParam(required = false)
-        String status,
+DECLARE
 
-        @RequestParam(required = false)
-        Long categoryId,
+    v_count NUMBER;
 
-        @RequestParam(required = false)
-        Long allowedRole,
+    v_prefix VARCHAR2(20);
 
-        @RequestParam(required = false)
-        String vid,
+BEGIN
 
-        @RequestParam(required = false)
-        String description,
+    v_prefix :=
+            'VID-' ||
+            TO_CHAR(SYSDATE, 'YYMM') ||
+            '-';
 
-        @RequestParam(required = false)
-        String sdReqNo,
+    SELECT COUNT(*)
+    INTO v_count
+    FROM REQUEST_VOUCHER
+    WHERE VID LIKE v_prefix || '%';
 
-        @RequestParam(required = false)
-        Timestamp fromDate,
+    :NEW.VID :=
+            v_prefix ||
+            LPAD(v_count + 1, 5, '0');
 
-        @RequestParam(required = false)
-        Timestamp toDate) {
-
-    return journalRequestService.searchVid(
-            status,
-            categoryId,
-            allowedRole,
-            vid,
-            description,
-            sdReqNo,
-            fromDate,
-            toDate);
-}
-
-
-
-List<RequestVoucher> searchVid(
-        String status,
-        Long categoryId,
-        Long allowedRole,
-        String vid,
-        String description,
-        String sdReqNo,
-        Timestamp fromDate,
-        Timestamp toDate);
-
-
-
-@Override
-public List<RequestVoucher> searchVid(
-        String status,
-        Long categoryId,
-        Long allowedRole,
-        String vid,
-        String description,
-        String sdReqNo,
-        Timestamp fromDate,
-        Timestamp toDate) {
-
-    return requestVoucherRepository.searchVid(
-            status,
-            categoryId,
-            allowedRole,
-            vid,
-            description,
-            sdReqNo,
-            fromDate,
-            toDate);
-}
-
-
-
-@Query("""
-       SELECT r FROM RequestVoucher r
-       WHERE
-       (:status IS NULL
-            OR :status = 'ALL'
-            OR r.status = :status)
-
-       AND (:categoryId IS NULL
-            OR r.categoryId = :categoryId)
-
-       AND (:allowedRole IS NULL
-            OR r.allowedRole = :allowedRole)
-
-       AND (:vid IS NULL
-            OR LOWER(r.vid)
-            LIKE LOWER(CONCAT('%', :vid, '%')))
-
-       AND (:description IS NULL
-            OR LOWER(r.description)
-            LIKE LOWER(CONCAT('%', :description, '%')))
-
-       AND (:sdReqNo IS NULL
-            OR LOWER(r.sdReqNo)
-            LIKE LOWER(CONCAT('%', :sdReqNo, '%')))
-
-       AND (
-            :fromDate IS NULL
-            OR :toDate IS NULL
-            OR r.createdAt BETWEEN :fromDate AND :toDate
-       )
-       """)
-List<RequestVoucher> searchVid(
-
-        @Param("status") String status,
-
-        @Param("categoryId") Long categoryId,
-
-        @Param("allowedRole") Long allowedRole,
-
-        @Param("vid") String vid,
-
-        @Param("description") String description,
-
-        @Param("sdReqNo") String sdReqNo,
-
-        @Param("fromDate") Timestamp fromDate,
-
-        @Param("toDate") Timestamp toDate);
-
-
-
-
-
-import org.springframework.data.jpa.repository.Query;
-import org.springframework.data.repository.query.Param;
-
-import java.sql.Timestamp;
-import java.util.List;
-
-
-
-
-
-
-
-
-
+END;
+/
