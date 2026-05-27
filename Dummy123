@@ -1,1 +1,143 @@
+@GetMapping("/search-vid")
+public List<RequestVoucher> searchVid(
+
+        @RequestParam(required = false)
+        String status,
+
+        @RequestParam(required = false)
+        Long categoryId,
+
+        @RequestParam(required = false)
+        Long allowedRole,
+
+        @RequestParam(required = false)
+        String vid,
+
+        @RequestParam(required = false)
+        String description,
+
+        @RequestParam(required = false)
+        String sdReqNo,
+
+        @RequestParam(required = false)
+        Timestamp fromDate,
+
+        @RequestParam(required = false)
+        Timestamp toDate) {
+
+    return journalRequestService.searchVid(
+            status,
+            categoryId,
+            allowedRole,
+            vid,
+            description,
+            sdReqNo,
+            fromDate,
+            toDate);
+}
+
+
+
+List<RequestVoucher> searchVid(
+        String status,
+        Long categoryId,
+        Long allowedRole,
+        String vid,
+        String description,
+        String sdReqNo,
+        Timestamp fromDate,
+        Timestamp toDate);
+
+
+
+@Override
+public List<RequestVoucher> searchVid(
+        String status,
+        Long categoryId,
+        Long allowedRole,
+        String vid,
+        String description,
+        String sdReqNo,
+        Timestamp fromDate,
+        Timestamp toDate) {
+
+    return requestVoucherRepository.searchVid(
+            status,
+            categoryId,
+            allowedRole,
+            vid,
+            description,
+            sdReqNo,
+            fromDate,
+            toDate);
+}
+
+
+
+@Query("""
+       SELECT r FROM RequestVoucher r
+       WHERE
+       (:status IS NULL
+            OR :status = 'ALL'
+            OR r.status = :status)
+
+       AND (:categoryId IS NULL
+            OR r.categoryId = :categoryId)
+
+       AND (:allowedRole IS NULL
+            OR r.allowedRole = :allowedRole)
+
+       AND (:vid IS NULL
+            OR LOWER(r.vid)
+            LIKE LOWER(CONCAT('%', :vid, '%')))
+
+       AND (:description IS NULL
+            OR LOWER(r.description)
+            LIKE LOWER(CONCAT('%', :description, '%')))
+
+       AND (:sdReqNo IS NULL
+            OR LOWER(r.sdReqNo)
+            LIKE LOWER(CONCAT('%', :sdReqNo, '%')))
+
+       AND (
+            :fromDate IS NULL
+            OR :toDate IS NULL
+            OR r.createdAt BETWEEN :fromDate AND :toDate
+       )
+       """)
+List<RequestVoucher> searchVid(
+
+        @Param("status") String status,
+
+        @Param("categoryId") Long categoryId,
+
+        @Param("allowedRole") Long allowedRole,
+
+        @Param("vid") String vid,
+
+        @Param("description") String description,
+
+        @Param("sdReqNo") String sdReqNo,
+
+        @Param("fromDate") Timestamp fromDate,
+
+        @Param("toDate") Timestamp toDate);
+
+
+
+
+
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
+
+import java.sql.Timestamp;
+import java.util.List;
+
+
+
+
+
+
+
+
 
