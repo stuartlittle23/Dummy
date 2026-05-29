@@ -1,26 +1,81 @@
-CREATE OR REPLACE TRIGGER REQUEST_VID_TRIGGER
-BEFORE INSERT ON REQUEST_VOUCHER
-FOR EACH ROW
+@Getter
+@Setter
+@AllArgsConstructor
+@NoArgsConstructor
+public class AllowedRoleDto {
 
-DECLARE
+    private Long roleId;
 
-    v_seq_number NUMBER;
-    v_prefix VARCHAR2(20);
+    private String roleName;
+}
 
-BEGIN
 
-    v_prefix :=
-            'VID-' ||
-            TO_CHAR(SYSDATE, 'YYMM') ||
-            '-';
 
-    SELECT REQUEST_VOUCHER_SEQ.NEXTVAL
-    INTO v_seq_number
-    FROM DUAL;
 
-    :NEW.VID :=
-            v_prefix ||
-            LPAD(v_seq_number, 5, '0');
+@Query(value = """
+    SELECT R.ROLE_ID,
+           R.ROLE_NAME
+    FROM RESTRICTED_PERMISSION_ELIGIBILITY RPE
+    JOIN ROLES R
+        ON RPE.ROLE_ID = R.ROLE_ID
+    WHERE RPE.MENU_ID = :menuId
+      AND R.ROLE_STATUS = 'ACTIVE'
+    ORDER BY R.ROLE_NAME
+    """,
+    nativeQuery = true)
+List<Object[]> getAllowedRoles(
+        @Param("menuId") Long menuId);
 
-END;
-/
+
+List<AllowedRoleDto> getAllowedRoles(
+        Long menuId);
+
+
+
+
+
+@Override
+public List<AllowedRoleDto> getAllowedRoles(
+        Long menuId) {
+
+    List<Object[]> roles =
+            rolesRepository.getAllowedRoles(menuId);
+
+    List<AllowedRoleDto> response =
+            new ArrayList<>();
+
+    for (Object[] role : roles) {
+
+        response.add(
+                new AllowedRoleDto(
+                        ((Number) role[0]).longValue(),
+                        (String) role[1]));
+    }
+
+    return response;
+}
+
+
+@GetMapping("/allowed-roles")
+public List<AllowedRoleDto> getAllowedRoles(
+        @RequestParam Long menuId) {
+
+    return journalRequestService
+            .getAllowedRoles(menuId);
+}
+
+
+
+
+GET /allowed-roles?menuId=30
+
+
+
+
+
+
+
+
+
+
+
