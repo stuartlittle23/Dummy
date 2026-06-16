@@ -1,797 +1,313 @@
-isOptionEqualToValue={(option, value) =>
-                            option?.value === value?.value
-                          }
-                          onChange={(_, value) => handleCircleChange(value)}
-                          getOptionLabel={(option) => option?.label || ""}
-                          renderInput={(params) => (
-                            <TextField
-                              {...params}
-                              label="Select Circle"
-                              required
-                              variant="standard"
-                              inputProps={{
-                                ...params.inputProps,
-                                maxLength: 30,
-                              }}
-                            />
-                          )}
-                        />
-                      </Grid>
-                    )}
-                    {isBranchVisible && (
-                      <Grid size={{ xs: 12, sm: isCircleVisible ? 6 : 12 }}>
-                        <Autocomplete
-                          multiple
-                          size="small"
-                          disableCloseOnSelect
-                          options={["ALL", ...branches]}
-                          loading={loading.branch}
-                          value={filters.branches}
-                          inputValue={branchSearch}
-                          onInputChange={(event, newInputValue, reason) => {
-                            // Prevent long typing
-                            if (newInputValue.length > 30) {
-                              return;
-                            }
+import React, { useState, useCallback, useEffect, useMemo } from "react";
+import { useSelector } from "react-redux";
+import { Box } from "@mui/material";
+import { LocalizationProvider } from "@mui/x-date-pickers";
+import { AdapterDayjs } from "@mui/x-date-pickers/AdapterDayjs";
+import dayjs from "dayjs";
+import debounce from "lodash/debounce";
+import LedgerForm from "./components/LedgerForm";
+import LedgerDataGrid from "./components/LedgerDataGrid";
+import { getPermissions } from "../../utils/CommonUtilities";
+import useApi from "../../hooks/useApi";
+import useCustomSnackbar from "../../utils/useCustomSnackbar";
+import downloadFile from "../../utils/DownloadUtils";
 
-                            setBranchSearch(newInputValue);
+const DEFAULT_PAGE_SIZE = 20;
+const FOREIGN_CIRCLE_CODE = "021";
 
-                            if (
-                              reason === "input" &&
-                              newInputValue.length >= 3
-                            ) {
-                              fetchSearchData("branch", newInputValue);
-                            }
-                          }}
-                          onChange={(_, val) => {
-                            handleBranchChange(val);
-
-                            // Clear search after selection
-                            setBranchSearch("");
-                          }}
-                          renderTags={() => null}
-                          // Add Checkboxes to the dropdown
-                          renderOption={(props, option, { selected }) => (
-                            <li {...props} key={option}>
-                              <Checkbox
-                                size="small"
-                                style={{ marginRight: 8 }}
-                                checked={selected}
-                              />
-                              <Typography variant="body2">{option}</Typography>
-                            </li>
-                          )}
-                          renderInput={(p) => (
-                            <TextField
-                              {...p}
-                              label="Select Branches"
-                              variant="standard"
-                              required
-                              placeholder={
-                                filters.branches.includes("ALL")
-                                  ? "Search branches..."
-                                  : ""
-                              }
-                              InputProps={{
-                                ...p.InputProps,
-                                maxLength: 30,
-                                endAdornment: (
-                                  <InputAdornment
-                                    position="end"
-                                    sx={{ mb: 0.5 }}
-                                  >
-                                    <Stack
-                                      direction="row"
-                                      alignItems="center"
-                                      spacing={1}
-                                    >
-                                      <CustomChip
-                                        label={
-                                          filters.branches.includes("ALL")
-                                            ? "All Branches"
-                                            : `${filters.branches.length} Selected`
-                                        }
-                                        color={
-                                          filters.branches.includes("ALL")
-                                            ? "default"
-                                            : "primary"
-                                        }
-                                        sx={{
-                                          fontWeight: 700,
-                                          fontSize: "0.7rem",
-                                        }}
-                                      />
-                                      {!filters.branches.includes("ALL") &&
-                                        filters.branches.length > 0 && (
-                                          <IconButton
-                                            size="small"
-                                            onClick={() =>
-                                              setViewBranchList(!viewBranchList)
-                                            }
-                                            color={
-                                              viewBranchList
-                                                ? "primary"
-                                                : "default"
-                                            }
-                                            sx={{
-                                              transition: "0.2s",
-                                              bgcolor: viewBranchList
-                                                ? "rgba(25, 118, 210, 0.08)"
-                                                : "transparent",
-                                            }}
-                                          >
-                                            {viewBranchList ? (
-                                              <VisibilityOffIcon fontSize="small" />
-                                            ) : (
-                                              <VisibilityIcon fontSize="small" />
-                                            )}
-                                          </IconButton>
-                                        )}
-                                    </Stack>
-                                    {p.InputProps.endAdornment}
-                                  </InputAdornment>
-                                ),
-                              }}
-                            />
-                          )}
-                        />
-                      </Grid>
-                    )}
-                  </Grid>
-                </Paper>
-              </Grid>
-            )}
-
-            {/* 2. ACCOUNT ZONE */}
-            <Grid
-              size={{ xs: 12, md: isCircleVisible || isBranchVisible ? 6 : 12 }}
-            >
-              <Paper
-                variant="outlined"
-                sx={{
-                  p: 3,
-                  borderRadius: "20px",
-                  bgcolor: "rgba(0,0,0,0.01)",
-                  borderStyle: "dashed",
-                }}
-              >
-                <SectionHeader
-                  icon={<SearchIcon fontSize="small" />}
-                  title="Account Details"
-                />
-                <Grid container spacing={2}>
-                  <Grid size={{ xs: 12, sm: 7 }}>
-                    <Autocomplete
-                      forcePopupIcon={false}
-                      autoHighlight
-                      value={filters.cgl}
-                      options={cgls}
-                      clearIcon={filters.cgl ? undefined : null}
-                      noOptionsText={
-                        filters.cgl && filters.cgl < 3
-                          ? "Please enter at least 3 characters"
-                          : "No Options"
-                      }
-                      onInputChange={(e, v) => {
-                        if (v.length >= 3) fetchSearchData("cgl", v);
-                      }}
-                      onChange={(_, v) => onFilterChange("cgl", v)}
-                      renderInput={(params) => (
-                        <TextField
-                          {...params}
-                          label="CGL"
-                          required
-                          InputLabelProps={{ shrink: true }}
-                          placeholder="eg. 9999999999"
-                          variant="standard"
-                          inputProps={{
-                            ...params.inputProps,
-                            maxLength: 30,
-                          }}
-                        />
-                      )}
-                      loadingText="Searching Cgls..."
-                    />
-                  </Grid>
-                  <Grid size={{ xs: 12, sm: 5 }}>
-                    <Autocomplete
-                      size="small"
-                      options={["All Currencies", ...currencies]}
-                      value={filters.currencies}
-                      onChange={(_, v) =>
-                        onFilterChange("currencies", v || "ALL")
-                      }
-                      renderInput={(p) => (
-                        <TextField
-                          {...p}
-                          label="Currency"
-                          required
-                          variant="standard"
-                          inputProps={{
-                            ...p.inputProps,
-                            maxLength: 30,
-                          }}
-                        />
-                      )}
-                    />
-                  </Grid>
-                </Grid>
-              </Paper>
-            </Grid>
-
-            {/* ROW 2: INDIVIDUAL BRANCH TRAY */}
-            {viewBranchList && hasSelectedBranches && (
-              <Grid size={{ xs: 12 }}>
-                <Collapse in={viewBranchList && hasSelectedBranches}>
-                  <Paper
-                    variant="outlined"
-                    sx={{
-                      borderRadius: "20px",
-                      bgcolor: "#fff",
-                      border: "1px solid #e0e6ed",
-                      overflow: "hidden",
-                      mb: 1.5,
-                      boxShadow: "0 4px 20px rgba(0,0,0,0.05)",
-                    }}
-                  >
-                    {/* Sticky Header */}
-                    <Stack
-                      direction="row"
-                      justifyContent="space-between"
-                      alignItems="center"
-                      sx={{
-                        p: 2,
-                        borderBottom: "1px solid #f0f0f0",
-                        bgcolor: "rgba(25, 118, 210, 0.02)",
-                      }}
-                    >
-                      <Stack direction="row" spacing={1} alignItems="center">
-                        <Typography
-                          variant="caption"
-                          sx={{
-                            fontWeight: 800,
-                            color: "primary.main",
-                            letterSpacing: 1,
-                          }}
-                        >
-                          SELECTED BRANCHES
-                        </Typography>
-                        <CustomChip
-                          label={filters.branches.length}
-                          color="primary"
-                          sx={{ height: 20 }}
-                        />
-                      </Stack>
-
-                      <Button
-                        size="small"
-                        color="error"
-                        variant="text"
-                        startIcon={<DeleteSweepIcon />}
-                        onClick={() => {
-                          onFilterChange("branches", ["ALL"]);
-                          setViewBranchList(false);
-                        }}
-                        sx={{
-                          p: 1,
-                          fontWeight: 700,
-                          "&:hover": {
-                            color: "white",
-                            background: "#9f0400",
-                          },
-                        }}
-                      >
-                        Clear All
-                      </Button>
-                    </Stack>
-
-                    {/* Scrollable Area with Individual Remove */}
-                    {/* Scrollable Area with Individual Remove using standard MUI Chip */}
-                    <Box
-                      sx={{
-                        p: 2,
-                        maxHeight: "250px",
-                        overflowY: "auto",
-                        display: "flex",
-                        flexWrap: "wrap",
-                        gap: 1,
-                        "&::-webkit-scrollbar": { width: "6px" },
-                        "&::-webkit-scrollbar-track": { background: "#f1f1f1" },
-                        "&::-webkit-scrollbar-thumb": {
-                          background: "#ccc",
-                          borderRadius: "10px",
-                        },
-                      }}
-                    >
-                      {filters.branches.map((b) => (
-                        <Chip
-                          key={b}
-                          label={b}
-                          color="primary"
-                          variant="outlined"
-                          // Standard MUI Chip handles onDelete by showing the 'X' icon automatically
-                          onDelete={() => removeBranch(b)}
-                          sx={{
-                            borderRadius: "8px",
-                            bgcolor: "white",
-                            fontWeight: 500,
-                            "& .MuiChip-deleteIcon": {
-                              color: "error.main",
-                              transition: "0.2s",
-                              "&:hover": {
-                                color: "#d32f2f",
-                                transform: "scale(1.2)",
-                              },
-                            },
-                            "&:hover": {
-                              bgcolor: "#f5f9ff",
-                              borderColor: "primary.main",
-                            },
-                          }}
-                        />
-                      ))}
-                    </Box>
-                  </Paper>
-                </Collapse>
-              </Grid>
-            )}
-
-            {/* 3. TIMELINE & FLAGS ZONE */}
-            <Grid size={{ xs: 12 }}>
-              <Paper
-                sx={{
-                  p: 2.5,
-                  borderRadius: "20px",
-                  // background:
-                  //   "linear-gradient(90deg, #1976d2 0%, #1565c0 100%)",
-                  background: "#58469f",
-                  color: "white",
-                }}
-              >
-                <Stack
-                  direction={{ xs: "column", md: "row" }}
-                  spacing={3}
-                  alignItems="center"
-                >
-                  <Stack
-                    direction="row"
-                    spacing={1}
-                    alignItems="center"
-                    sx={{ minWidth: 100 }}
-                  >
-                    <DateRangeIcon />
-                    <Typography sx={{ fontWeight: 700 }}>
-                      From Date *
-                    </Typography>
-                  </Stack>
-
-                  <DatePicker
-                    value={filters.fromDate}
-                    format="DD/MM/YYYY"
-                    minDate={minLimit}
-                    maxDate={filters.toDate || maxLimit}
-                    views={["year", "month", "day"]}
-                    onChange={(value) => {
-                      onFilterChange("fromDate", value);
-
-                      if (
-                        value &&
-                        filters.toDate &&
-                        value.isValid() &&
-                        filters.toDate.isValid()
-                      ) {
-                        if (value.isAfter(filters.toDate, "day")) {
-                          setFromDateError("fromGreaterThanTo");
-                          setToDateError("toLessThanFrom");
-                        } else {
-                          setFromDateError(null);
-                          setToDateError(null);
-                        }
-                      } else {
-                        setFromDateError(null);
-                      }
-                    }}
-                    onError={(error) => {
-                      if (error) {
-                        setFromDateError(error);
-                      } else if (
-                        filters.fromDate &&
-                        filters.toDate &&
-                        filters.fromDate.isAfter(filters.toDate, "day")
-                      ) {
-                        setFromDateError("fromGreaterThanTo");
-                      } else {
-                        setFromDateError(null);
-                      }
-                    }}
-                    slotProps={{
-                      textField: {
-                        size: "small",
-                        fullWidth: true,
-                        placeholder: "DD/MM/YYYY",
-                        error: !!fromDateError,
-                        sx: {
-                          bgcolor: "white",
-                          borderRadius: 1,
-                          flex: 1,
-                        },
-                      },
-
-                      day: {
-                        sx: {
-                          fontWeight: 600,
-                          "&.MuiPickersDay-root": {
-                            color: "#111",
-                          },
-                          "&.MuiPickersDay-today": {
-                            border: "2px solid #58469f",
-                            fontWeight: 800,
-                          },
-                          "&.Mui-selected": {
-                            backgroundColor: "#58469f !important",
-                            color: "#fff !important",
-                            fontWeight: 800,
-                          },
-                          "&:hover": {
-                            backgroundColor: "rgba(88,70,159,0.08)",
-                          },
-                          "&.Mui-disabled": {
-                            color: "rgba(0,0,0,0.25) !important",
-                            backgroundColor: "rgba(0,0,0,0.04)",
-                            opacity: 0.45,
-                            textDecoration: "line-through",
-                          },
-                        },
-                      },
-
-                      monthButton: {
-                        sx: {
-                          fontWeight: 700,
-                          "&.Mui-selected": {
-                            backgroundColor: "#58469f !important",
-                            color: "#fff !important",
-                          },
-                          "&.Mui-disabled": {
-                            color: "rgba(0,0,0,0.25) !important",
-                            opacity: 0.45,
-                            textDecoration: "line-through",
-                            backgroundColor: "rgba(0,0,0,0.04)",
-                          },
-                        },
-                      },
-
-                      yearButton: {
-                        sx: {
-                          fontWeight: 700,
-                          "&.Mui-selected": {
-                            backgroundColor: "#58469f !important",
-                            color: "#fff !important",
-                          },
-                          "&.Mui-disabled": {
-                            color: "rgba(0,0,0,0.25) !important",
-                            opacity: 0.45,
-                            textDecoration: "line-through",
-                            backgroundColor: "rgba(0,0,0,0.04)",
-                          },
-                        },
-                      },
-                    }}
-                  />
-
-                  <Stack
-                    direction="row"
-                    spacing={1}
-                    alignItems="center"
-                    sx={{ minWidth: 100 }}
-                  >
-                    <DateRangeIcon />
-                    <Typography sx={{ fontWeight: 700 }}>To Date *</Typography>
-                  </Stack>
-
-                  <DatePicker
-                    value={filters.toDate}
-                    format="DD/MM/YYYY"
-                    minDate={filters?.fromDate || minLimit}
-                    maxDate={maxLimit}
-                    views={["year", "month", "day"]}
-                    onChange={(value) => {
-                      onFilterChange("toDate", value);
-
-                      if (
-                        filters.fromDate &&
-                        value &&
-                        filters.fromDate.isValid() &&
-                        value.isValid()
-                      ) {
-                        if (value.isBefore(filters.fromDate, "day")) {
-                          setToDateError("toLessThanFrom");
-                          setFromDateError("fromGreaterThanTo");
-                        } else {
-                          setToDateError(null);
-                          setFromDateError(null);
-                        }
-                      } else {
-                        setToDateError(null);
-                      }
-                    }}
-                    onError={(error) => {
-                      if (error) {
-                        setToDateError(error);
-                      } else if (
-                        filters.fromDate &&
-                        filters.toDate &&
-                        filters.toDate.isBefore(filters.fromDate, "day")
-                      ) {
-                        setToDateError("toLessThanFrom");
-                      } else {
-                        setToDateError(null);
-                      }
-                    }}
-                    slotProps={{
-                      textField: {
-                        size: "small",
-                        fullWidth: true,
-                        placeholder: "DD/MM/YYYY",
-                        error: !!toDateError,
-
-                        sx: {
-                          bgcolor: "white",
-                          borderRadius: 1,
-                          flex: 1,
-                          required: true,
-                        },
-                      },
-
-                      day: {
-                        sx: {
-                          fontWeight: 600,
-                          "&.MuiPickersDay-root": {
-                            color: "#111",
-                          },
-                          "&.MuiPickersDay-today": {
-                            border: "2px solid #58469f",
-                            fontWeight: 800,
-                          },
-                          "&.Mui-selected": {
-                            backgroundColor: "#58469f !important",
-                            color: "#fff !important",
-                            fontWeight: 800,
-                          },
-                          "&:hover": {
-                            backgroundColor: "rgba(88,70,159,0.08)",
-                          },
-                          "&.Mui-disabled": {
-                            color: "rgba(0,0,0,0.25) !important",
-                            backgroundColor: "rgba(0,0,0,0.04)",
-                            opacity: 0.45,
-                            textDecoration: "line-through",
-                          },
-                        },
-                      },
-
-                      monthButton: {
-                        sx: {
-                          fontWeight: 700,
-                          "&.Mui-selected": {
-                            backgroundColor: "#58469f !important",
-                            color: "#fff !important",
-                          },
-                          "&.Mui-disabled": {
-                            color: "rgba(0,0,0,0.25) !important",
-                            opacity: 0.45,
-                            textDecoration: "line-through",
-                            backgroundColor: "rgba(0,0,0,0.04)",
-                          },
-                        },
-                      },
-
-                      yearButton: {
-                        sx: {
-                          fontWeight: 700,
-                          "&.Mui-selected": {
-                            backgroundColor: "#58469f !important",
-                            color: "#fff !important",
-                          },
-                          "&.Mui-disabled": {
-                            color: "rgba(0,0,0,0.25) !important",
-                            opacity: 0.45,
-                            textDecoration: "line-through",
-                            backgroundColor: "rgba(0,0,0,0.04)",
-                          },
-                        },
-                      },
-                    }}
-                  />
-
-                  <Stack
-                    direction="row"
-                    spacing={1}
-                    alignItems="center"
-                    // sx={{ minWidth: 100 }}
-                  >
-                    <DateRangeIcon />
-                    <Typography sx={{ fontWeight: 700 }}>
-                      Transaction Type *
-                    </Typography>
-                  </Stack>
-
-                  <Autocomplete
-                    multiple
-                    size="small"
-                    disableCloseOnSelect
-                    sx={{ flex: 1.5 /* , minWidth: 250 */ }}
-                    options={sourceOptions}
-                    value={filters.sourceFlags}
-                    getOptionLabel={(o) => o.flagName || ""}
-                    isOptionEqualToValue={(option, value) =>
-                      option.flagId === value.flagId
-                    }
-                    // LOGIC: Handle Select All toggle
-                    onChange={(_, selectedOptions) => {
-                      const isSelectAllClicked = selectedOptions.some(
-                        (option) => option.flagId === "select-all",
-                      );
-                      if (isSelectAllClicked) {
-                        // If already all selected, clear them. Otherwise, select all.
-                        if (
-                          filters.sourceFlags.length === sourceOptions.length
-                        ) {
-                          onFilterChange("sourceFlags", []);
-                        } else {
-                          onFilterChange("sourceFlags", sourceOptions);
-                        }
-                      } else {
-                        onFilterChange("sourceFlags", selectedOptions);
-                      }
-                    }}
-                    // INJECT: "Select All" option at the top of the list
-                    filterOptions={(options) => {
-                      const filtered = options;
-                      return [
-                        { flagId: "select-all", flagName: "Select All" },
-                        ...filtered,
-                      ];
-                    }}
-                    renderTags={(v) => (
-                      <CustomChip
-                        label={
-                          v.length === sourceOptions.length
-                            ? "All Types"
-                            : `${v.length} Types`
-                        }
-                        color="default"
-                        sx={{ bgcolor: "white" }}
-                      />
-                    )}
-                    renderOption={(props, option, { selected }) => {
-                      // Check if everything is selected to show the "Select All" box as checked
-                      const isAllSelected =
-                        filters.sourceFlags.length === sourceOptions.length;
-                      const isChecked =
-                        option.flagId === "select-all"
-                          ? isAllSelected
-                          : selected;
-
-                      return (
-                        <li {...props} key={option.flagId}>
-                          <Checkbox
-                            size="small"
-                            style={{ marginRight: 8 }}
-                            checked={isChecked}
-                          />
-                          <Typography
-                            variant="body2"
-                            sx={{
-                              fontWeight:
-                                option.flagId === "select-all" ? 700 : 400,
-                            }}
-                          >
-                            {option.flagName}
-                          </Typography>
-                        </li>
-                      );
-                    }}
-                    renderInput={(p) => (
-                      <TextField
-                        {...p}
-                        placeholder="Transaction Types"
-                        sx={{
-                          bgcolor: "white",
-                          borderRadius: 2,
-                          "& .MuiOutlinedInput-root": { borderRadius: 2 },
-                        }}
-                        inputProps={{
-                          ...p.inputProps,
-                          maxLength: 30,
-                        }}
-                      />
-                    )}
-                  />
-                </Stack>
-              </Paper>
-            </Grid>
-          </Grid>
-
-          <Grid size={{ xs: 12 }}>
-            {validationMessages.length > 0 && (
-              <Paper
-                // elevation={0}
-                sx={{
-                  mt: 1,
-                  p: 1.5,
-                  borderRadius: 2,
-                  border: "1px solid",
-                  borderColor: "#ff4d4f",
-                  bgcolor: "#fff1f0",
-                }}
-              >
-                <Stack spacing={0.5}>
-                  {validationMessages.map((msg, index) => (
-                    <Typography
-                      key={index}
-                      variant="body2"
-                      sx={{
-                        color: "#d32f2f",
-                        fontWeight: 600,
-                      }}
-                    >
-                      • {msg}
-                    </Typography>
-                  ))}
-                </Stack>
-              </Paper>
-            )}
-          </Grid>
-
-          <Box
-            sx={{
-              mt: 2,
-              position: "sticky",
-              bottom: 12,
-              zIndex: 20,
-              display: "flex",
-              justifyContent: "flex-end",
-              gap: 2,
-            }}
-          >
-            <Button
-              variant="outlined"
-              startIcon={<RestartAltIcon />}
-              onClick={onReset}
-              sx={{
-                borderRadius: 2,
-                textTransform: "none",
-                fontWeight: 700,
-              }}
-            >
-              Reset
-            </Button>
-            <Button
-              variant="contained"
-              startIcon={<SearchIcon />}
-              onClick={onFetch}
-              disabled={
-                !filters.cgl ||
-                !filters.fromDate ||
-                !filters.toDate ||
-                fromDateError ||
-                toDateError
-              }
-              loading={fetchLoading}
-              sx={{
-                borderRadius: 2,
-                px: 4,
-                textTransform: "none",
-                fontWeight: 800,
-              }}
-            >
-              Search
-            </Button>
-          </Box>
-        </CardContent>
-      </Card>
-    </Box>
-  );
+const CIRCLE_GROUPS = {
+  ALL: "ALL",
+  DOMESTIC: "DOMESTIC",
+  FOREIGN: "FOREIGN",
 };
 
-export default LedgerForm;
+const LedgerWiseEnquiry = () => {
+  const { callApi } = useApi();
+  const showSnackBar = useCustomSnackbar();
+  const user = useSelector((state) => state.auth.user);
+  const menu = useSelector((state) => state.menus.selectedMenuItem);
+  const permissions = getPermissions(menu);
+
+  const MIN_ALLOWED_DATE = dayjs("2026-03-31");
+  const DATE_FORMAT = "DD/MM/YYYY";
+
+  const hasWholeBank = !!permissions.wholebank;
+  const hasCircle = user?.isCircle || !!permissions.circle;
+  const isCircleUser = user?.isCircle && !hasWholeBank;
+
+  const [circles, setCircles] = useState([]);
+  const [initialState, setInitialState] = useState({
+    level: "BRANCH",
+    circle: "ALL",
+    branches: ["ALL"],
+    currencies: "All Currencies",
+    sourceFlags: [],
+    cgl: "",
+    fromDate: null,
+    toDate: null,
+  });
+  const [currencies, setCurrencies] = useState([]);
+  const [sourceOptions, setSourceOptions] = useState([]);
+  const [etlDate, setEtlDate] = useState(null);
+
+  const [rows, setRows] = useState(null);
+  const [rowCount, setRowCount] = useState(0);
+
+  const [loading, setLoading] = useState(false);
+  const [exporting, setExporting] = useState(false);
+
+  const [paginationModel, setPaginationModel] = useState({
+    page: 0,
+    pageSize: DEFAULT_PAGE_SIZE,
+  });
+
+  const [sortModel, setSortModel] = useState([
+    {
+      field: "transactionDate",
+      sort: "desc",
+    },
+  ]);
+
+  const [filterModel, setFilterModel] = useState({
+    items: [],
+  });
+
+  /* INITIAL FILTERS */
+  const initialDetails = useMemo(() => {
+    return {
+      level: hasWholeBank ? "BANK" : isCircleUser ? "CIRCLE" : "BRANCH",
+      circle: hasWholeBank ? "ALL" : user?.circleCode,
+      branches:
+        !user?.isCircle && !hasWholeBank
+          ? [`${user?.branch}-${user?.branchName}`]
+          : ["ALL"],
+
+      currencies: "All Currencies",
+      sourceFlags: sourceOptions || [],
+      cgl: "",
+      fromDate: null,
+      toDate: null,
+    };
+  }, [
+    hasWholeBank,
+    user?.circleCode,
+    user?.isCircle,
+    user?.branch,
+    user?.branchName,
+    isCircleUser,
+    sourceOptions,
+  ]);
+
+  useEffect(() => {
+    setInitialState(initialDetails);
+    setFilters(initialDetails);
+  }, [initialDetails]);
+
+  const [filters, setFilters] = useState(initialState);
+  const [searchQuery, setSearchQuery] = useState(null);
+
+  /* FETCH MASTERS */
+  const fetchMasters = useCallback(async () => {
+    try {
+      const [dateRes, currRes, flagRes] = await Promise.all([
+        callApi("/PS/file/fincore-date", {}, "GET"),
+
+        callApi("/CM/common-master/currency-code-name-only", null, "GET"),
+
+        callApi("/CM/common-master/source-flag", null, "GET"),
+      ]);
+
+      /* ETL DATE */
+      if (dateRes?.data?.userDate) {
+        setEtlDate(dayjs(dateRes.data.userDate, "YYYY-MM-DD"));
+      }
+
+      /*CURRENCIES */
+      const formattedCurrencies =
+        currRes?.data?.map((c) => `${c.currencyCode} (${c.currencyName})`) ||
+        [];
+
+      const sortedCurrencies = formattedCurrencies.sort((a, b) => {
+        const aCode = a.split(" ")[0];
+        const bCode = b.split(" ")[0];
+
+        // INR always on top
+        if (aCode === "INR") return -1;
+        if (bCode === "INR") return 1;
+
+        // Remaining alphabetical
+        return a.localeCompare(b);
+      });
+
+      setCurrencies(sortedCurrencies);
+
+      /* SOURCE FLAGS */
+      if (flagRes?.data) {
+        setSourceOptions(flagRes.data);
+
+        setFilters((prev) => ({
+          ...prev,
+          sourceFlags: flagRes.data,
+        }));
+      }
+
+      /* CIRCLES */
+      if (hasWholeBank) {
+        const circleRes = await callApi(
+          "/CM/common-master/circle-codes",
+          null,
+          "GET",
+        );
+
+        setCircles(circleRes?.data || []);
+      }
+    } catch (error) {
+      console.error(error);
+
+      showSnackBar("Failed to load master configuration", "error");
+    }
+  }, [callApi, hasWholeBank, showSnackBar]);
+
+  useEffect(() => {
+    fetchMasters();
+  }, [fetchMasters]);
+
+  /* FILTERED SOURCE OPTIONS */
+  const selectedSourceOptions = useMemo(() => {
+    if (!filters?.sourceFlags?.length) {
+      return sourceOptions;
+    }
+
+    const selectedIds = new Set(filters.sourceFlags.map((f) => f.flagId));
+
+    return sourceOptions.filter((option) => selectedIds.has(option.flagId));
+  }, [filters.sourceFlags, sourceOptions]);
+
+  /* BRANCH OPTIONS */
+  const selectedBranchOptions = useMemo(() => {
+    if (!filters.branches?.length || filters.branches.includes("ALL")) {
+      return [];
+    }
+    return filters.branches.map((branch) => ({
+      value: branch.split("-")[0],
+      label: branch,
+    }));
+  }, [filters.branches]);
+
+  /* CIRCLE OPTIONS */
+  const selectedCircleOptions = useMemo(() => {
+    const formattedCircles = circles.map((circle) => ({
+      value: circle.circleCode,
+      label:
+        circle.circleCode === FOREIGN_CIRCLE_CODE
+          ? `${circle.circleCode} - Foreign`
+          : `${circle.circleCode} - ${circle.circleName}`,
+    }));
+
+    // ALL/GROUP OPTIONS
+    if (
+      filters.circle === CIRCLE_GROUPS.ALL ||
+      filters.circle === CIRCLE_GROUPS.DOMESTIC ||
+      filters.circle === CIRCLE_GROUPS.FOREIGN
+    ) {
+      return formattedCircles;
+    }
+
+    return formattedCircles.filter((circle) => circle.value === filters.circle);
+  }, [filters.circle, circles]);
+
+  /* CURRENCY OPTIONS */
+  const selectedCurrencyOptions = useMemo(() => {
+    if (!filters.currencies || filters.currencies === "ALL") {
+      return currencies.map((currency) => ({
+        value: currency.split(" (")[0],
+
+        label: currency,
+      }));
+    }
+    return [
+      {
+        value: filters.currencies.split(" (")[0],
+        label: filters.currencies,
+      },
+    ];
+  }, [filters.currencies, currencies]);
+
+  /* PAYLOAD */
+  const buildPayload = useCallback(() => {
+    if (!searchQuery) return null;
+
+    const gridFilters =
+      filterModel.items
+        ?.filter(
+          (item) =>
+            item.field &&
+            item.operator &&
+            item.value !== undefined &&
+            item.value !== null &&
+            item.value !== "",
+        )
+        .map((item) => ({
+          field: item.field,
+          operator: item.operator,
+          value: item.value,
+        })) || [];
+
+    return {
+      // Main Filters
+      circle: searchQuery.circle,
+      cgl: searchQuery.cgl.split(" - ")[0],
+      cglName: searchQuery.cgl.split(" - ")[1],
+
+      currencies:
+        searchQuery.currencies === "All Currencies"
+          ? "ALL"
+          : searchQuery.currencies.split(" (")[0],
+
+      branches: searchQuery.branches.includes("ALL")
+        ? ["ALL"]
+        : searchQuery.branches.map((b) => b.split("-")[0]),
+
+      sourceFlags: searchQuery.sourceFlags?.map((f) => f.flagId) || [],
+      fromDate: dayjs(searchQuery.fromDate).format("DD/MM/YYYY"),
+      toDate: dayjs(searchQuery.toDate).format("DD/MM/YYYY"),
+
+      // Pagination
+      page: paginationModel.page,
+      size: paginationModel.pageSize,
+
+      // Sorting
+      sortField: sortModel?.[0]?.field || "transactionDate",
+      sortOrder: sortModel?.[0]?.sort || "desc",
+
+      // Grid Filters
+      gridFilters,
+    };
+  }, [searchQuery, paginationModel, sortModel, filterModel]);
+
+  /* FETCH ROWS */
+  const fetchRows = useCallback(async () => {
+    const payload = buildPayload();
+    if (!payload) return;
+    try {
+      setLoading(true);
+      console.log(payload);
+      const res = await callApi("/ES/ledger-enquiries/search", payload, "POST");
+      setRows(res?.data?.content || []);
+      setRowCount(res?.data?.page?.totalElements || 0);
+    } catch (error) {
+      console.error(error);
+      showSnackBar(error?.message || "Enquiry failed", "error");
+    } finally {
+      setLoading(false);
+    }
+  }, [callApi, buildPayload, showSnackBar]);
+
+  /* DEBOUNCED FETCH */
+  const debouncedFetch = useMemo(
+    () =>
+      debounce(() => {
+        fetchRows();
+      }, 300),
+    [fetchRows],
+  );
