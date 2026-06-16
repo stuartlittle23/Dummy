@@ -1,201 +1,291 @@
-useEffect(() => {
-    if (!searchQuery) return;
-    debouncedFetch();
-    return () => {
-      debouncedFetch.cancel();
-    };
-  }, [paginationModel, sortModel, filterModel, searchQuery, debouncedFetch]);
+import React, { useMemo } from "react";
+import {
+  Box,
+  Typography,
+  Button,
+  CircularProgress,
+  Stack,
+  Chip,
+} from "@mui/material";
+import { DataGrid, GridToolbar } from "@mui/x-data-grid";
+import ErrorOutlineIcon from "@mui/icons-material/ErrorOutline";
+import FileDownloadIcon from "@mui/icons-material/FileDownload";
+import AccountBalanceWalletIcon from "@mui/icons-material/AccountBalanceWallet";
+import TrendingUpIcon from "@mui/icons-material/TrendingUp";
+import TrendingDownIcon from "@mui/icons-material/TrendingDown";
+import dayjs from "dayjs";
+import { useTheme, useMediaQuery } from "@mui/material";
 
-  const handleSearch = useCallback(() => {
-    const { cgl, fromDate, toDate } = filters;
+const LedgerDataGrid = ({
+  rows,
+  loading,
+  rowCount,
+  paginationModel,
+  setPaginationModel,
+  sortModel,
+  setSortModel,
+  filterModel,
+  setFilterModel,
+  onExcelExport,
+  exporting,
+  selectedCurrency,
+  selectedCircle,
+  sourceOptions,
+  branchOptions,
+  circleOptions,
+  currencyOptions,
+}) => {
+  const theme = useTheme();
 
-    if (!cgl || !fromDate || !toDate) {
-      showSnackBar("Please fill all required fields", "warning");
-      return;
-    }
+  const isMobile = useMediaQuery(theme.breakpoints.down("sm"));
+  const isTablet = useMediaQuery(theme.breakpoints.between("sm", "lg"));
 
-    if (!fromDate?.isValid?.() || !toDate?.isValid?.()) {
-      showSnackBar("Invalid date selected", "warning");
-      return;
-    }
-
-    if (fromDate.isBefore(MIN_ALLOWED_DATE, "day")) {
-      showSnackBar(
-        `From date cannot be earlier than ${MIN_ALLOWED_DATE.format(
-          DATE_FORMAT,
-        )}`,
-        "warning",
-      );
-      return;
-    }
-
-    if (toDate.isBefore(MIN_ALLOWED_DATE, "day")) {
-      showSnackBar(
-        `To date cannot be earlier than ${MIN_ALLOWED_DATE.format(
-          DATE_FORMAT,
-        )}`,
-        "warning",
-      );
-      return;
-    }
-
-    if (fromDate.isAfter(toDate, "day")) {
-      showSnackBar("From date cannot be greater than To date", "warning");
-      return;
-    }
-
-    if (toDate.isAfter(fromDate.add(1, "year"), "day")) {
-      showSnackBar("Date range cannot exceed 12 months", "warning");
-      return;
-    }
-
-    if (etlDate?.isValid?.() && toDate.isAfter(etlDate, "day")) {
-      showSnackBar(
-        `To date cannot exceed ETL date ${etlDate.format(DATE_FORMAT)}`,
-        "warning",
-      );
-      return;
-    }
-
-    setPaginationModel({
-      page: 0,
-      pageSize: paginationModel.pageSize,
-    });
-
-    setSortModel([
+  const transactionColumns = useMemo(() => {
+    const cols = [
       {
         field: "transactionDate",
-        sort: "desc",
+        headerName: "Date",
+        flex: 0.6,
+        minWidth: 120,
+        filterable: false,
+        valueFormatter: (v) => (v ? dayjs(v).format("DD/MM/YYYY") : "-"),
       },
-    ]);
 
-    setFilterModel({
-      items: [],
-    });
+      // /* HIDDEN BRANCH NAME ONLY FOR FILTER COLUMN */
+      // {
+      //   field: "branchName",
+      //   headerName: "Branch Name",
+      // },
 
-    setSearchQuery({
-      ...filters,
-    });
+      // /* HIDDEN CIRCLE NAME ONLY FOR FILTER COLUMN */
+      // {
+      //   field: "circleName",
+      //   headerName: "Circle Name",
+      // },
+
+      {
+        field: "branchCode",
+        headerName: "Branch",
+        flex: 1,
+        minWidth: 180,
+
+        ...(branchOptions?.length
+          ? {
+              type: "singleSelect",
+              valueOptions: branchOptions,
+            }
+          : {
+              type: "string",
+            }),
+
+        renderCell: (params) => (
+          <Box sx={{ lineHeight: "1.2", py: 0.5 }}>
+            <Typography
+              variant="body2"
+              sx={{
+                fontWeight: 700,
+                fontSize: "0.8rem",
+              }}
+            >
+              {params.row.branchCode}
+            </Typography>
+
+            <Typography
+              variant="caption"
+              sx={{
+                color: "text.secondary",
+                fontSize: "0.7rem",
+              }}
+            >
+              {params.row.branchName}
+            </Typography>
+          </Box>
+        ),
+      },
+      { field: "narration", headerName: "Narration", flex: 1.5, minWidth: 250 },
+      {
+        field: "debitAmount",
+        headerName: "Debit",
+        flex: 0.8,
+        minWidth: 150,
+        align: "right",
+        headerAlign: "left",
+        type: "number",
+        valueFormatter: (v) =>
+          new Intl.NumberFormat("en-IN", { minimumFractionDigits: 2 }).format(
+            v || 0,
+          ),
+      },
+      {
+        field: "creditAmount",
+        headerName: "Credit",
+        flex: 0.8,
+        minWidth: 150,
+        align: "right",
+        headerAlign: "left",
+        type: "number",
+        valueFormatter: (v) =>
+          new Intl.NumberFormat("en-IN", { minimumFractionDigits: 2 }).format(
+            v || 0,
+          ),
+      },
+      {
+        field: "sourceFlag",
+        headerName: "Source",
+        flex: 0.8,
+        minWidth: 150,
+        type: "singleSelect",
+
+        valueOptions:
+          sourceOptions?.map((flag) => ({
+            value: flag.flagId,
+            label: flag.flagName,
+          })) || [],
+
+        valueFormatter: (value) => {
+          const matchedFlag = sourceOptions?.find(
+            (flag) => flag.flagId === value,
+          );
+
+          return matchedFlag?.flagName || value || "-";
+        },
+      },
+    ];
+
+    if (selectedCircle === "ALL") {
+      cols.splice(2, 0, {
+        field: "circleCode",
+        headerName: "Circle",
+        flex: 1,
+        minWidth: 150,
+        type: "singleSelect",
+        valueOptions: circleOptions,
+        renderCell: (params) => (
+          <Box sx={{ lineHeight: "1.2", py: 0.5 }}>
+            <Typography
+              variant="body2"
+              sx={{ fontWeight: 700, fontSize: "0.8rem" }}
+            >
+              {params.row.circleCode}
+            </Typography>
+            <Typography
+              variant="caption"
+              sx={{ color: "text.secondary", fontSize: "0.7rem" }}
+            >
+              {params.row.circleName}
+            </Typography>
+          </Box>
+        ),
+      });
+    }
+    if (selectedCurrency === "All Currencies") {
+      const index = cols.length == 8 ? 7 : 6;
+      cols.splice(index, 0, {
+        field: "currencyName",
+        headerName: "Currency",
+        flex: 1,
+        minWidth: 150,
+        type: "singleSelect",
+        valueOptions: currencyOptions,
+        renderCell: (params) => (
+          <Box sx={{ lineHeight: "1.2", py: 0.5 }}>
+            <Typography
+              variant="body2"
+              sx={{ fontWeight: 700, fontSize: "0.8rem" }}
+            >
+              {params.row.currency}
+            </Typography>
+            <Typography
+              variant="caption"
+              sx={{ color: "text.secondary", fontSize: "0.7rem" }}
+            >
+              {params.row.currencyName}
+            </Typography>
+          </Box>
+        ),
+      });
+    }
+    return cols;
   }, [
-    filters,
-    etlDate,
-    MIN_ALLOWED_DATE,
-    DATE_FORMAT,
-    paginationModel.pageSize,
-    showSnackBar,
+    branchOptions,
+    sourceOptions,
+    selectedCircle,
+    selectedCurrency,
+    circleOptions,
+    currencyOptions,
   ]);
 
-  /* RESET */
-  const handleReset = useCallback(() => {
-    setFilters(initialState);
-    setSearchQuery(null);
-    setRows(null);
-    setRowCount(0);
-    setPaginationModel({
-      page: 0,
-      pageSize: DEFAULT_PAGE_SIZE,
-    });
-    setSortModel([
-      {
-        field: "transactionDate",
-        sort: "desc",
-      },
-    ]);
-    setFilterModel({
-      items: [],
-    });
-  }, [initialState]);
+  const columnVisibilityModel = useMemo(
+    () => ({
+      branchName: false,
+      circleName: false,
 
-  /* EXPORT */
-  const handleExcelExport = useCallback(async () => {
-    const payload = buildPayload();
-    if (!payload) return;
-    try {
-      setExporting(true);
-      console.log(payload);
-      const response = await callApi(
-        "/ES/ledger-enquiries/export-excel",
-        payload,
-        "POST",
-        "arraybuffer",
-      );
-      const fileName = `GL_Enquiry_${searchQuery.cgl.split(" - ")[0]}`;
-      if (response?.byteLength) {
-        downloadFile(response, "excel", fileName);
-      } else {
-        showSnackBar(
-          "Failed to download, Something went wrong Kindly try again",
-          "error",
-        );
-      }
-    } catch (error) {
-      showSnackBar(
-        error?.message ||
-          "Failed to export, Something went wrong Kindly try again",
-        "error",
-      );
-    } finally {
-      setExporting(false);
-    }
-  }, [buildPayload, callApi, searchQuery, showSnackBar]);
+      ...(isMobile && {
+        narration: false,
+        sourceFlag: false,
+        circleCode: false,
+      }),
+
+      ...(isTablet && {
+        narration: false,
+      }),
+    }),
+    [isMobile, isTablet],
+  );
+
+  const CustomNoRowsOverlay = () => (
+    <Box
+      sx={{
+        display: "flex",
+        flexDirection: "column",
+        height: "100%",
+        justifyContent: "center",
+        alignItems: "center",
+      }}
+    >
+      <ErrorOutlineIcon fontSize="large" color="action" />
+      <Typography variant="h5" fontSize="1.2rem" color="text.secondary">
+        No transactions available for the selected criteria
+      </Typography>
+    </Box>
+  );
 
   return (
-    <LocalizationProvider dateAdapter={AdapterDayjs}>
+    <Box sx={{ width: "100%", height: "100%", mt: 3 }}>
+      {/* SEPARATE HEADER SECTION (Replacing Internal Toolbar) */}
       <Box
         sx={{
           p: 2.5,
+          mb: 3,
+          borderRadius: "20px",
+          background: "rgba(255, 255, 255, 0.4)",
+          backdropFilter: "blur(12px)",
+          border: "1px solid rgba(255, 255, 255, 0.3)",
+          boxShadow: "0 8px 32px rgba(0,0,0,0.05)",
+          display: "flex",
+          flexDirection: "column",
+          gap: 2.5,
         }}
       >
-        <LedgerForm
-          filters={filters}
-          onFilterChange={(field, value) =>
-            setFilters((prev) => ({
-              ...prev,
-              [field]: value,
-            }))
-          }
-          onReset={handleReset}
-          onFetch={handleSearch}
-          permissions={{
-            hasWholeBank,
-            hasCircle,
-          }}
-          user={user}
-          circles={circles}
-          currencies={currencies}
-          sourceOptions={sourceOptions}
-          FOREIGN_CIRCLE_CODE={FOREIGN_CIRCLE_CODE}
-          CIRCLE_GROUPS={CIRCLE_GROUPS}
-          minLimit={MIN_ALLOWED_DATE}
-          maxLimit={etlDate || dayjs()}
-          fetchLoading={loading}
-        />
-
-        {rows && (
-          <LedgerDataGrid
-            rows={rows}
-            loading={loading}
-            rowCount={rowCount}
-            paginationModel={paginationModel}
-            setPaginationModel={setPaginationModel}
-            sortModel={sortModel}
-            setSortModel={setSortModel}
-            filterModel={filterModel}
-            setFilterModel={setFilterModel}
-            onExcelExport={handleExcelExport}
-            exporting={exporting}
-            selectedCurrency={searchQuery?.currencies || "ALL"}
-            selectedCircle={searchQuery?.circle || "ALL"}
-            sourceOptions={selectedSourceOptions}
-            branchOptions={selectedBranchOptions}
-            circleOptions={selectedCircleOptions}
-            currencyOptions={selectedCurrencyOptions}
-            searchPerformed={!!searchQuery}
-          />
-        )}
-      </Box>
-    </LocalizationProvider>
-  );
-};
-
-export default React.memo(LedgerWiseEnquiry);
+        <Stack
+          direction={{ xs: "column", sm: "row" }}
+          spacing={2}
+          justifyContent="space-between"
+          alignItems={{ xs: "stretch", sm: "center" }}
+        >
+          <Box
+            sx={{
+              display: "flex",
+              flexDirection: {
+                xs: "column",
+                sm: "row",
+              },
+              alignItems: {
+                xs: "flex-start",
+                sm: "baseline",
+              },
+              gap: {
+                xs: 1,
+                sm: 1.5,
+              },
+            }}
