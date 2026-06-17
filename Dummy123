@@ -4,32 +4,29 @@ import lombok.AllArgsConstructor;
 import lombok.Data;
 
 import java.math.BigDecimal;
-import java.math.BigInteger;
-import java.sql.Timestamp;
 import java.util.Date;
 
 @AllArgsConstructor
-@Data 
-public class LedgerEnquiryResponse {
+@Data
+public class LedgerWiseBalanceResponse {
 
-    private BigInteger transactionId;
-    private String batchId;
-    private String journalId;
-    private Date transactionDate;
-    private Timestamp postDate;
+    private Long id;
+
+    private Date balanceDate;
+
     private String branchCode;
     private String branchName;
+
     private String circleCode;
     private String circleName;
+
     private String currency;
     private String currencyName;
+
     private String cgl;
     private String description;
-    private String narration;
-    private BigDecimal debitAmount;
-    private BigDecimal creditAmount;
-    private Long transactionCount;
-    private String sourceFlag;
-    private String sourceName;
 
+    private BigDecimal balance;
+
+    private BigDecimal inrBalance;
 }
