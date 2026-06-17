@@ -1,36 +1,31 @@
 package com.fincore.enquiry_service.dto;
 
-
 import jakarta.validation.constraints.NotNull;
 import lombok.Data;
 
-import java.util.Date;
 import java.util.List;
 
 @Data
-public class LedgerEnquiryRequest {
+public class LedgerWiseBalanceRequest {
 
-    @NotNull(message="Circle cannot be null")
+    @NotNull(message = "Circle cannot be null")
     private String circle;
 
-    @NotNull(message="Branches cannot be null")
+    @NotNull(message = "Branches cannot be null")
     private List<String> branches;
 
-    @NotNull(message="Currency cannot be null")
+    @NotNull(message = "Currency cannot be null")
     private String currencies;
 
-    @NotNull(message="Source cannot be null")
-    private List<String> sourceFlags;
-
-    @NotNull(message="CGL cannot be null")
+    @NotNull(message = "CGL cannot be null")
     private String cgl;
 
     private String cglName;
 
-    @NotNull(message="From Date cannot be null")
+    @NotNull(message = "From Date cannot be null")
     private String fromDate;
 
-    @NotNull(message="To Date cannot be null")
+    @NotNull(message = "To Date cannot be null")
     private String toDate;
 
     private Integer page;
@@ -42,5 +37,4 @@ public class LedgerEnquiryRequest {
     private String sortOrder;
 
     private List<GridFilter> gridFilters;
-
 }
