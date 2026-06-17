@@ -1,93 +1,132 @@
 package com.fincore.enquiry_service.service;
 
-import com.fincore.enquiry_service.dto.LedgerEnquiryRequest;
-import com.fincore.enquiry_service.dto.LedgerEnquiryResponse;
-import com.fincore.enquiry_service.model.LedgerTransaction;
-import com.fincore.enquiry_service.repository.LedgerWiseRepository;
-import com.fincore.enquiry_service.specification.LedgerSpecification;
+import com.fincore.enquiry_service.dto.LedgerWiseBalanceRequest;
+import com.fincore.enquiry_service.dto.LedgerWiseBalanceResponse;
+import com.fincore.enquiry_service.model.GlBalance;
+import com.fincore.enquiry_service.repository.LedgerWiseBalanceRepository;
+import com.fincore.enquiry_service.specification.LedgerWiseBalanceSpecification;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.data.domain.Page;
-import org.springframework.data.domain.PageRequest;
-import org.springframework.data.domain.Pageable;
-import org.springframework.data.domain.Sort;
+import org.springframework.data.domain.*;
 import org.springframework.stereotype.Service;
 
 @Slf4j
 @RequiredArgsConstructor
-@Service("LedgerEnquiryService")
-public class LedgerEnquiryServiceImpl implements LedgerEnquiryService {
+@Service("LedgerWiseBalanceService")
+public class LedgerWiseBalanceServiceImpl
+        implements LedgerWiseBalanceService {
 
-    private final LedgerWiseRepository ledgerTransactionRepository;
-    private final LedgerExportService ledgerExportService;
+    private final LedgerWiseBalanceRepository ledgerWiseBalanceRepository;
+    private final LedgerWiseBalanceExportService ledgerWiseBalanceExportService;
 
     @Override
-    public Page<LedgerEnquiryResponse> search(LedgerEnquiryRequest dto) {
-        Sort.Direction direction = "asc".equalsIgnoreCase(dto.getSortOrder()) ? Sort.Direction.ASC : Sort.Direction.DESC;
-        Pageable pageable = PageRequest.of(dto.getPage(), dto.getSize(), Sort.by(direction, getSortField(dto.getSortField())));
-        Page<LedgerTransaction> page = ledgerTransactionRepository.findAll(LedgerSpecification.build(dto), pageable);
+    public Page<LedgerWiseBalanceResponse> search(
+            LedgerWiseBalanceRequest dto) {
+
+        Sort.Direction direction =
+                "asc".equalsIgnoreCase(dto.getSortOrder())
+                        ? Sort.Direction.ASC
+                        : Sort.Direction.DESC;
+
+        Pageable pageable = PageRequest.of(
+                dto.getPage(),
+                dto.getSize(),
+                Sort.by(direction, getSortField(dto.getSortField()))
+        );
+
+        Page<GlBalance> page =
+                ledgerWiseBalanceRepository.findAll(
+                        LedgerWiseBalanceSpecification.build(dto),
+                        pageable
+                );
+
         return page.map(this::mapToDto);
     }
 
     @Override
-    public byte[] excelExport(LedgerEnquiryRequest dto, String userId) {
-        return ledgerExportService.export(dto, userId);
+    public byte[] excelExport(
+            LedgerWiseBalanceRequest dto,
+            String userId) {
+
+        return ledgerWiseBalanceExportService.export(dto, userId);
     }
 
-    /* DTO MAPPING */
-    private LedgerEnquiryResponse mapToDto(LedgerTransaction entity) {
+    private LedgerWiseBalanceResponse mapToDto(
+            GlBalance entity) {
+
         String branchCode = null;
         String branchName = null;
         String circleCode = null;
         String circleName = null;
 
         try {
+
             if (entity.getBranch() != null) {
 
                 branchCode = entity.getBranch().getCode();
                 branchName = entity.getBranch().getName();
 
                 if (entity.getBranch().getCircle() != null) {
-                    circleCode = entity.getBranch().getCircle().getCircleCode();
-                    circleName = entity.getBranch().getCircle().getCircleName();
+
+                    circleCode =
+                            entity.getBranch()
+                                    .getCircle()
+                                    .getCircleCode();
+
+                    circleName =
+                            entity.getBranch()
+                                    .getCircle()
+                                    .getCircleName();
                 }
             }
+
         } catch (Exception e) {
-            log.warn("Branch/Circle mapping failed for transactionId : {}", entity.getTransactionId());
+
+            log.warn(
+                    "Branch/Circle mapping failed for balance id : {}",
+                    entity.getId()
+            );
         }
 
-        return new LedgerEnquiryResponse(
+        return new LedgerWiseBalanceResponse(
 
-                entity.getTransactionId(), entity.getBatchId(), entity.getJournalId(), entity.getTransactionDate(), entity.getPostDate(),
-                branchCode, branchName,
-                circleCode, circleName,
-                entity.getCurrencyMaster() != null ? entity.getCurrencyMaster().getCurrencyCode() : null,
-                entity.getCurrencyMaster() != null ? entity.getCurrencyMaster().getCurrencyName() : null,
-                entity.getCglMaster() != null ? entity.getCglMaster().getCglNumber() : null,
-                entity.getCglMaster() != null ? entity.getCglMaster().getDescription() : null,
-                entity.getNarration(),
-                entity.getDebitAmount(),
-                entity.getCreditAmount(),
-                entity.getTransactionCount(),
-                entity.getSourceFlag(),
-                entity.getSourceFlagMaster() != null ? entity.getSourceFlagMaster().getFlagName() : null);
+                entity.getId(),
+                entity.getBalanceDate(),
+
+                branchCode,
+                branchName,
+
+                circleCode,
+                circleName,
+
+                entity.getCurrencyMaster() != null
+                        ? entity.getCurrencyMaster().getCurrencyCode()
+                        : null,
+
+                entity.getCurrencyMaster() != null
+                        ? entity.getCurrencyMaster().getCurrencyName()
+                        : null,
+
+                entity.getCglMaster() != null
+                        ? entity.getCglMaster().getCglNumber()
+                        : null,
+
+                entity.getCglMaster() != null
+                        ? entity.getCglMaster().getDescription()
+                        : null,
+
+                entity.getBalance(),
+                entity.getInrBalance()
+        );
     }
 
-    /* SORT FIELD MAPPING */
     private String getSortField(String field) {
 
         return switch (field) {
 
-            case "transactionId" -> "transactionId";
-            case "batchId" -> "batchId";
-            case "journalId" -> "journalId";
-            case "transactionDate" -> "transactionDate";
-            case "postDate" -> "postDate";
-            case "narration" -> "narration";
-            case "debitAmount" -> "debitAmount";
-            case "creditAmount" -> "creditAmount";
-            case "transactionCount" -> "transactionCount";
-            case "sourceFlag" -> "sourceFlag";
+            case "id" -> "id";
+
+            case "balanceDate" -> "balanceDate";
 
             case "branchCode" -> "branch.code";
             case "branchName" -> "branch.name";
@@ -101,7 +140,32 @@ public class LedgerEnquiryServiceImpl implements LedgerEnquiryService {
             case "cgl" -> "cglMaster.cglNumber";
             case "description" -> "cglMaster.description";
 
-            default -> "transactionDate";
+            case "balance" -> "balance";
+            case "inrBalance" -> "inrBalance";
+
+            default -> "balanceDate";
         };
     }
+
+
+}
+
+
+
+
+
+package com.fincore.enquiry_service.service;
+
+import com.fincore.enquiry_service.dto.LedgerWiseBalanceRequest;
+import com.fincore.enquiry_service.dto.LedgerWiseBalanceResponse;
+import org.springframework.data.domain.Page;
+
+public interface LedgerWiseBalanceService {
+
+    Page<LedgerWiseBalanceResponse> search(
+            LedgerWiseBalanceRequest dto);
+
+    byte[] excelExport(
+            LedgerWiseBalanceRequest dto,
+            String userId);
 }
