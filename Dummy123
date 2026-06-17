@@ -1,171 +1,223 @@
-package com.fincore.enquiry_service.service;
+package com.fincore.enquiry_service.specification;
 
-import com.fincore.enquiry_service.dto.LedgerWiseBalanceRequest;
-import com.fincore.enquiry_service.dto.LedgerWiseBalanceResponse;
-import com.fincore.enquiry_service.model.GlBalance;
-import com.fincore.enquiry_service.repository.LedgerWiseBalanceRepository;
-import com.fincore.enquiry_service.specification.LedgerWiseBalanceSpecification;
-import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
-import org.springframework.data.domain.*;
-import org.springframework.stereotype.Service;
+import com.fincore.enquiry_service.dto.GridFilter;
+import com.fincore.enquiry_service.dto.LedgerEnquiryRequest;
+import com.fincore.enquiry_service.model.LedgerTransaction;
+import jakarta.persistence.criteria.Expression;
+import jakarta.persistence.criteria.Path;
+import jakarta.persistence.criteria.Predicate;
+import jakarta.persistence.criteria.Root;
+import org.springframework.data.jpa.domain.Specification;
 
-@Slf4j
-@RequiredArgsConstructor
-@Service("LedgerWiseBalanceService")
-public class LedgerWiseBalanceServiceImpl
-        implements LedgerWiseBalanceService {
+import java.math.BigDecimal;
+import java.sql.Timestamp;
+import java.text.SimpleDateFormat;
+import java.util.ArrayList;
+import java.util.Date;
+import java.util.List;
 
-    private final LedgerWiseBalanceRepository ledgerWiseBalanceRepository;
-    private final LedgerWiseBalanceExportService ledgerWiseBalanceExportService;
+public class LedgerSpecification {
 
-    @Override
-    public Page<LedgerWiseBalanceResponse> search(
-            LedgerWiseBalanceRequest dto) {
+    public static Specification<LedgerTransaction> build(LedgerEnquiryRequest dto) {
 
-        Sort.Direction direction =
-                "asc".equalsIgnoreCase(dto.getSortOrder())
-                        ? Sort.Direction.ASC
-                        : Sort.Direction.DESC;
+        return (root, query, cb) -> {
 
-        Pageable pageable = PageRequest.of(
-                dto.getPage(),
-                dto.getSize(),
-                Sort.by(direction, getSortField(dto.getSortField()))
-        );
+            List<Predicate> predicates = new ArrayList<>();
 
-        Page<GlBalance> page =
-                ledgerWiseBalanceRepository.findAll(
-                        LedgerWiseBalanceSpecification.build(dto),
-                        pageable
-                );
+            /* CGL */
+            predicates.add(cb.equal(root.get("cgl"), dto.getCgl()));
 
-        return page.map(this::mapToDto);
-    }
+            /* DATE RANGE */
+            predicates.add(cb.between(root.get("transactionDate"), parseTimestamp(dto.getFromDate(), false), parseTimestamp(dto.getToDate(), true)));
 
-    @Override
-    public byte[] excelExport(
-            LedgerWiseBalanceRequest dto,
-            String userId) {
+            /* CURRENCY */
+            if (dto.getCurrencies() != null && !"ALL".equalsIgnoreCase(dto.getCurrencies())) {
 
-        return ledgerWiseBalanceExportService.export(dto, userId);
-    }
+                predicates.add(cb.equal(root.get("currency"), dto.getCurrencies()));
+            }
 
-    private LedgerWiseBalanceResponse mapToDto(
-            GlBalance entity) {
+            /* SOURCE FLAGS */
+            if (dto.getSourceFlags() != null && !dto.getSourceFlags().isEmpty() && !dto.getSourceFlags().contains("ALL")) {
 
-        String branchCode = null;
-        String branchName = null;
-        String circleCode = null;
-        String circleName = null;
+                predicates.add(root.get("sourceFlag").in(dto.getSourceFlags()));
+            }
 
-        try {
+            /* CIRCLE */
+            if ("DOMESTIC".equals(dto.getCircle())) {
+                predicates.add(cb.notEqual(root.get("branch").get("circle").get("circleCode"), "021"));
+            } else if ("FOREIGN".equals(dto.getCircle())) {
+                predicates.add(cb.equal(root.get("branch").get("circle").get("circleCode"), "021"));
+            } else if (!"ALL".equals(dto.getCircle())) {
+                predicates.add(cb.equal(root.get("branch").get("circle").get("circleCode"), dto.getCircle()));
+            }
 
-            if (entity.getBranch() != null) {
+            /* BRANCHES */
+            if (dto.getBranches() != null && !dto.getBranches().isEmpty() && !dto.getBranches().contains("ALL")) {
+                predicates.add(root.get("branch").get("code").in(dto.getBranches()));
+            }
 
-                branchCode = entity.getBranch().getCode();
-                branchName = entity.getBranch().getName();
+            /* GRID FILTERS */
+            if (dto.getGridFilters() != null && !dto.getGridFilters().isEmpty()) {
+                for (GridFilter filter : dto.getGridFilters()) {
+                    if (filter.getField() == null || filter.getOperator() == null || filter.getValue() == null) {
+                        continue;
+                    }
+                    String field = filter.getField();
+                    String operator = filter.getOperator();
+                    Path<?> path = getPath(root, field);
 
-                if (entity.getBranch().getCircle() != null) {
+                    /* DATE FILTERS */
+                    if (path.getJavaType().equals(Date.class) || path.getJavaType().equals(Timestamp.class)) {
 
-                    circleCode =
-                            entity.getBranch()
-                                    .getCircle()
-                                    .getCircleCode();
+                        Expression<Date> truncDate = cb.function("TRUNC", Date.class, path);
+                        Date filterDate = parseDate(filter.getValue().toString());
 
-                    circleName =
-                            entity.getBranch()
-                                    .getCircle()
-                                    .getCircleName();
+                        switch (operator) {
+                            case "equals" -> predicates.add(cb.equal(truncDate, filterDate));
+                            case "after" -> predicates.add(cb.greaterThan(truncDate, filterDate));
+                            case "onOrAfter" -> predicates.add(cb.greaterThanOrEqualTo(truncDate, filterDate));
+                            case "before" -> predicates.add(cb.lessThan(truncDate, filterDate));
+                            case "onOrBefore" -> predicates.add(cb.lessThanOrEqualTo(truncDate, filterDate));
+                        }
+                        continue;
+                    }
+
+                    /* BIGDECIMAL FILTERS */
+                    if (path.getJavaType().equals(BigDecimal.class)) {
+
+                        BigDecimal numberValue = new BigDecimal(filter.getValue().toString());
+                        Expression<BigDecimal> numberPath = path.as(BigDecimal.class);
+
+                        switch (operator) {
+
+                            case "=", "equals", "is" -> predicates.add(cb.equal(numberPath, numberValue));
+                            case "!=", "not" -> predicates.add(cb.notEqual(numberPath, numberValue));
+                            case ">" -> predicates.add(cb.greaterThan(numberPath, numberValue));
+                            case ">=" -> predicates.add(cb.greaterThanOrEqualTo(numberPath, numberValue));
+                            case "<" -> predicates.add(cb.lessThan(numberPath, numberValue));
+                            case "<=" -> predicates.add(cb.lessThanOrEqualTo(numberPath, numberValue));
+                            case "isEmpty" -> predicates.add(cb.isNull(path));
+                            case "isNotEmpty" -> predicates.add(cb.isNotNull(path));
+                        }
+                        continue;
+                    }
+
+
+                    /* LONG FILTERS */
+                    if (path.getJavaType().equals(Long.class)) {
+
+                        Long numberValue = Long.valueOf(filter.getValue().toString());
+                        Expression<Long> numberPath = path.as(Long.class);
+
+                        switch (operator) {
+
+                            case "=", "equals", "is" -> predicates.add(cb.equal(numberPath, numberValue));
+                            case "!=", "not" -> predicates.add(cb.notEqual(numberPath, numberValue));
+                            case ">" -> predicates.add(cb.greaterThan(numberPath, numberValue));
+                            case ">=" -> predicates.add(cb.greaterThanOrEqualTo(numberPath, numberValue));
+                            case "<" -> predicates.add(cb.lessThan(numberPath, numberValue));
+                            case "<=" -> predicates.add(cb.lessThanOrEqualTo(numberPath, numberValue));
+                        }
+                        continue;
+                    }
+
+                    /* NUMBER FILTERS */
+                    if (Number.class.isAssignableFrom(path.getJavaType())) {
+
+                        Double numberValue = Double.valueOf(filter.getValue().toString());
+                        Expression<Number> numberPath = path.as(Number.class);
+
+                        switch (operator) {
+                            case "=", "equals", "is" -> predicates.add(cb.equal(numberPath, numberValue));
+                            case "!=", "not" -> predicates.add(cb.notEqual(numberPath, numberValue));
+                            case ">" -> predicates.add(cb.gt(numberPath, numberValue));
+                            case ">=" -> predicates.add(cb.ge(numberPath, numberValue));
+                            case "<" -> predicates.add(cb.lt(numberPath, numberValue));
+                            case "<=" -> predicates.add(cb.le(numberPath, numberValue));
+                            case "isEmpty" -> predicates.add(cb.isNull(path));
+                            case "isNotEmpty" -> predicates.add(cb.isNotNull(path));
+                        }
+                        continue;
+                    }
+
+                    /* STRING FILTERS */
+                    Expression<String> expression = cb.lower(path.as(String.class));
+                    String value = filter.getValue().toString().toLowerCase();
+
+                    switch (operator) {
+                        case "contains" -> predicates.add(cb.like(expression, "%" + value + "%"));
+                        case "startsWith" -> predicates.add(cb.like(expression, value + "%"));
+                        case "endsWith" -> predicates.add(cb.like(expression, "%" + value));
+                        case "equals", "is", "=" -> predicates.add(cb.equal(expression, value));
+                        case "!=", "not" -> predicates.add(cb.notEqual(expression, value));
+                        case "isAnyOf" -> {
+
+                            if (filter.getValue() instanceof List<?> values) {
+                                List<String> lowerValues = values.stream().map(Object::toString).map(String::toLowerCase).toList();
+                                predicates.add(expression.in(lowerValues));
+                            } else {
+                                predicates.add(cb.equal(expression, filter.getValue().toString().toLowerCase()));
+                            }
+                        }
+
+                        case "isEmpty" -> predicates.add(cb.or(cb.isNull(path), cb.equal(expression, "")));
+                        case "isNotEmpty" -> predicates.add(cb.and(cb.isNotNull(path), cb.notEqual(expression, "")));
+                    }
                 }
             }
 
-        } catch (Exception e) {
-
-            log.warn(
-                    "Branch/Circle mapping failed for balance id : {}",
-                    entity.getId()
-            );
-        }
-
-        return new LedgerWiseBalanceResponse(
-
-                entity.getId(),
-                entity.getBalanceDate(),
-
-                branchCode,
-                branchName,
-
-                circleCode,
-                circleName,
-
-                entity.getCurrencyMaster() != null
-                        ? entity.getCurrencyMaster().getCurrencyCode()
-                        : null,
-
-                entity.getCurrencyMaster() != null
-                        ? entity.getCurrencyMaster().getCurrencyName()
-                        : null,
-
-                entity.getCglMaster() != null
-                        ? entity.getCglMaster().getCglNumber()
-                        : null,
-
-                entity.getCglMaster() != null
-                        ? entity.getCglMaster().getDescription()
-                        : null,
-
-                entity.getBalance(),
-                entity.getInrBalance()
-        );
-    }
-
-    private String getSortField(String field) {
-
-        return switch (field) {
-
-            case "id" -> "id";
-
-            case "balanceDate" -> "balanceDate";
-
-            case "branchCode" -> "branch.code";
-            case "branchName" -> "branch.name";
-
-            case "circleCode" -> "branch.circle.circleCode";
-            case "circleName" -> "branch.circle.circleName";
-
-            case "currency" -> "currencyMaster.currencyCode";
-            case "currencyName" -> "currencyMaster.currencyName";
-
-            case "cgl" -> "cglMaster.cglNumber";
-            case "description" -> "cglMaster.description";
-
-            case "balance" -> "balance";
-            case "inrBalance" -> "inrBalance";
-
-            default -> "balanceDate";
+            return cb.and(predicates.toArray(new Predicate[0]));
         };
     }
 
+    private static Path<?> getPath(Root<LedgerTransaction> root, String field) {
 
-}
+        return switch (field) {
 
+            /* BRANCH */
+            case "branchCode" -> root.get("branch").get("code");
+            case "branchName" -> root.get("branch").get("name");
 
+            /* CIRCLE */
+            case "circleCode" -> root.get("branch").get("circle").get("circleCode");
+            case "circleName" -> root.get("branch").get("circle").get("circleName");
 
+            /*
+             * CURRENCY
+             */
+            case "currency" -> root.get("currencyMaster").get("currencyCode");
+            case "currencyName" -> root.get("currencyMaster").get("currencyName");
 
+            /* CGL */
+            case "cgl" -> root.get("cglMaster").get("cglNumber");
+            case "description" -> root.get("cglMaster").get("description");
 
-package com.fincore.enquiry_service.service;
+            /* SOURCE */
+            case "sourceName" -> root.get("sourceFlagMaster").get("flagName");
 
-import com.fincore.enquiry_service.dto.LedgerWiseBalanceRequest;
-import com.fincore.enquiry_service.dto.LedgerWiseBalanceResponse;
-import org.springframework.data.domain.Page;
+            /* DEFAULT */
+            default -> root.get(field);
+        };
+    }
 
-public interface LedgerWiseBalanceService {
+    private static Timestamp parseTimestamp(String date, boolean endOfDay) {
+        try {
+            String value = endOfDay ? date + " 23:59:59" : date + " 00:00:00";
+            return new Timestamp(new SimpleDateFormat("dd/MM/yyyy HH:mm:ss").parse(value).getTime());
+        } catch (Exception e) {
+            throw new RuntimeException("Invalid timestamp format : " + date);
+        }
+    }
 
-    Page<LedgerWiseBalanceResponse> search(
-            LedgerWiseBalanceRequest dto);
-
-    byte[] excelExport(
-            LedgerWiseBalanceRequest dto,
-            String userId);
+    private static Date parseDate(String date) {
+        try {
+            return new SimpleDateFormat("yyyy-MM-dd").parse(date);
+        } catch (Exception e) {
+            try {
+                return new SimpleDateFormat("dd/MM/yyyy").parse(date);
+            } catch (Exception ex) {
+                throw new RuntimeException("Invalid date format : " + date);
+            }
+        }
+    }
 }
