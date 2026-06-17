@@ -1,15 +1,107 @@
-package com.fincore.enquiry_service.repository;
+package com.fincore.enquiry_service.service;
 
-import com.fincore.enquiry_service.model.GlBalance;
-import org.springframework.data.jpa.repository.JpaRepository;
-import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
-import org.springframework.stereotype.Repository;
+import com.fincore.enquiry_service.dto.LedgerEnquiryRequest;
+import com.fincore.enquiry_service.dto.LedgerEnquiryResponse;
+import com.fincore.enquiry_service.model.LedgerTransaction;
+import com.fincore.enquiry_service.repository.LedgerWiseRepository;
+import com.fincore.enquiry_service.specification.LedgerSpecification;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
+import org.springframework.stereotype.Service;
 
-import java.math.BigInteger;
+@Slf4j
+@RequiredArgsConstructor
+@Service("LedgerEnquiryService")
+public class LedgerEnquiryServiceImpl implements LedgerEnquiryService {
 
-@Repository
-public interface LedgerWiseBalanceRepository
-        extends JpaRepository<GlBalance, BigInteger>,
-                JpaSpecificationExecutor<GlBalance> {
+    private final LedgerWiseRepository ledgerTransactionRepository;
+    private final LedgerExportService ledgerExportService;
 
+    @Override
+    public Page<LedgerEnquiryResponse> search(LedgerEnquiryRequest dto) {
+        Sort.Direction direction = "asc".equalsIgnoreCase(dto.getSortOrder()) ? Sort.Direction.ASC : Sort.Direction.DESC;
+        Pageable pageable = PageRequest.of(dto.getPage(), dto.getSize(), Sort.by(direction, getSortField(dto.getSortField())));
+        Page<LedgerTransaction> page = ledgerTransactionRepository.findAll(LedgerSpecification.build(dto), pageable);
+        return page.map(this::mapToDto);
+    }
+
+    @Override
+    public byte[] excelExport(LedgerEnquiryRequest dto, String userId) {
+        return ledgerExportService.export(dto, userId);
+    }
+
+    /* DTO MAPPING */
+    private LedgerEnquiryResponse mapToDto(LedgerTransaction entity) {
+        String branchCode = null;
+        String branchName = null;
+        String circleCode = null;
+        String circleName = null;
+
+        try {
+            if (entity.getBranch() != null) {
+
+                branchCode = entity.getBranch().getCode();
+                branchName = entity.getBranch().getName();
+
+                if (entity.getBranch().getCircle() != null) {
+                    circleCode = entity.getBranch().getCircle().getCircleCode();
+                    circleName = entity.getBranch().getCircle().getCircleName();
+                }
+            }
+        } catch (Exception e) {
+            log.warn("Branch/Circle mapping failed for transactionId : {}", entity.getTransactionId());
+        }
+
+        return new LedgerEnquiryResponse(
+
+                entity.getTransactionId(), entity.getBatchId(), entity.getJournalId(), entity.getTransactionDate(), entity.getPostDate(),
+                branchCode, branchName,
+                circleCode, circleName,
+                entity.getCurrencyMaster() != null ? entity.getCurrencyMaster().getCurrencyCode() : null,
+                entity.getCurrencyMaster() != null ? entity.getCurrencyMaster().getCurrencyName() : null,
+                entity.getCglMaster() != null ? entity.getCglMaster().getCglNumber() : null,
+                entity.getCglMaster() != null ? entity.getCglMaster().getDescription() : null,
+                entity.getNarration(),
+                entity.getDebitAmount(),
+                entity.getCreditAmount(),
+                entity.getTransactionCount(),
+                entity.getSourceFlag(),
+                entity.getSourceFlagMaster() != null ? entity.getSourceFlagMaster().getFlagName() : null);
+    }
+
+    /* SORT FIELD MAPPING */
+    private String getSortField(String field) {
+
+        return switch (field) {
+
+            case "transactionId" -> "transactionId";
+            case "batchId" -> "batchId";
+            case "journalId" -> "journalId";
+            case "transactionDate" -> "transactionDate";
+            case "postDate" -> "postDate";
+            case "narration" -> "narration";
+            case "debitAmount" -> "debitAmount";
+            case "creditAmount" -> "creditAmount";
+            case "transactionCount" -> "transactionCount";
+            case "sourceFlag" -> "sourceFlag";
+
+            case "branchCode" -> "branch.code";
+            case "branchName" -> "branch.name";
+
+            case "circleCode" -> "branch.circle.circleCode";
+            case "circleName" -> "branch.circle.circleName";
+
+            case "currency" -> "currencyMaster.currencyCode";
+            case "currencyName" -> "currencyMaster.currencyName";
+
+            case "cgl" -> "cglMaster.cglNumber";
+            case "description" -> "cglMaster.description";
+
+            default -> "transactionDate";
+        };
+    }
 }
