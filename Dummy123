@@ -1,36 +1,31 @@
-
 package com.fincore.enquiry_service.model;
 
 import java.math.BigDecimal;
 import java.math.BigInteger;
-import java.sql.Timestamp;
 import java.util.Date;
 
-import jakarta.persistence.*;
+import jakarta.persistence.Column;
+import jakarta.persistence.Entity;
+import jakarta.persistence.FetchType;
+import jakarta.persistence.Id;
+import jakarta.persistence.JoinColumn;
+import jakarta.persistence.ManyToOne;
+import jakarta.persistence.Table;
 import lombok.Getter;
 import lombok.Setter;
 
 @Entity
-@Table(name = "GL_TRANSACTIONS")
+@Table(name = "GL_BALANCE")
 @Getter
 @Setter
-public class LedgerTransaction {
+public class GlBalance {
 
     @Id
-    @Column(name = "TRANSACTION_ID")
-    private BigInteger transactionId;
+    @Column(name = "ID")
+    private BigInteger id;
 
-    @Column(name = "BATCH_ID")
-    private String batchId;
-
-    @Column(name = "JOURNAL_ID")
-    private String journalId;
-
-    @Column(name = "TRANSACTION_DATE")
-    private Date transactionDate;
-
-    @Column(name = "POST_DATE")
-    private Timestamp postDate;
+    @Column(name = "BALANCE_DATE")
+    private Date balanceDate;
 
     @Column(name = "BRANCH_CODE")
     private String branchCode;
@@ -41,20 +36,11 @@ public class LedgerTransaction {
     @Column(name = "CGL")
     private String cgl;
 
-    @Column(name = "NARRATION")
-    private String narration;
+    @Column(name = "BALANCE")
+    private BigDecimal balance;
 
-    @Column(name = "DEBIT_AMOUNT")
-    private BigDecimal debitAmount;
-
-    @Column(name = "CREDIT_AMOUNT")
-    private BigDecimal creditAmount;
-
-    @Column(name = "TRANSACTION_COUNT")
-    private Long transactionCount;
-
-    @Column(name = "SOURCE_FLAG")
-    private String sourceFlag;
+    @Column(name = "INR_BALANCE")
+    private BigDecimal inrBalance;
 
     // ================= RELATIONSHIPS =================
 
@@ -84,13 +70,4 @@ public class LedgerTransaction {
             updatable = false
     )
     private CglMaster cglMaster;
-
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(
-            name = "SOURCE_FLAG",
-            referencedColumnName = "FLAG_ID",
-            insertable = false,
-            updatable = false
-    )
-    private SourceFlag sourceFlagMaster;
 }
