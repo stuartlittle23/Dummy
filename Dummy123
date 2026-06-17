@@ -1,7 +1,6 @@
 package com.fincore.enquiry_service.repository;
 
-import com.fincore.enquiry_service.model.GlTransactions;
-import com.fincore.enquiry_service.model.LedgerTransaction;
+import com.fincore.enquiry_service.model.GlBalance;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 import org.springframework.stereotype.Repository;
@@ -9,10 +8,8 @@ import org.springframework.stereotype.Repository;
 import java.math.BigInteger;
 
 @Repository
-public interface LedgerWiseRepository
-        extends JpaRepository<LedgerTransaction, BigInteger>,
-        JpaSpecificationExecutor<LedgerTransaction> {
+public interface LedgerWiseBalanceRepository
+        extends JpaRepository<GlBalance, BigInteger>,
+                JpaSpecificationExecutor<GlBalance> {
 
 }
-
-
