@@ -1,32 +1,511 @@
-package com.fincore.enquiry_service.dto;
+package com.fincore.enquiry_service.service;
 
-import lombok.AllArgsConstructor;
-import lombok.Data;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fincore.enquiry_service.dto.LedgerEnquiryRequest;
+import com.fincore.enquiry_service.dto.MyDownloadsRequestDTO;
+import com.fincore.enquiry_service.dto.SearchCriteriaDTO;
+import com.fincore.enquiry_service.exception.ExportLimitException;
+import com.fincore.enquiry_service.exception.NoDataFoundException;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.apache.poi.ss.usermodel.*;
+import org.apache.poi.ss.util.CellRangeAddress;
+import org.apache.poi.xssf.streaming.SXSSFSheet;
+import org.apache.poi.xssf.streaming.SXSSFWorkbook;
+import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.stereotype.Service;
 
-import java.math.BigDecimal;
-import java.util.Date;
+import java.io.ByteArrayOutputStream;
+import java.io.IOException;
+import java.sql.ResultSet;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.List;
+import java.util.concurrent.atomic.AtomicInteger;
+import java.util.stream.Collectors;
 
-@AllArgsConstructor
-@Data
-public class LedgerWiseBalanceResponse {
+@Slf4j
+@Service
+@RequiredArgsConstructor
+public class LedgerExportService {
 
-    private Long id;
+    private static final String FOREIGN_CIRCLE = "021";
 
-    private Date balanceDate;
+    private static final long MAX_EXPORT_LIMIT = 1_000_000;
 
-    private String branchCode;
-    private String branchName;
+    private static final int FETCH_SIZE = 20_000;
 
-    private String circleCode;
-    private String circleName;
+    private final JdbcTemplate jdbcTemplate;
 
-    private String currency;
-    private String currencyName;
+    private final MyDownloadsService myDownloadsService;
 
-    private String cgl;
-    private String description;
+    /*
+     * =========================================
+     * EXPORT
+     * =========================================
+     */
+    public byte[] export(LedgerEnquiryRequest dto, String userId) {
 
-    private BigDecimal balance;
+        validateExportLimit(dto);
 
-    private BigDecimal inrBalance;
+        try {
+
+            /* SQL */
+            StringBuilder sql = new StringBuilder("""
+                    SELECT
+                        g.TRANSACTION_ID,
+                        g.BATCH_ID,
+                        g.JOURNAL_ID,
+                        g.TRANSACTION_DATE,
+                        g.POST_DATE,
+
+                        b.CODE AS BRANCH_CODE,
+                        b.NAME AS BRANCH_NAME,
+
+                        c.CIRCLE_CODE,
+                        c.CIRCLE_NAME,
+
+                        g.CURRENCY,
+                        cu.CURRENCY_NAME,
+
+                        g.CGL,
+                        cg.DESCRIPTION,
+
+                        g.NARRATION,
+
+                        ABS(g.DEBIT_AMOUNT)
+                            AS DEBIT_AMOUNT,
+
+                        ABS(g.CREDIT_AMOUNT)
+                            AS CREDIT_AMOUNT,
+
+                        NVL(
+                            g.TRANSACTION_COUNT,
+                            0
+                        ) AS TRANSACTION_COUNT,
+
+                        sf.FLAG_NAME
+                            AS SOURCE_NAME
+
+                    FROM GL_TRANSACTIONS g
+
+                    JOIN BRANCH_MASTER b
+                        ON g.BRANCH_CODE =
+                            b.CODE
+
+                    LEFT JOIN CIRCLE_MASTER c
+                        ON b.CIRCLE_CODE =
+                            c.CIRCLE_CODE
+
+                    LEFT JOIN CURRENCY_MASTER cu
+                        ON g.CURRENCY =
+                            cu.CURRENCY_CODE
+
+                    LEFT JOIN CGL_MASTER cg
+                        ON g.CGL =
+                            cg.CGL_NUMBER
+
+                    LEFT JOIN SOURCE_FLAG sf
+                        ON g.SOURCE_FLAG =
+                            sf.FLAG_ID
+
+                    WHERE 1 = 1
+                    """);
+
+            /* PARAMS */
+            List<Object> params = new ArrayList<>();
+
+            /* CGL */
+            sql.append("""
+                    AND g.CGL = ?
+                    """);
+            params.add(dto.getCgl());
+
+            /* CURRENCY */
+            if (dto.getCurrencies() != null && !"ALL".equalsIgnoreCase(dto.getCurrencies())) {
+                sql.append("""
+                        AND g.CURRENCY = ?
+                        """);
+                params.add(dto.getCurrencies());
+            }
+
+            /* DATES */
+            sql.append("""
+                    AND g.TRANSACTION_DATE
+                    BETWEEN
+                        TO_DATE(?,'DD/MM/YYYY')
+                    AND
+                        TO_DATE(?,'DD/MM/YYYY')
+                    """);
+
+            params.add(dto.getFromDate());
+            params.add(dto.getToDate());
+
+            /* CIRCLE */
+            if ("DOMESTIC".equalsIgnoreCase(dto.getCircle())) {
+                sql.append("""
+                        AND c.CIRCLE_CODE <> ?
+                        """);
+                params.add(FOREIGN_CIRCLE);
+            } else if ("FOREIGN".equalsIgnoreCase(dto.getCircle())) {
+                sql.append("""
+                        AND c.CIRCLE_CODE = ?
+                        """);
+                params.add(FOREIGN_CIRCLE);
+            } else if (dto.getCircle() != null && !"ALL".equalsIgnoreCase(dto.getCircle())) {
+                sql.append("""
+                        AND c.CIRCLE_CODE = ?
+                        """);
+                params.add(dto.getCircle());
+            }
+
+            /* BRANCHES */
+            if (dto.getBranches() != null && !dto.getBranches().isEmpty() && !dto.getBranches().contains("ALL")) {
+                sql.append("""
+                        AND g.BRANCH_CODE IN (
+                        """);
+                sql.append(dto.getBranches().stream().map(v -> "?").collect(Collectors.joining(",")));
+                sql.append(")");
+                params.addAll(dto.getBranches());
+            }
+
+            /* SOURCE FLAGS */
+            if (dto.getSourceFlags() != null && !dto.getSourceFlags().isEmpty()) {
+                sql.append("""
+                        AND g.SOURCE_FLAG IN (
+                        """);
+                sql.append(dto.getSourceFlags().stream().map(v -> "?").collect(Collectors.joining(",")));
+                sql.append(")");
+                params.addAll(dto.getSourceFlags());
+            }
+
+            /* SORT */
+            sql.append("""
+                    ORDER BY
+                        g.TRANSACTION_DATE DESC
+                    """);
+
+            log.info("Ledger Export Started");
+
+            long start = System.currentTimeMillis();
+
+            /* EXCEL */
+            try (
+
+                    SXSSFWorkbook workbook = new SXSSFWorkbook(1000);
+                    ByteArrayOutputStream out = new ByteArrayOutputStream()
+
+            ) {
+
+                workbook.setCompressTempFiles(true);
+                SXSSFSheet sheet = workbook.createSheet("Ledger");
+
+                /* HEADER */
+                createReportHeader(workbook, sheet, dto);
+
+                /* DATA STARTS FROM ROW 4 */
+                AtomicInteger rowNum = new AtomicInteger(4);
+                jdbcTemplate.setFetchSize(FETCH_SIZE);
+                jdbcTemplate.query(connection -> {
+                    var ps = connection.prepareStatement(sql.toString());
+                    ps.setFetchSize(FETCH_SIZE);
+                    for (int i = 0; i < params.size(); i++) {
+                        ps.setObject(i + 1, params.get(i));
+                    }
+                    return ps;
+                },
+
+                        (ResultSet rs) -> {
+                            Row row = sheet.createRow(rowNum.getAndIncrement());
+                            int col = 0;
+                            row.createCell(col++).setCellValue(safeString(rs.getString("TRANSACTION_ID")));
+                            row.createCell(col++).setCellValue(safeString(rs.getString("BATCH_ID")));
+                            row.createCell(col++).setCellValue(safeString(rs.getString("JOURNAL_ID")));
+                            row.createCell(col++).setCellValue(safeString(rs.getString("TRANSACTION_DATE")));
+                            row.createCell(col++).setCellValue(safeString(rs.getString("POST_DATE")));
+                            row.createCell(col++).setCellValue(safeString(rs.getString("CIRCLE_CODE")));
+                            row.createCell(col++).setCellValue(safeString(rs.getString("CIRCLE_NAME")));
+                            row.createCell(col++).setCellValue(safeString(rs.getString("BRANCH_CODE")));
+                            row.createCell(col++).setCellValue(safeString(rs.getString("BRANCH_NAME")));
+                            row.createCell(col++).setCellValue(safeString(rs.getString("CURRENCY")));
+                            row.createCell(col++).setCellValue(safeString(rs.getString("CURRENCY_NAME")));
+                            row.createCell(col++).setCellValue(safeString(rs.getString("CGL")));
+                            row.createCell(col++).setCellValue(safeString(rs.getString("DESCRIPTION")));
+                            row.createCell(col++).setCellValue(safeString(rs.getString("NARRATION")));
+                            row.createCell(col++).setCellValue(safeString(rs.getString("SOURCE_NAME")));
+                            row.createCell(col++)
+                                    .setCellValue(rs.getBigDecimal("DEBIT_AMOUNT") != null
+                                            ? rs.getBigDecimal("DEBIT_AMOUNT").doubleValue()
+                                            : 0);
+                            row.createCell(col++)
+                                    .setCellValue(rs.getBigDecimal("CREDIT_AMOUNT") != null
+                                            ? rs.getBigDecimal("CREDIT_AMOUNT").doubleValue()
+                                            : 0);
+                            row.createCell(col++).setCellValue(rs.getLong("TRANSACTION_COUNT"));
+
+
+                            /* FLUSH */
+                            if (rowNum.get() % 5000 == 0) {
+                                try {
+                                    sheet.flushRows(500);
+                                } catch (IOException e) {
+                                    throw new RuntimeException(e);
+                                }
+                                log.info("Processed Rows : {}", rowNum.get());
+                            }
+                        });
+
+                /* FINAL FLUSH */
+                sheet.flushRows();
+
+                /* WIDTHS */
+                setColumnWidths(sheet);
+
+                /* WRITE */
+                workbook.write(out);
+                byte[] bytes = out.toByteArray();
+                log.info("Generated Excel Size in Bytes : {}", bytes.length);
+                workbook.dispose();
+                SearchCriteriaDTO searchDto = new SearchCriteriaDTO();
+
+                String Branches = String.join(", ", dto.getBranches());
+
+                searchDto.setCircle(dto.getCircle());
+                searchDto.setBranch(Branches);
+                searchDto.setCgl(dto.getCgl());
+                searchDto.setCurrency(dto.getCurrencies());
+                searchDto.setFromDate(dto.getFromDate());
+                searchDto.setToDate(dto.getToDate());
+
+                if (dto.getSourceFlags() == null) {
+                    searchDto.setSourceFlags(List.of("ALL"));
+                } else {
+                    searchDto.setSourceFlags(dto.getSourceFlags());
+                }
+
+                /* SAVE DOWNLOAD */
+                sendToMyDownloads(userId, searchDto, bytes);
+                long end = System.currentTimeMillis();
+                log.info("Ledger Export Completed " + "In {} Seconds", (end - start) / 1000);
+                return bytes;
+            }
+
+        } catch (Exception e) {
+            log.error("Ledger Export Failed", e);
+            throw new RuntimeException("Export failed", e);
+        }
+    }
+
+    /*
+     * =========================================
+     * REPORT HEADER
+     * =========================================
+     */
+
+    private void createReportHeader(Workbook workbook, Sheet sheet, LedgerEnquiryRequest dto) {
+
+        /* TITLE STYLE */
+
+        Font titleFont = workbook.createFont();
+        titleFont.setBold(true);
+        titleFont.setFontHeightInPoints((short) 14);
+        CellStyle titleStyle = workbook.createCellStyle();
+        titleStyle.setFont(titleFont);
+        titleStyle.setAlignment(HorizontalAlignment.LEFT);
+
+        /* META STYLE */
+        Font metaFont = workbook.createFont();
+        metaFont.setBold(true);
+        CellStyle metaStyle = workbook.createCellStyle();
+        metaStyle.setFont(metaFont);
+
+        /* HEADER STYLE */
+        Font headerFont = workbook.createFont();
+        headerFont.setBold(true);
+        CellStyle headerStyle = workbook.createCellStyle();
+        headerStyle.setFont(headerFont);
+        headerStyle.setAlignment(HorizontalAlignment.LEFT);
+
+        /* ROW 0 */
+        Row titleRow = sheet.createRow(0);
+        Cell titleCell = titleRow.createCell(0);
+        titleCell.setCellValue("Ledger Wise Enquiry Report");
+        titleCell.setCellStyle(titleStyle);
+        sheet.addMergedRegion(new CellRangeAddress(0, 0, 0, 17));
+
+        /* ROW 1 */
+        Row metaRow = sheet.createRow(1);
+        Cell metaCell = metaRow.createCell(0);
+        metaCell.setCellValue("CGL : " + dto.getCgl() + " | Circle : " + dto.getCircle() + " | From : "
+                + dto.getFromDate() + " | To : " + dto.getToDate());
+        metaCell.setCellStyle(metaStyle);
+        sheet.addMergedRegion(new CellRangeAddress(1, 1, 0, 17));
+
+        /* ROW 2 EMPTY */
+        sheet.createRow(2);
+
+        /* ROW 3 HEADER */
+        Row header = sheet.createRow(3);
+        String[] columns = {
+                "TRANSACTION ID",
+                "BATCH ID",
+                "JOURNAL ID",
+                "TRANSACTION DATE",
+                "POST DATE",
+                "CIRCLE CODE",
+                "CIRCLE NAME",
+                "BRANCH CODE",
+                "BRANCH NAME",
+                "CURRENCY CODE",
+                "CURRENCY NAME",
+                "CGL CODE",
+                "DESCRIPTION",
+                "NARRATION",
+                "SOURCE",
+                "DEBIT AMOUNT",
+                "CREDIT AMOUNT",
+                "TRANSACTION COUNT"
+        };
+        for (int i = 0; i < columns.length; i++) {
+            Cell cell = header.createCell(i);
+            cell.setCellValue(columns[i]);
+            cell.setCellStyle(headerStyle);
+        }
+    }
+
+    /*
+     * =========================================
+     * EXPORT LIMIT
+     * =========================================
+     */
+    private void validateExportLimit(LedgerEnquiryRequest dto) {
+
+        StringBuilder sql = new StringBuilder("""
+                SELECT COUNT(*)
+                FROM GL_TRANSACTIONS g
+                JOIN BRANCH_MASTER b
+                    ON g.BRANCH_CODE = b.CODE
+                LEFT JOIN CIRCLE_MASTER c
+                    ON b.CIRCLE_CODE = c.CIRCLE_CODE
+                WHERE 1=1
+                """);
+
+        List<Object> params = new ArrayList<>();
+
+        sql.append(" AND g.CGL = ? ");
+        params.add(dto.getCgl());
+
+        sql.append("""
+                AND g.TRANSACTION_DATE
+                BETWEEN TO_DATE(?,'DD/MM/YYYY')
+                AND TO_DATE(?,'DD/MM/YYYY')
+                """);
+
+        params.add(dto.getFromDate());
+        params.add(dto.getToDate());
+
+        // Currency
+        if (dto.getCurrencies() != null && !"ALL".equalsIgnoreCase(dto.getCurrencies())) {
+
+            sql.append(" AND g.CURRENCY = ? ");
+            params.add(dto.getCurrencies());
+        }
+
+        // Circle
+        if ("DOMESTIC".equalsIgnoreCase(dto.getCircle())) {
+            sql.append(" AND c.CIRCLE_CODE <> ? ");
+            params.add(FOREIGN_CIRCLE);
+
+        } else if ("FOREIGN".equalsIgnoreCase(dto.getCircle())) {
+            sql.append(" AND c.CIRCLE_CODE = ? ");
+            params.add(FOREIGN_CIRCLE);
+
+        } else if (dto.getCircle() != null && !"ALL".equalsIgnoreCase(dto.getCircle())) {
+
+            sql.append(" AND c.CIRCLE_CODE = ? ");
+            params.add(dto.getCircle());
+        }
+
+        // Branches
+        if (dto.getBranches() != null && !dto.getBranches().isEmpty() && !dto.getBranches().contains("ALL")) {
+
+            sql.append(" AND g.BRANCH_CODE IN (");
+            sql.append(dto.getBranches().stream().map(v -> "?").collect(Collectors.joining(",")));
+            sql.append(")");
+
+            params.addAll(dto.getBranches());
+        }
+
+        // Source Flags
+        if (dto.getSourceFlags() != null && !dto.getSourceFlags().isEmpty()) {
+
+            sql.append(" AND g.SOURCE_FLAG IN (");
+            sql.append(dto.getSourceFlags().stream().map(v -> "?").collect(Collectors.joining(",")));
+            sql.append(")");
+
+            params.addAll(dto.getSourceFlags());
+        }
+
+        Long count = jdbcTemplate.queryForObject(sql.toString(), Long.class, params.toArray());
+
+        log.info("Export record count = {}", count);
+
+        if (count != null && count > MAX_EXPORT_LIMIT) {
+            log.info("Export records count = {}", count);
+            throw new ExportLimitException("Excel export cannot be generated for more than 10 lakh records.");
+        }
+    }
+
+    /*
+     * =========================================
+     * WIDTHS
+     * =========================================
+     */
+    private void setColumnWidths(Sheet sheet) {
+
+        sheet.setColumnWidth(0, 4000);
+        sheet.setColumnWidth(1, 2500);
+        sheet.setColumnWidth(2, 3000);
+        sheet.setColumnWidth(3, 5000);
+        sheet.setColumnWidth(4, 5000);
+        sheet.setColumnWidth(5, 3500);
+        sheet.setColumnWidth(6, 10000);
+        sheet.setColumnWidth(7, 3500);
+        sheet.setColumnWidth(8, 10000);
+        sheet.setColumnWidth(9, 3000);
+        sheet.setColumnWidth(10, 7000);
+        sheet.setColumnWidth(11, 3200);
+        sheet.setColumnWidth(12, 12000);
+        sheet.setColumnWidth(13, 11000);
+        sheet.setColumnWidth(14, 6500);
+        sheet.setColumnWidth(15, 6500);
+        sheet.setColumnWidth(16, 6000);
+        sheet.setColumnWidth(17, 8000);
+    }
+
+    /*
+     * =========================================
+     * DOWNLOAD SAVE
+     * =========================================
+     */
+    private void sendToMyDownloads(String userId, SearchCriteriaDTO dto, byte[] content) {
+        try {
+            String json = new ObjectMapper().writeValueAsString(dto);
+            String fileName = "GL_Enquiry_" + dto.getCgl() + ".xlsx";
+            MyDownloadsRequestDTO request = new MyDownloadsRequestDTO(userId, fileName, 51, json, content);
+            myDownloadsService.insertRequest(request);
+        } catch (Exception e) {
+            log.error("Download save failed", e);
+        }
+    }
+
+    /*
+     * =========================================
+     * SAFE STRING
+     * =========================================
+     */
+    private String safeString(Object value) {
+
+        return value != null ? value.toString() : "";
+    }
 }
