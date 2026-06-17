@@ -1,73 +1,18 @@
-package com.fincore.enquiry_service.model;
+package com.fincore.enquiry_service.repository;
 
-import java.math.BigDecimal;
+import com.fincore.enquiry_service.model.GlTransactions;
+import com.fincore.enquiry_service.model.LedgerTransaction;
+import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
+import org.springframework.stereotype.Repository;
+
 import java.math.BigInteger;
-import java.util.Date;
 
-import jakarta.persistence.Column;
-import jakarta.persistence.Entity;
-import jakarta.persistence.FetchType;
-import jakarta.persistence.Id;
-import jakarta.persistence.JoinColumn;
-import jakarta.persistence.ManyToOne;
-import jakarta.persistence.Table;
-import lombok.Getter;
-import lombok.Setter;
+@Repository
+public interface LedgerWiseRepository
+        extends JpaRepository<LedgerTransaction, BigInteger>,
+        JpaSpecificationExecutor<LedgerTransaction> {
 
-@Entity
-@Table(name = "GL_BALANCE")
-@Getter
-@Setter
-public class GlBalance {
-
-    @Id
-    @Column(name = "ID")
-    private BigInteger id;
-
-    @Column(name = "BALANCE_DATE")
-    private Date balanceDate;
-
-    @Column(name = "BRANCH_CODE")
-    private String branchCode;
-
-    @Column(name = "CURRENCY")
-    private String currency;
-
-    @Column(name = "CGL")
-    private String cgl;
-
-    @Column(name = "BALANCE")
-    private BigDecimal balance;
-
-    @Column(name = "INR_BALANCE")
-    private BigDecimal inrBalance;
-
-    // ================= RELATIONSHIPS =================
-
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(
-            name = "BRANCH_CODE",
-            referencedColumnName = "CODE",
-            insertable = false,
-            updatable = false
-    )
-    private BranchMaster branch;
-
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(
-            name = "CURRENCY",
-            referencedColumnName = "CURRENCY_CODE",
-            insertable = false,
-            updatable = false
-    )
-    private CurrencyMaster currencyMaster;
-
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(
-            name = "CGL",
-            referencedColumnName = "CGL_NUMBER",
-            insertable = false,
-            updatable = false
-    )
-    private CglMaster cglMaster;
 }
+
+
