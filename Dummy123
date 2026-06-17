@@ -1,1 +1,240 @@
+package com.fincore.enquiry_service.specification;
 
+import com.fincore.enquiry_service.dto.GridFilter;
+import com.fincore.enquiry_service.dto.LedgerWiseBalanceRequest;
+import com.fincore.enquiry_service.model.GlBalance;
+import jakarta.persistence.criteria.Expression;
+import jakarta.persistence.criteria.Path;
+import jakarta.persistence.criteria.Predicate;
+import jakarta.persistence.criteria.Root;
+import org.springframework.data.jpa.domain.Specification;
+
+import java.math.BigDecimal;
+import java.text.SimpleDateFormat;
+import java.util.ArrayList;
+import java.util.Date;
+import java.util.List;
+
+public class LedgerWiseBalanceSpecification {
+
+    public static Specification<GlBalance> build(
+            LedgerWiseBalanceRequest dto) {
+
+        return (root, query, cb) -> {
+
+            List<Predicate> predicates = new ArrayList<>();
+
+            /* CGL */
+            predicates.add(
+                    cb.equal(root.get("cgl"), dto.getCgl()));
+
+            /* BALANCE DATE */
+            predicates.add(
+                    cb.between(
+                            root.get("balanceDate"),
+                            parseDate(dto.getFromDate()),
+                            parseDate(dto.getToDate())
+                    )
+            );
+
+            /* CURRENCY */
+            if (dto.getCurrencies() != null
+                    && !"ALL".equalsIgnoreCase(dto.getCurrencies())) {
+
+                predicates.add(
+                        cb.equal(
+                                root.get("currency"),
+                                dto.getCurrencies()));
+            }
+
+            /* CIRCLE */
+            if ("DOMESTIC".equals(dto.getCircle())) {
+
+                predicates.add(
+                        cb.notEqual(
+                                root.get("branch")
+                                        .get("circle")
+                                        .get("circleCode"),
+                                "021"));
+
+            } else if ("FOREIGN".equals(dto.getCircle())) {
+
+                predicates.add(
+                        cb.equal(
+                                root.get("branch")
+                                        .get("circle")
+                                        .get("circleCode"),
+                                "021"));
+
+            } else if (!"ALL".equals(dto.getCircle())) {
+
+                predicates.add(
+                        cb.equal(
+                                root.get("branch")
+                                        .get("circle")
+                                        .get("circleCode"),
+                                dto.getCircle()));
+            }
+
+            /* BRANCHES */
+            if (dto.getBranches() != null
+                    && !dto.getBranches().isEmpty()
+                    && !dto.getBranches().contains("ALL")) {
+
+                predicates.add(
+                        root.get("branch")
+                                .get("code")
+                                .in(dto.getBranches()));
+            }
+
+            /* GRID FILTERS */
+            if (dto.getGridFilters() != null) {
+
+                for (GridFilter filter : dto.getGridFilters()) {
+
+                    if (filter.getField() == null
+                            || filter.getOperator() == null
+                            || filter.getValue() == null) {
+                        continue;
+                    }
+
+                    Path<?> path =
+                            getPath(root, filter.getField());
+
+                    if (path.getJavaType()
+                            .equals(BigDecimal.class)) {
+
+                        BigDecimal value =
+                                new BigDecimal(
+                                        filter.getValue().toString());
+
+                        Expression<BigDecimal> numberPath =
+                                path.as(BigDecimal.class);
+
+                        switch (filter.getOperator()) {
+
+                            case "=",
+                                 "equals",
+                                 "is" ->
+                                    predicates.add(
+                                            cb.equal(
+                                                    numberPath,
+                                                    value));
+
+                            case ">" ->
+                                    predicates.add(
+                                            cb.greaterThan(
+                                                    numberPath,
+                                                    value));
+
+                            case ">=" ->
+                                    predicates.add(
+                                            cb.greaterThanOrEqualTo(
+                                                    numberPath,
+                                                    value));
+
+                            case "<" ->
+                                    predicates.add(
+                                            cb.lessThan(
+                                                    numberPath,
+                                                    value));
+
+                            case "<=" ->
+                                    predicates.add(
+                                            cb.lessThanOrEqualTo(
+                                                    numberPath,
+                                                    value));
+                        }
+
+                        continue;
+                    }
+
+                    Expression<String> expression =
+                            cb.lower(path.as(String.class));
+
+                    String value =
+                            filter.getValue()
+                                    .toString()
+                                    .toLowerCase();
+
+                    switch (filter.getOperator()) {
+
+                        case "contains" ->
+                                predicates.add(
+                                        cb.like(
+                                                expression,
+                                                "%" + value + "%"));
+
+                        case "equals",
+                             "=" ->
+                                predicates.add(
+                                        cb.equal(
+                                                expression,
+                                                value));
+                    }
+                }
+            }
+
+            return cb.and(
+                    predicates.toArray(new Predicate[0]));
+        };
+    }
+
+    private static Path<?> getPath(
+            Root<GlBalance> root,
+            String field) {
+
+        return switch (field) {
+
+            case "branchCode" ->
+                    root.get("branch").get("code");
+
+            case "branchName" ->
+                    root.get("branch").get("name");
+
+            case "circleCode" ->
+                    root.get("branch")
+                            .get("circle")
+                            .get("circleCode");
+
+            case "circleName" ->
+                    root.get("branch")
+                            .get("circle")
+                            .get("circleName");
+
+            case "currency" ->
+                    root.get("currencyMaster")
+                            .get("currencyCode");
+
+            case "currencyName" ->
+                    root.get("currencyMaster")
+                            .get("currencyName");
+
+            case "cgl" ->
+                    root.get("cglMaster")
+                            .get("cglNumber");
+
+            case "description" ->
+                    root.get("cglMaster")
+                            .get("description");
+
+            default ->
+                    root.get(field);
+        };
+    }
+
+    private static Date parseDate(
+            String date) {
+
+        try {
+            return new SimpleDateFormat(
+                    "dd/MM/yyyy")
+                    .parse(date);
+
+        } catch (Exception e) {
+
+            throw new RuntimeException(
+                    "Invalid date format : " + date);
+        }
+    }
+}
