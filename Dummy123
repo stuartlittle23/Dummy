@@ -1,1 +1,267 @@
 
+package com.fincore.enquiry_service.service;
+
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fincore.enquiry_service.dto.LedgerWiseBalanceRequest;
+import com.fincore.enquiry_service.dto.MyDownloadsRequestDTO;
+import com.fincore.enquiry_service.dto.SearchCriteriaDTO;
+import com.fincore.enquiry_service.exception.ExportLimitException;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.apache.poi.ss.usermodel.*;
+import org.apache.poi.ss.util.CellRangeAddress;
+import org.apache.poi.xssf.streaming.SXSSFSheet;
+import org.apache.poi.xssf.streaming.SXSSFWorkbook;
+import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.stereotype.Service;
+
+import java.io.ByteArrayOutputStream;
+import java.io.IOException;
+import java.sql.ResultSet;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.concurrent.atomic.AtomicInteger;
+import java.util.stream.Collectors;
+
+@Slf4j
+@Service
+@RequiredArgsConstructor
+public class LedgerWiseBalanceExportService {
+
+    private static final String FOREIGN_CIRCLE = "021";
+
+    private static final long MAX_EXPORT_LIMIT = 1_000_000;
+
+    private static final int FETCH_SIZE = 20_000;
+
+    private final JdbcTemplate jdbcTemplate;
+
+    private final MyDownloadsService myDownloadsService;
+
+    public byte[] export(LedgerWiseBalanceRequest dto, String userId) {
+
+        validateExportLimit(dto);
+
+        try {
+
+            StringBuilder sql = new StringBuilder("""
+                    SELECT
+                        g.ID,
+                        g.BALANCE_DATE,
+
+                        b.CODE AS BRANCH_CODE,
+                        b.NAME AS BRANCH_NAME,
+
+                        c.CIRCLE_CODE,
+                        c.CIRCLE_NAME,
+
+                        g.CURRENCY,
+                        cu.CURRENCY_NAME,
+
+                        g.CGL,
+                        cg.DESCRIPTION,
+
+                        g.BALANCE,
+                        g.INR_BALANCE
+
+                    FROM GL_BALANCE g
+
+                    JOIN BRANCH_MASTER b
+                        ON g.BRANCH_CODE = b.CODE
+
+                    LEFT JOIN CIRCLE_MASTER c
+                        ON b.CIRCLE_CODE = c.CIRCLE_CODE
+
+                    LEFT JOIN CURRENCY_MASTER cu
+                        ON g.CURRENCY = cu.CURRENCY_CODE
+
+                    LEFT JOIN CGL_MASTER cg
+                        ON g.CGL = cg.CGL_NUMBER
+
+                    WHERE 1 = 1
+                    """);
+
+            List<Object> params = new ArrayList<>();
+
+            sql.append("""
+                    AND g.CGL = ?
+                    """);
+            params.add(dto.getCgl());
+
+            if (dto.getCurrencies() != null &&
+                    !"ALL".equalsIgnoreCase(dto.getCurrencies())) {
+
+                sql.append("""
+                        AND g.CURRENCY = ?
+                        """);
+
+                params.add(dto.getCurrencies());
+            }
+
+            sql.append("""
+                    AND g.BALANCE_DATE
+                    BETWEEN
+                        TO_DATE(?,'DD/MM/YYYY')
+                    AND
+                        TO_DATE(?,'DD/MM/YYYY')
+                    """);
+
+            params.add(dto.getFromDate());
+            params.add(dto.getToDate());
+
+            if ("DOMESTIC".equalsIgnoreCase(dto.getCircle())) {
+
+                sql.append("""
+                        AND c.CIRCLE_CODE <> ?
+                        """);
+
+                params.add(FOREIGN_CIRCLE);
+
+            } else if ("FOREIGN".equalsIgnoreCase(dto.getCircle())) {
+
+                sql.append("""
+                        AND c.CIRCLE_CODE = ?
+                        """);
+
+                params.add(FOREIGN_CIRCLE);
+
+            } else if (dto.getCircle() != null &&
+                    !"ALL".equalsIgnoreCase(dto.getCircle())) {
+
+                sql.append("""
+                        AND c.CIRCLE_CODE = ?
+                        """);
+
+                params.add(dto.getCircle());
+            }
+
+            if (dto.getBranches() != null &&
+                    !dto.getBranches().isEmpty() &&
+                    !dto.getBranches().contains("ALL")) {
+
+                sql.append("""
+                        AND g.BRANCH_CODE IN (
+                        """);
+
+                sql.append(
+                        dto.getBranches()
+                                .stream()
+                                .map(v -> "?")
+                                .collect(Collectors.joining(","))
+                );
+
+                sql.append(")");
+
+                params.addAll(dto.getBranches());
+            }
+
+            sql.append("""
+                    ORDER BY
+                        g.BALANCE_DATE DESC
+                    """);
+
+            log.info("Ledger Balance Export Started");
+
+            long start = System.currentTimeMillis();
+
+            try (
+                    SXSSFWorkbook workbook =
+                            new SXSSFWorkbook(1000);
+
+                    ByteArrayOutputStream out =
+                            new ByteArrayOutputStream()
+            ) {
+
+                workbook.setCompressTempFiles(true);
+
+                SXSSFSheet sheet =
+                        workbook.createSheet("Ledger Balance");
+
+                createReportHeader(
+                        workbook,
+                        sheet,
+                        dto
+                );
+
+                AtomicInteger rowNum =
+                        new AtomicInteger(4);
+
+                jdbcTemplate.setFetchSize(FETCH_SIZE);
+
+                jdbcTemplate.query(connection -> {
+
+                    var ps =
+                            connection.prepareStatement(sql.toString());
+
+                    ps.setFetchSize(FETCH_SIZE);
+
+                    for (int i = 0; i < params.size(); i++) {
+                        ps.setObject(i + 1, params.get(i));
+                    }
+
+                    return ps;
+
+                }, (ResultSet rs) -> {
+
+                    Row row =
+                            sheet.createRow(rowNum.getAndIncrement());
+
+                    int col = 0;
+
+                    row.createCell(col++)
+                            .setCellValue(rs.getLong("ID"));
+
+                    row.createCell(col++)
+                            .setCellValue(
+                                    safeString(
+                                            rs.getString("BALANCE_DATE")
+                                    )
+                            );
+
+                    row.createCell(col++)
+                            .setCellValue(
+                                    safeString(
+                                            rs.getString("CIRCLE_CODE")
+                                    )
+                            );
+
+                    row.createCell(col++)
+                            .setCellValue(
+                                    safeString(
+                                            rs.getString("CIRCLE_NAME")
+                                    )
+                            );
+
+                    row.createCell(col++)
+                            .setCellValue(
+                                    safeString(
+                                            rs.getString("BRANCH_CODE")
+                                    )
+                            );
+
+                    row.createCell(col++)
+                            .setCellValue(
+                                    safeString(
+                                            rs.getString("BRANCH_NAME")
+                                    )
+                            );
+
+                    row.createCell(col++)
+                            .setCellValue(
+                                    safeString(
+                                            rs.getString("CURRENCY")
+                                    )
+                            );
+
+                    row.createCell(col++)
+                            .setCellValue(
+                                    safeString(
+                                            rs.getString("CURRENCY_NAME")
+                                    )
+                            );
+row.createCell(col++)
+        .setCellValue(
+                safeString(
+                        rs.getString("CGL")
+                )
+        );
