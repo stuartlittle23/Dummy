@@ -1,1 +1,96 @@
 
+package com.fincore.enquiry_service.model;
+
+import java.math.BigDecimal;
+import java.math.BigInteger;
+import java.sql.Timestamp;
+import java.util.Date;
+
+import jakarta.persistence.*;
+import lombok.Getter;
+import lombok.Setter;
+
+@Entity
+@Table(name = "GL_TRANSACTIONS")
+@Getter
+@Setter
+public class LedgerTransaction {
+
+    @Id
+    @Column(name = "TRANSACTION_ID")
+    private BigInteger transactionId;
+
+    @Column(name = "BATCH_ID")
+    private String batchId;
+
+    @Column(name = "JOURNAL_ID")
+    private String journalId;
+
+    @Column(name = "TRANSACTION_DATE")
+    private Date transactionDate;
+
+    @Column(name = "POST_DATE")
+    private Timestamp postDate;
+
+    @Column(name = "BRANCH_CODE")
+    private String branchCode;
+
+    @Column(name = "CURRENCY")
+    private String currency;
+
+    @Column(name = "CGL")
+    private String cgl;
+
+    @Column(name = "NARRATION")
+    private String narration;
+
+    @Column(name = "DEBIT_AMOUNT")
+    private BigDecimal debitAmount;
+
+    @Column(name = "CREDIT_AMOUNT")
+    private BigDecimal creditAmount;
+
+    @Column(name = "TRANSACTION_COUNT")
+    private Long transactionCount;
+
+    @Column(name = "SOURCE_FLAG")
+    private String sourceFlag;
+
+    // ================= RELATIONSHIPS =================
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(
+            name = "BRANCH_CODE",
+            referencedColumnName = "CODE",
+            insertable = false,
+            updatable = false
+    )
+    private BranchMaster branch;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(
+            name = "CURRENCY",
+            referencedColumnName = "CURRENCY_CODE",
+            insertable = false,
+            updatable = false
+    )
+    private CurrencyMaster currencyMaster;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(
+            name = "CGL",
+            referencedColumnName = "CGL_NUMBER",
+            insertable = false,
+            updatable = false
+    )
+    private CglMaster cglMaster;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(
+            name = "SOURCE_FLAG",
+            referencedColumnName = "FLAG_ID",
+            insertable = false,
+            updatable = false
+    )
+    private SourceFlag sourceFlagMaster;
+}
