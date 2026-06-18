@@ -1,367 +1,76 @@
-row.createCell(col++)
-                            .setCellValue(
-                                    safeString(
-                                            rs.getString("DESCRIPTION")
-                                    )
-                            );
+package com.fincore.enquiry_service.controller;
 
-                    row.createCell(col++)
-                            .setCellValue(
-                                    rs.getBigDecimal("BALANCE") != null
-                                            ? rs.getBigDecimal("BALANCE").doubleValue()
-                                            : 0
-                            );
+import com.fincore.commonutilities.jwt.JwtUtil;
+import com.fincore.enquiry_service.dto.ApiResponse;
+import com.fincore.enquiry_service.dto.LedgerWiseBalanceRequest;
+import com.fincore.enquiry_service.service.LedgerWiseBalanceService;
+import jakarta.validation.Valid;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.http.ContentDisposition;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestHeader;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RestController;
 
-                    row.createCell(col++)
-                            .setCellValue(
-                                    rs.getBigDecimal("INR_BALANCE") != null
-                                            ? rs.getBigDecimal("INR_BALANCE").doubleValue()
-                                            : 0
-                            );
+@RestController
+@RequiredArgsConstructor
+@Slf4j
+@RequestMapping("/api/ledger-wise-balances")
+public class LedgerWiseBalanceController {
 
-                    if (rowNum.get() % 5000 == 0) {
+    private final LedgerWiseBalanceService ledgerWiseBalanceService;
+    private final JwtUtil jwtUtil;
 
-                        try {
+    @PostMapping("/search")
+    public ResponseEntity<?> search(
+            @Valid @RequestBody LedgerWiseBalanceRequest dto) {
 
-                            sheet.flushRows(500);
-
-                        } catch (IOException e) {
-
-                            throw new RuntimeException(e);
-                        }
-
-                        log.info(
-                                "Processed Rows : {}",
-                                rowNum.get()
-                        );
-                    }
-                });
-
-                sheet.flushRows();
-
-                setColumnWidths(sheet);
-
-                workbook.write(out);
-
-                byte[] bytes = out.toByteArray();
-
-                workbook.dispose();
-
-                SearchCriteriaDTO searchDto =
-                        new SearchCriteriaDTO();
-
-                String branches =
-                        String.join(
-                                ", ",
-                                dto.getBranches()
-                        );
-
-                searchDto.setCircle(dto.getCircle());
-                searchDto.setBranch(branches);
-                searchDto.setCgl(dto.getCgl());
-                searchDto.setCurrency(dto.getCurrencies());
-                searchDto.setFromDate(dto.getFromDate());
-                searchDto.setToDate(dto.getToDate());
-
-                sendToMyDownloads(
-                        userId,
-                        searchDto,
-                        bytes
-                );
-
-                long end =
-                        System.currentTimeMillis();
-
-                log.info(
-                        "Ledger Balance Export Completed In {} Seconds",
-                        (end - start) / 1000
-                );
-
-                return bytes;
-            }
-
-        } catch (Exception e) {
-
-            log.error(
-                    "Ledger Balance Export Failed",
-                    e
-            );
-
-            throw new RuntimeException(
-                    "Export failed",
-                    e
-            );
-        }
+        return ResponseEntity.ok(
+                ApiResponse.success(
+                        ledgerWiseBalanceService.search(dto),
+                        "Balance records fetched Successfully"
+                )
+        );
     }
 
-    private void createReportHeader(
-            Workbook workbook,
-            Sheet sheet,
-            LedgerWiseBalanceRequest dto) {
+    @PostMapping("/export-excel")
+    public ResponseEntity<byte[]> excelExport(
+            @Valid @RequestBody LedgerWiseBalanceRequest dto,
+            @RequestHeader("Authorization") String token) {
 
-        Font titleFont = workbook.createFont();
-        titleFont.setBold(true);
-        titleFont.setFontHeightInPoints((short) 14);
+        String userId = jwtUtil.getUserIdFromToken(token);
 
-        CellStyle titleStyle =
-                workbook.createCellStyle();
+        log.info("userId={}", userId);
 
-        titleStyle.setFont(titleFont);
+        byte[] excelFile =
+                ledgerWiseBalanceService.excelExport(dto, userId);
 
-        Font metaFont = workbook.createFont();
-        metaFont.setBold(true);
+        HttpHeaders headers = new HttpHeaders();
 
-        CellStyle metaStyle =
-                workbook.createCellStyle();
-
-        metaStyle.setFont(metaFont);
-
-        Font headerFont = workbook.createFont();
-        headerFont.setBold(true);
-
-        CellStyle headerStyle =
-                workbook.createCellStyle();
-
-        headerStyle.setFont(headerFont);
-
-        Row titleRow =
-                sheet.createRow(0);
-
-        Cell titleCell =
-                titleRow.createCell(0);
-
-        titleCell.setCellValue(
-                "Ledger Wise Balance Enquiry Report"
-        );
-
-        titleCell.setCellStyle(titleStyle);
-
-        sheet.addMergedRegion(
-                new CellRangeAddress(
-                        0,
-                        0,
-                        0,
-                        11
+        headers.setContentType(
+                MediaType.parseMediaType(
+                        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
                 )
         );
 
-        Row metaRow =
-                sheet.createRow(1);
-
-        Cell metaCell =
-                metaRow.createCell(0);
-
-        metaCell.setCellValue(
-                "CGL : " + dto.getCgl()
-                        + " | Circle : " + dto.getCircle()
-                        + " | From : " + dto.getFromDate()
-                        + " | To : " + dto.getToDate()
+        headers.setContentDisposition(
+                ContentDisposition.builder("attachment")
+                        .filename("ledger_balance.xlsx")
+                        .build()
         );
 
-        metaCell.setCellStyle(metaStyle);
+        headers.setContentLength(excelFile.length);
 
-        sheet.addMergedRegion(
-                new CellRangeAddress(
-                        1,
-                        1,
-                        0,
-                        11
-                )
+        return new ResponseEntity<>(
+                excelFile,
+                headers,
+                HttpStatus.OK
         );
-
-        sheet.createRow(2);
-
-        Row header =
-                sheet.createRow(3);
-
-        String[] columns = {
-                "ID",
-                "BALANCE DATE",
-                "CIRCLE CODE",
-                "CIRCLE NAME",
-                "BRANCH CODE",
-                "BRANCH NAME",
-                "CURRENCY CODE",
-                "CURRENCY NAME",
-                "CGL",
-                "DESCRIPTION",
-                "BALANCE",
-                "INR BALANCE"
-        };
-
-        for (int i = 0; i < columns.length; i++) {
-
-            Cell cell =
-                    header.createCell(i);
-
-            cell.setCellValue(columns[i]);
-
-            cell.setCellStyle(headerStyle);
-        }
-    }
-
-    private void validateExportLimit(
-            LedgerWiseBalanceRequest dto) {
-
-        StringBuilder sql =
-                new StringBuilder("""
-                SELECT COUNT(*)
-                FROM GL_BALANCE g
-                JOIN BRANCH_MASTER b
-                    ON g.BRANCH_CODE = b.CODE
-                LEFT JOIN CIRCLE_MASTER c
-                    ON b.CIRCLE_CODE = c.CIRCLE_CODE
-                WHERE 1=1
-                """);
-
-        List<Object> params =
-                new ArrayList<>();
-
-        sql.append(
-                " AND g.CGL = ? "
-        );
-
-        params.add(dto.getCgl());
-
-        sql.append("""
-                AND g.BALANCE_DATE
-                BETWEEN TO_DATE(?,'DD/MM/YYYY')
-                AND TO_DATE(?,'DD/MM/YYYY')
-                """);
-
-        params.add(dto.getFromDate());
-        params.add(dto.getToDate());
-
-        if (dto.getCurrencies() != null &&
-                !"ALL".equalsIgnoreCase(dto.getCurrencies())) {
-
-            sql.append(
-                    " AND g.CURRENCY = ? "
-            );
-
-            params.add(dto.getCurrencies());
-        }
-
-        if ("DOMESTIC".equalsIgnoreCase(dto.getCircle())) {
-
-            sql.append(
-                    " AND c.CIRCLE_CODE <> ? "
-            );
-
-            params.add(FOREIGN_CIRCLE);
-
-        } else if ("FOREIGN".equalsIgnoreCase(dto.getCircle())) {
-
-            sql.append(
-                    " AND c.CIRCLE_CODE = ? "
-            );
-
-            params.add(FOREIGN_CIRCLE);
-
-        } else if (dto.getCircle() != null &&
-                !"ALL".equalsIgnoreCase(dto.getCircle())) {
-
-            sql.append(
-                    " AND c.CIRCLE_CODE = ? "
-            );
-
-            params.add(dto.getCircle());
-        }
-
-        if (dto.getBranches() != null &&
-                !dto.getBranches().isEmpty() &&
-                !dto.getBranches().contains("ALL")) {
-
-            sql.append(
-                    " AND g.BRANCH_CODE IN ("
-            );
-
-            sql.append(
-                    dto.getBranches()
-                            .stream()
-                            .map(v -> "?")
-                            .collect(Collectors.joining(","))
-            );
-
-            sql.append(")");
-
-            params.addAll(dto.getBranches());
-        }
-
-        Long count =
-                jdbcTemplate.queryForObject(
-                        sql.toString(),
-                        Long.class,
-                        params.toArray()
-                );
-
-        if (count != null &&
-                count > MAX_EXPORT_LIMIT) {
-
-            throw new ExportLimitException(
-                    "Excel export cannot be generated for more than 10 lakh records."
-            );
-        }
-    }
-
-    private void setColumnWidths(
-            Sheet sheet) {
-
-        sheet.setColumnWidth(0, 4000);
-        sheet.setColumnWidth(1, 5000);
-        sheet.setColumnWidth(2, 3500);
-        sheet.setColumnWidth(3, 10000);
-        sheet.setColumnWidth(4, 3500);
-        sheet.setColumnWidth(5, 10000);
-        sheet.setColumnWidth(6, 3500);
-        sheet.setColumnWidth(7, 7000);
-        sheet.setColumnWidth(8, 3500);
-        sheet.setColumnWidth(9, 12000);
-        sheet.setColumnWidth(10, 7000);
-        sheet.setColumnWidth(11, 7000);
-    }
-
-    private void sendToMyDownloads(
-            String userId,
-            SearchCriteriaDTO dto,
-            byte[] content) {
-
-        try {
-
-            String json =
-                    new ObjectMapper()
-                            .writeValueAsString(dto);
-
-            String fileName =
-                    "GL_Balance_Enquiry_"
-                            + dto.getCgl()
-                            + ".xlsx";
-
-            MyDownloadsRequestDTO request =
-                    new MyDownloadsRequestDTO(
-                            userId,
-                            fileName,
-                            51,
-                            json,
-                            content
-                    );
-
-            myDownloadsService.insertRequest(request);
-
-        } catch (Exception e) {
-
-            log.error(
-                    "Download save failed",
-                    e
-            );
-        }
-    }
-
-    private String safeString(
-            Object value) {
-
-        return value != null
-                ? value.toString()
-                : "";
     }
 }
