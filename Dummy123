@@ -1,76 +1,13 @@
-package com.fincore.enquiry_service.controller;
-
-import com.fincore.commonutilities.jwt.JwtUtil;
-import com.fincore.enquiry_service.dto.ApiResponse;
-import com.fincore.enquiry_service.dto.LedgerWiseBalanceRequest;
-import com.fincore.enquiry_service.service.LedgerWiseBalanceService;
-import jakarta.validation.Valid;
-import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
-import org.springframework.http.ContentDisposition;
-import org.springframework.http.HttpHeaders;
-import org.springframework.http.HttpStatus;
-import org.springframework.http.MediaType;
-import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestHeader;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
-
-@RestController
-@RequiredArgsConstructor
-@Slf4j
-@RequestMapping("/api/ledger-wise-balances")
-public class LedgerWiseBalanceController {
-
-    private final LedgerWiseBalanceService ledgerWiseBalanceService;
-    private final JwtUtil jwtUtil;
-
-    @PostMapping("/search")
-    public ResponseEntity<?> search(
-            @Valid @RequestBody LedgerWiseBalanceRequest dto) {
-
-        return ResponseEntity.ok(
-                ApiResponse.success(
-                        ledgerWiseBalanceService.search(dto),
-                        "Balance records fetched Successfully"
-                )
-        );
-    }
-
-    @PostMapping("/export-excel")
-    public ResponseEntity<byte[]> excelExport(
-            @Valid @RequestBody LedgerWiseBalanceRequest dto,
-            @RequestHeader("Authorization") String token) {
-
-        String userId = jwtUtil.getUserIdFromToken(token);
-
-        log.info("userId={}", userId);
-
-        byte[] excelFile =
-                ledgerWiseBalanceService.excelExport(dto, userId);
-
-        HttpHeaders headers = new HttpHeaders();
-
-        headers.setContentType(
-                MediaType.parseMediaType(
-                        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-                )
-        );
-
-        headers.setContentDisposition(
-                ContentDisposition.builder("attachment")
-                        .filename("ledger_balance.xlsx")
-                        .build()
-        );
-
-        headers.setContentLength(excelFile.length);
-
-        return new ResponseEntity<>(
-                excelFile,
-                headers,
-                HttpStatus.OK
-        );
-    }
+{
+  "circle": "ALL",
+  "branches": ["ALL"],
+  "currencies": "ALL",
+  "cgl": "5041030601",
+  "fromDate": "31/03/2026",
+  "toDate": "31/03/2026",
+  "page": 0,
+  "size": 20,
+  "sortField": "balanceDate",
+  "sortOrder": "desc",
+  "gridFilters": []
 }
