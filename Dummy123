@@ -1,13 +1,31 @@
-{
-  "circle": "ALL",
-  "branches": ["ALL"],
-  "currencies": "ALL",
-  "cgl": "5041030601",
-  "fromDate": "31/03/2026",
-  "toDate": "31/03/2026",
-  "page": 0,
-  "size": 20,
-  "sortField": "balanceDate",
-  "sortOrder": "desc",
-  "gridFilters": []
-}
+import {
+  RadioGroup,
+  FormControlLabel,
+  Radio
+} from "@mui/material";
+
+
+
+<RadioGroup
+    row
+    value={searchQuery.reportType}
+    onChange={(e) =>
+        setSearchQuery(prev => ({
+            ...prev,
+            reportType: e.target.value,
+            branches: ["ALL"]
+        }))
+    }
+>
+    <FormControlLabel
+        value="COLLISION"
+        control={<Radio />}
+        label="Collision"
+    />
+
+    <FormControlLabel
+        value="CONSOLIDATED"
+        control={<Radio />}
+        label="Consolidated"
+    />
+</RadioGroup>
