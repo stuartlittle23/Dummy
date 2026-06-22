@@ -1,31 +1,49 @@
-import {
-  RadioGroup,
-  FormControlLabel,
-  Radio
-} from "@mui/material";
+<Grid container spacing={2} sx={{ mb: 2 }}>
+  <Grid size={{ xs: 12 }}>
+    <FormControl>
+      <FormLabel>Report Type</FormLabel>
 
-
-
-<RadioGroup
-    row
-    value={searchQuery.reportType}
-    onChange={(e) =>
-        setSearchQuery(prev => ({
+      <RadioGroup
+        row
+        value={filters.reportType}
+        onChange={(e) =>
+          setFilters((prev) => ({
             ...prev,
             reportType: e.target.value,
             branches: ["ALL"]
-        }))
-    }
->
-    <FormControlLabel
-        value="COLLISION"
-        control={<Radio />}
-        label="Collision"
-    />
+          }))
+        }
+      >
+        <FormControlLabel
+          value="COLLISION"
+          control={<Radio />}
+          label="Collision"
+        />
 
-    <FormControlLabel
-        value="CONSOLIDATED"
-        control={<Radio />}
-        label="Consolidated"
-    />
-</RadioGroup>
+        <FormControlLabel
+          value="CONSOLIDATED"
+          control={<Radio />}
+          label="Consolidated"
+        />
+      </RadioGroup>
+    </FormControl>
+  </Grid>
+</Grid>
+
+
+
+import Radio from "@mui/material/Radio";
+import RadioGroup from "@mui/material/RadioGroup";
+import FormControlLabel from "@mui/material/FormControlLabel";
+import FormControl from "@mui/material/FormControl";
+import FormLabel from "@mui/material/FormLabel";
+
+
+
+{isBranchVisible && filters.reportType === "COLLISION" && (
+
+
+
+
+
+
