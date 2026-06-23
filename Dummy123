@@ -10,7 +10,7 @@ import LedgerDataGrid from "./components/BalanceLedgerDataGrid";
 import { getPermissions } from "../../utils/CommonUtilities";
 import useApi from "../../hooks/useApi";
 import useCustomSnackbar from "../../utils/useCustomSnackbar";
-import downloadFile from "../../utils/DownloadUtils";
+import downloadFile from "../../utils/DownloadUtils
 
 const DEFAULT_PAGE_SIZE = 20;
 const FOREIGN_CIRCLE_CODE = "021";
