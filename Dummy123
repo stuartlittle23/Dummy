@@ -1,1 +1,23 @@
 
+const url =
+  type === "branch"
+    ? `/CM/common-master/branches-code-name-only?q=${encodeURIComponent(term)}${cp}`
+    : type === "cgl"
+    ? `/CM/common-master/cgl-code-description-only?q=${encodeURIComponent(term)}`
+    : `/CM/common-master/currency-code-description-only?q=${encodeURIComponent(term)}`;
+
+
+
+
+
+onInputChange={(_, v) => {
+  if (v?.length >= 3) {
+    debouncedSearch("currency", v);
+  }
+}}
+
+
+
+const opts = res.data.map(
+    (i) => `${i.currencyCode} - ${i.description}`
+);
