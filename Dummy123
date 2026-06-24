@@ -1,1 +1,80 @@
 
+<IconButton
+  onClick={() =>
+    setViewList((p) => ({
+      ...p,
+      cgl: !p.cgl,
+    }))
+  }
+>
+  {viewList.cgl ? (
+    <VisibilityOffIcon />
+  ) : (
+    <VisibilityIcon />
+  )}
+</IconButton>
+
+
+
+<IconButton
+  onClick={() =>
+    setViewList((p) => ({
+      ...p,
+      currency: !p.currency,
+    }))
+  }
+>
+  {viewList.currency ? (
+    <VisibilityOffIcon />
+  ) : (
+    <VisibilityIcon />
+  )}
+</IconButton>
+
+
+
+
+
+renderTags={(value, getTagProps) =>
+  !viewList.cgl
+    ? value.map((option, index) => (
+        <CustomChip
+          label={option}
+          {...getTagProps({ index })}
+        />
+      ))
+    : [
+        <Chip
+          label={`${value.length} selected`}
+        />
+      ]
+}
+
+
+renderTags={(value, getTagProps) =>
+  !viewList.currency
+    ? value.map((option, index) => (
+        <CustomChip
+          label={option}
+          {...getTagProps({ index })}
+        />
+      ))
+    : [
+        <Chip
+          label={`${value.length} selected`}
+        />
+      ]
+}
+
+
+
+
+setViewList({
+  branch: false,
+  cgl: false,
+  currency: false,
+});
+
+
+
+
