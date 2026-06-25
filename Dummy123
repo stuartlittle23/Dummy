@@ -1,1 +1,141 @@
 
+const handleCglChange = (val) => {
+  const clickedAll =
+    val.includes("All CGLs") &&
+    !filters.cgl.includes("All CGLs");
+
+  const isEmpty = val.length === 0;
+
+  if (clickedAll || isEmpty) {
+    onFilterChange("cgl", ["All CGLs"]);
+    setViewList(null);
+    return;
+  }
+
+  onFilterChange(
+    "cgl",
+    val.filter((v) => v !== "All CGLs")
+  );
+};
+
+
+
+
+
+
+
+
+const removeCgl = (item) => {
+  const updated = filters.cgl.filter(
+    (c) => c !== item
+  );
+
+  if (updated.length === 0) {
+    onFilterChange("cgl", ["All CGLs"]);
+    setViewList(null);
+  } else {
+    onFilterChange("cgl", updated);
+  }
+};
+
+
+
+
+
+const handleCurrencyChange = (val) => {
+  const clickedAll =
+    val.includes("All Currencies") &&
+    !filters.currencies.includes("All Currencies");
+
+  const isEmpty = val.length === 0;
+
+  if (clickedAll || isEmpty) {
+    onFilterChange(
+      "currencies",
+      ["All Currencies"]
+    );
+    setViewList(null);
+    return;
+  }
+
+  onFilterChange(
+    "currencies",
+    val.filter((v) => v !== "All Currencies")
+  );
+};
+
+const removeCurrency = (item) => {
+  const updated = filters.currencies.filter(
+    (c) => c !== item
+  );
+
+  if (updated.length === 0) {
+    onFilterChange(
+      "currencies",
+      ["All Currencies"]
+    );
+    setViewList(null);
+  } else {
+    onFilterChange("currencies", updated);
+  }
+};
+
+
+
+
+onChange={(_, v) => handleCglChange(v)}
+
+
+
+
+onChange={(_, v) =>
+  handleCurrencyChange(v)
+}
+
+
+
+
+
+setViewList(
+  viewList === "cgl"
+    ? null
+    : "cgl"
+)
+
+
+color={
+  viewList === "cgl"
+    ? "primary"
+    : "default"
+}
+
+
+
+{viewList === "cgl"
+ ? <VisibilityOffIcon fontSize="small"/>
+ : <VisibilityIcon fontSize="small"/>
+}
+
+
+
+setViewList(
+  viewList === "currency"
+    ? null
+    : "currency"
+)
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
