@@ -1,1 +1,32 @@
 
+<CustomChip
+  label={
+    filters.cgl.includes("All CGLs")
+      ? "All CGLs"
+      : `${filters.cgl.length} Selected`
+  }
+  color={
+    filters.cgl.includes("All CGLs")
+      ? "default"
+      : "primary"
+  }
+/>
+
+{!filters.cgl.includes("All CGLs") &&
+ filters.cgl.length > 0 && (
+  <IconButton
+    size="small"
+    onClick={() =>
+      setViewList(
+        viewList === "cgl" ? null : "cgl"
+      )
+    }
+  >
+    {viewList === "cgl"
+      ? <VisibilityOffIcon fontSize="small"/>
+      : <VisibilityIcon fontSize="small"/>}
+  </IconButton>
+)}
+
+
+
