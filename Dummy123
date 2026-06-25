@@ -1,361 +1,500 @@
- ))}
-                    </Box>
-                  </Paper>
-                </Collapse>
-              </Grid>
-            )}
+import React, { useState, useCallback, useEffect, useMemo } from "react";
+import { useSelector } from "react-redux";
+import { Box } from "@mui/material";
+import { LocalizationProvider } from "@mui/x-date-pickers";
+import { AdapterDayjs } from "@mui/x-date-pickers/AdapterDayjs";
+import dayjs from "dayjs";
+import debounce from "lodash/debounce";
+import LedgerForm from "./components/BalanceLedgerForm";
+import LedgerDataGrid from "./components/BalanceLedgerDataGrid";
+import { getPermissions } from "../../utils/CommonUtilities";
+import useApi from "../../hooks/useApi";
+import useCustomSnackbar from "../../utils/useCustomSnackbar";
+import downloadFile from "../../utils/DownloadUtils";
 
-            {/* 3. TIMELINE & FLAGS ZONE */}
-            <Grid size={{ xs: 12 }}>
-              <Paper
-                sx={{
-                  p: 2.5,
-                  borderRadius: "20px",
-                  // background:
-                  //   "linear-gradient(90deg, #1976d2 0%, #1565c0 100%)",
-                  background: "#58469f",
-                  color: "white",
-                }}
-              >
-                <Stack
-                  direction={{ xs: "column", md: "row" }}
-                  spacing={3}
-                  alignItems="center"
-                >
-                  <Stack
-                    direction="row"
-                    spacing={1}
-                    alignItems="center"
-                    sx={{ minWidth: 100 }}
-                  >
-                    <DateRangeIcon />
-                    <Typography sx={{ fontWeight: 700 }}>
-                      From Date *
-                    </Typography>
-                  </Stack>
+const DEFAULT_PAGE_SIZE = 20;
+const FOREIGN_CIRCLE_CODE = "021";
 
-                  <DatePicker
-                    value={filters.fromDate}
-                    format="DD/MM/YYYY"
-                    minDate={minLimit}
-                    maxDate={filters.toDate || maxLimit}
-                    views={["year", "month", "day"]}
-                    onChange={(value) => {
-                      onFilterChange("fromDate", value);
+const CIRCLE_GROUPS = {
+  ALL: "ALL",
+  DOMESTIC: "DOMESTIC",
+  FOREIGN: "FOREIGN",
+};
 
-                      if (
-                        value &&
-                        filters.toDate &&
-                        value.isValid() &&
-                        filters.toDate.isValid()
-                      ) {
-                        if (value.isAfter(filters.toDate, "day")) {
-                          setFromDateError("fromGreaterThanTo");
-                          setToDateError("toLessThanFrom");
-                        } else {
-                          setFromDateError(null);
-                          setToDateError(null);
-                        }
-                      } else {
-                        setFromDateError(null);
-                      }
-                    }}
-                    onError={(error) => {
-                      if (error) {
-                        setFromDateError(error);
-                      } else if (
-                        filters.fromDate &&
-                        filters.toDate &&
-                        filters.fromDate.isAfter(filters.toDate, "day")
-                      ) {
-                        setFromDateError("fromGreaterThanTo");
-                      } else {
-                        setFromDateError(null);
-                      }
-                    }}
-                    slotProps={{
-                      textField: {
-                        size: "small",
-                        fullWidth: true,
-                        placeholder: "DD/MM/YYYY",
-                        error: !!fromDateError,
-                        sx: {
-                          bgcolor: "white",
-                          borderRadius: 1,
-                          flex: 1,
-                        },
-                      },
+const LedgerWiseBalanceEnquiry = () => {
+  const { callApi } = useApi();
+  const showSnackBar = useCustomSnackbar();
+  const user = useSelector((state) => state.auth.user);
+  const menu = useSelector((state) => state.menus.selectedMenuItem);
+  const permissions = getPermissions(menu);
 
-                      day: {
-                        sx: {
-                          fontWeight: 600,
-                          "&.MuiPickersDay-root": {
-                            color: "#111",
-                          },
-                          "&.MuiPickersDay-today": {
-                            border: "2px solid #58469f",
-                            fontWeight: 800,
-                          },
-                          "&.Mui-selected": {
-                            backgroundColor: "#58469f !important",
-                            color: "#fff !important",
-                            fontWeight: 800,
-                          },
-                          "&:hover": {
-                            backgroundColor: "rgba(88,70,159,0.08)",
-                          },
-                          "&.Mui-disabled": {
-                            color: "rgba(0,0,0,0.25) !important",
-                            backgroundColor: "rgba(0,0,0,0.04)",
-                            opacity: 0.45,
-                            textDecoration: "line-through",
-                          },
-                        },
-                      },
+  const MIN_ALLOWED_DATE = dayjs("2026-03-31");
+  const DATE_FORMAT = "DD/MM/YYYY";
 
-                      monthButton: {
-                        sx: {
-                          fontWeight: 700,
-                          "&.Mui-selected": {
-                            backgroundColor: "#58469f !important",
-                            color: "#fff !important",
-                          },
-                          "&.Mui-disabled": {
-                            color: "rgba(0,0,0,0.25) !important",
-                            opacity: 0.45,
-                            textDecoration: "line-through",
-                            backgroundColor: "rgba(0,0,0,0.04)",
-                          },
-                        },
-                      },
+  const hasWholeBank = !!permissions.wholebank;
+  const hasCircle = user?.isCircle || !!permissions.circle;
+  const isCircleUser = user?.isCircle && !hasWholeBank;
 
-                      yearButton: {
-                        sx: {
-                          fontWeight: 700,
-                          "&.Mui-selected": {
-                            backgroundColor: "#58469f !important",
-                            color: "#fff !important",
-                          },
-                          "&.Mui-disabled": {
-                            color: "rgba(0,0,0,0.25) !important",
-                            opacity: 0.45,
-                            textDecoration: "line-through",
-                            backgroundColor: "rgba(0,0,0,0.04)",
-                          },
-                        },
-                      },
-                    }}
-                  />
+  
+  const [circles, setCircles] = useState([]);
+  const [initialState, setInitialState] = useState({
+    enquiryType: "COLLATION",
+    level: "BRANCH",
+    circle: "ALL",
+    branches: ["ALL"],
+    currencies: ["All Currencies"],
+    cgl: ["ALL"],
+    fromDate: null,
+    toDate: null,
+  });
 
-                  <Stack
-                    direction="row"
-                    spacing={1}
-                    alignItems="center"
-                    sx={{ minWidth: 100 }}
-                  >
-                    <DateRangeIcon />
-                    <Typography sx={{ fontWeight: 700 }}>To Date *</Typography>
-                  </Stack>
+  
+  const [currencies, setCurrencies] = useState([]);
+  const [etlDate, setEtlDate] = useState(null);
 
-                  <DatePicker
-                    value={filters.toDate}
-                    format="DD/MM/YYYY"
-                    minDate={filters?.fromDate || minLimit}
-                    maxDate={maxLimit}
-                    views={["year", "month", "day"]}
-                    onChange={(value) => {
-                      onFilterChange("toDate", value);
+  const [rows, setRows] = useState(null);
+  const [rowCount, setRowCount] = useState(0);
 
-                      if (
-                        filters.fromDate &&
-                        value &&
-                        filters.fromDate.isValid() &&
-                        value.isValid()
-                      ) {
-                        if (value.isBefore(filters.fromDate, "day")) {
-                          setToDateError("toLessThanFrom");
-                          setFromDateError("fromGreaterThanTo");
-                        } else {
-                          setToDateError(null);
-                          setFromDateError(null);
-                        }
-                      } else {
-                        setToDateError(null);
-                      }
-                    }}
-                    onError={(error) => {
-                      if (error) {
-                        setToDateError(error);
-                      } else if (
-                        filters.fromDate &&
-                        filters.toDate &&
-                        filters.toDate.isBefore(filters.fromDate, "day")
-                      ) {
-                        setToDateError("toLessThanFrom");
-                      } else {
-                        setToDateError(null);
-                      }
-                    }}
-                    slotProps={{
-                      textField: {
-                        size: "small",
-                        fullWidth: true,
-                        placeholder: "DD/MM/YYYY",
-                        error: !!toDateError,
+  const [loading, setLoading] = useState(false);
+  const [exporting, setExporting] = useState(false);
 
-                        sx: {
-                          bgcolor: "white",
-                          borderRadius: 1,
-                          flex: 1,
-                          required: true,
-                        },
-                      },
+  const [paginationModel, setPaginationModel] = useState({
+    page: 0,
+    pageSize: DEFAULT_PAGE_SIZE,
+  });
 
-                      day: {
-                        sx: {
-                          fontWeight: 600,
-                          "&.MuiPickersDay-root": {
-                            color: "#111",
-                          },
-                          "&.MuiPickersDay-today": {
-                            border: "2px solid #58469f",
-                            fontWeight: 800,
-                          },
-                          "&.Mui-selected": {
-                            backgroundColor: "#58469f !important",
-                            color: "#fff !important",
-                            fontWeight: 800,
-                          },
-                          "&:hover": {
-                            backgroundColor: "rgba(88,70,159,0.08)",
-                          },
-                          "&.Mui-disabled": {
-                            color: "rgba(0,0,0,0.25) !important",
-                            backgroundColor: "rgba(0,0,0,0.04)",
-                            opacity: 0.45,
-                            textDecoration: "line-through",
-                          },
-                        },
-                      },
+  const [sortModel, setSortModel] = useState([
+    {
+      field: "balanceDate",
+      sort: "desc",
+    },
+  ]);
 
-                      monthButton: {
-                        sx: {
-                          fontWeight: 700,
-                          "&.Mui-selected": {
-                            backgroundColor: "#58469f !important",
-                            color: "#fff !important",
-                          },
-                          "&.Mui-disabled": {
-                            color: "rgba(0,0,0,0.25) !important",
-                            opacity: 0.45,
-                            textDecoration: "line-through",
-                            backgroundColor: "rgba(0,0,0,0.04)",
-                          },
-                        },
-                      },
+  const [filterModel, setFilterModel] = useState({
+    items: [],
+  });
 
-                      yearButton: {
-                        sx: {
-                          fontWeight: 700,
-                          "&.Mui-selected": {
-                            backgroundColor: "#58469f !important",
-                            color: "#fff !important",
-                          },
-                          "&.Mui-disabled": {
-                            color: "rgba(0,0,0,0.25) !important",
-                            opacity: 0.45,
-                            textDecoration: "line-through",
-                            backgroundColor: "rgba(0,0,0,0.04)",
-                          },
-                        },
-                      },
-                    }}
-                  />                 
-                </Stack>
-              </Paper>
-            </Grid>
-          </Grid>
+  /* INITIAL FILTERS */
+  const initialDetails = useMemo(() => {
+    return {
+      enquiryType:"COLLATION",
+      level: hasWholeBank ? "BANK" : isCircleUser ? "CIRCLE" : "BRANCH",
+      circle: hasWholeBank ? "ALL" : user?.circleCode,
+      branches:
+        !user?.isCircle && !hasWholeBank
+          ? [`${user?.branch}-${user?.branchName}`]
+          : ["ALL"],
 
-          <Grid size={{ xs: 12 }}>
-            {validationMessages.length > 0 && (
-              <Paper
-                // elevation={0}
-                sx={{
-                  mt: 1,
-                  p: 1.5,
-                  borderRadius: 2,
-                  border: "1px solid",
-                  borderColor: "#ff4d4f",
-                  bgcolor: "#fff1f0",
-                }}
-              >
-                <Stack spacing={0.5}>
-                  {validationMessages.map((msg, index) => (
-                    <Typography
-                      key={index}
-                      variant="body2"
-                      sx={{
-                        color: "#d32f2f",
-                        fontWeight: 600,
-                      }}
-                    >
-                      • {msg}
-                    </Typography>
-                  ))}
-                </Stack>
-              </Paper>
-            )}
-          </Grid>
+      currencies: ["All Currencies"],
+      cgl: hasWholeBank?["All CGLs"] : [],
+      fromDate: null,
+      toDate: null,
+    };
+  }, [
+    hasWholeBank,
+    user?.circleCode,
+    user?.isCircle,
+    user?.branch,
+    user?.branchName,
+    isCircleUser,
+  ]);
 
-          <Box
-            sx={{
-              mt: 2,
-              position: "sticky",
-              bottom: 12,
-              zIndex: 20,
-              display: "flex",
-              justifyContent: "flex-end",
-              gap: 2,
-            }}
-          >
-            <Button
-              variant="outlined"
-              startIcon={<RestartAltIcon />}
-              onClick={onReset}
-              sx={{
-                borderRadius: 2,
-                textTransform: "none",
-                fontWeight: 700,
-              }}
-            >
-              Reset
-            </Button>
-            <Button
-              variant="contained"
-              startIcon={<SearchIcon />}
-              onClick={onFetch}
-              disabled={
-                !filters.cgl ||
-                !filters.fromDate ||
-                !filters.toDate ||
-                fromDateError ||
-                toDateError
-              }
-              loading={fetchLoading}
-              sx={{
-                borderRadius: 2,
-                px: 4,
-                textTransform: "none",
-                fontWeight: 800,
-              }}
-            >
-              Search
-            </Button>
-          </Box>
-        </CardContent>
-      </Card>
-    </Box>
+  const [filters, setFilters] = useState(initialState);
+  const [searchQuery, setSearchQuery] = useState(null);
+
+    useEffect(() => {
+    setInitialState(initialDetails);
+    setFilters(initialDetails);
+  }, [initialDetails]);
+
+
+  const isCollationMode = !hasWholeBank || filters.enquiryType ==="COLLATION";
+  /* FETCH MASTERS */
+  const fetchMasters = useCallback(async () => {
+    try {
+      const [dateRes, currRes] = await Promise.all([
+        callApi("/PS/file/fincore-date", {}, "GET"),
+
+        callApi("/CM/common-master/currency-code-name-only", null, "GET"),
+
+      ]);
+
+      /* ETL DATE */
+      if (dateRes?.data?.userDate) {
+        setEtlDate(dayjs(dateRes.data.userDate, "YYYY-MM-DD"));
+      }
+
+      /*CURRENCIES */
+      const formattedCurrencies =
+        currRes?.data?.map((c) => `${c.currencyCode} (${c.currencyName})`) ||
+        [];
+
+      const sortedCurrencies = formattedCurrencies.sort((a, b) => {
+        const aCode = a.split(" ")[0];
+        const bCode = b.split(" ")[0];
+
+        // INR always on top
+        if (aCode === "INR") return -1;
+        if (bCode === "INR") return 1;
+
+        // Remaining alphabetical
+        return a.localeCompare(b);
+      });
+
+      setCurrencies(sortedCurrencies);
+
+      /* CIRCLES */
+      if (hasWholeBank) {
+        const circleRes = await callApi(
+          "/CM/common-master/circle-codes",
+          null,
+          "GET",
+        );
+
+        setCircles(circleRes?.data || []);
+      }
+    } catch (error) {
+      console.error(error);
+
+      showSnackBar("Failed to load master configuration", "error");
+    }
+  }, [callApi, hasWholeBank, showSnackBar]);
+
+  useEffect(() => {
+    fetchMasters();
+  }, [fetchMasters]);
+
+  /* BRANCH OPTIONS */
+  const selectedBranchOptions = useMemo(() => {
+    if (!filters.branches?.length || filters.branches.includes("ALL")) {
+      return [];
+    }
+    return filters.branches.map((branch) => ({
+      value: branch.split("-")[0],
+      label: branch,
+    }));
+  }, [filters.branches]);
+
+  /* CIRCLE OPTIONS */
+  const selectedCircleOptions = useMemo(() => {
+    const formattedCircles = circles.map((circle) => ({
+      value: circle.circleCode,
+      label:
+        circle.circleCode === FOREIGN_CIRCLE_CODE
+          ? `${circle.circleCode} - Foreign`
+          : `${circle.circleCode} - ${circle.circleName}`,
+    }));
+
+    // ALL/GROUP OPTIONS
+    if (
+      filters.circle === CIRCLE_GROUPS.ALL ||
+      filters.circle === CIRCLE_GROUPS.DOMESTIC ||
+      filters.circle === CIRCLE_GROUPS.FOREIGN
+    ) {
+      return formattedCircles;
+    }
+
+    return formattedCircles.filter((circle) => circle.value === filters.circle);
+  }, [filters.circle, circles]);
+
+  /* CURRENCY OPTIONS */
+  const selectedCurrencyOptions = useMemo(() => {
+    if (!filters.currencies?.length || filters.currencies.includes("All Currencies")) {
+      return currencies.map((currency) => ({
+        value: currency.split(" (")[0],
+
+        label: currency,
+      }));
+    }
+    // return [
+    //   {
+    //     value: filters.currencies.split(" (")[0],
+    //     label: filters.currencies,
+    //   },
+    // ];
+    return(filters.currencies || []).map((currency)=>({
+      value: currency.split(" (")[0],
+      label: currency,
+    }));
+  }, [filters.currencies, currencies]);
+
+  /* PAYLOAD */
+  const buildPayload = useCallback(() => {
+    if (!searchQuery) return null;
+
+    const gridFilters =
+      filterModel.items
+        ?.filter(
+          (item) =>
+            item.field &&
+            item.operator &&
+            item.value !== undefined &&
+            item.value !== null &&
+            item.value !== "",
+        )
+        .map((item) => ({
+          field: item.field,
+          operator: item.operator,
+          value: item.value,
+        })) || [];
+
+    return {
+      enquiryType: searchQuery.enquiryType,
+      // Main Filters
+      circle: searchQuery.circle,
+      cgls: searchQuery.cgl?.includes("All CGLs")?["ALL"]:searchQuery.cgl?.map((c) => c.split("-")[0].trim()) || [],
+      cglName: searchQuery.cgl?.includes("All CGLs")?["ALL"]:searchQuery.cgl?.map((c) => c.split("-")[1]) || [],
+
+      currencies:
+        searchQuery.currencies?.includes("All Currencies")
+          ? ["ALL"]
+          : searchQuery.currencies?.map((currency)=>currency.split("(")[0]) || [], 
+
+      branches: searchQuery.branches.includes("ALL")
+        ? ["ALL"]
+        : searchQuery.branches.map((b) => b.split("-")[0]),
+
+      fromDate: dayjs(searchQuery.fromDate).format("DD/MM/YYYY"),
+      toDate: dayjs(searchQuery.toDate).format("DD/MM/YYYY"),
+
+      // Pagination
+      page: paginationModel.page,
+      size: paginationModel.pageSize,
+
+      // Sorting
+      sortField: sortModel?.[0]?.field || "balanceDate",
+      sortOrder: sortModel?.[0]?.sort || "desc",
+
+      // Grid Filters
+      gridFilters,
+    };
+  }, [searchQuery, paginationModel, sortModel, filterModel]);
+
+  /* FETCH ROWS */
+  const fetchRows = useCallback(async () => {
+    const payload = buildPayload();
+    if (!payload) return;
+    try {
+      setLoading(true);
+      console.log(payload);
+      const res = await callApi("/ES/ledger-wise-balances/search", payload, "POST");
+      console.log("api response",res)
+      setRows(res?.data?.content || []);
+      setRowCount(res?.data?.page?.totalElements || 0);
+    } catch (error) {
+      console.error(error);
+      showSnackBar(error?.message || "Enquiry failed", "error");
+    } finally {
+      setLoading(false);
+    }
+  }, [callApi, buildPayload, showSnackBar]);
+
+  /* DEBOUNCED FETCH */
+  const debouncedFetch = useMemo(
+    () =>
+      debounce(() => {
+        fetchRows();
+      }, 300),
+    [fetchRows],
+  );
+
+  useEffect(() => {
+    if (!searchQuery) return;
+    debouncedFetch();
+    return () => {
+      debouncedFetch.cancel();
+    };
+  }, [paginationModel, sortModel, filterModel, searchQuery, debouncedFetch]);
+
+  const handleSearch = useCallback(() => {
+    const { cgl, fromDate, toDate } = filters;
+
+    if (!cgl || !fromDate || !toDate) {
+      showSnackBar("Please fill all required fields", "warning");
+      return;
+    }
+
+    if (!fromDate?.isValid?.() || !toDate?.isValid?.()) {
+      showSnackBar("Invalid date selected", "warning");
+      return;
+    }
+
+    if (fromDate.isBefore(MIN_ALLOWED_DATE, "day")) {
+      showSnackBar(
+        `From date cannot be earlier than ${MIN_ALLOWED_DATE.format(
+          DATE_FORMAT,
+        )}`,
+        "warning",
+      );
+      return;
+    }
+
+    if (toDate.isBefore(MIN_ALLOWED_DATE, "day")) {
+      showSnackBar(
+        `To date cannot be earlier than ${MIN_ALLOWED_DATE.format(
+          DATE_FORMAT,
+        )}`,
+        "warning",
+      );
+      return;
+    }
+
+    if (fromDate.isAfter(toDate, "day")) {
+      showSnackBar("From date cannot be greater than To date", "warning");
+      return;
+    }
+
+    if (toDate.isAfter(fromDate.add(1, "year"), "day")) {
+      showSnackBar("Date range cannot exceed 12 months", "warning");
+      return;
+    }
+
+    if (etlDate?.isValid?.() && toDate.isAfter(etlDate, "day")) {
+      showSnackBar(
+        `To date cannot exceed ETL date ${etlDate.format(DATE_FORMAT)}`,
+        "warning",
+      );
+      return;
+    }
+
+    setPaginationModel({
+      page: 0,
+      pageSize: paginationModel.pageSize,
+    });
+
+    setSortModel([
+      {
+        field: "balanceDate",
+        sort: "desc",
+      },
+    ]);
+
+    setFilterModel({
+      items: [],
+    });
+
+    setSearchQuery({
+      ...filters,
+    });
+  }, [
+    filters,
+    etlDate,
+    MIN_ALLOWED_DATE,
+    DATE_FORMAT,
+    paginationModel.pageSize,
+    showSnackBar,
+  ]);
+
+  /* RESET */
+  const handleReset = useCallback(() => {
+    setFilters(initialState);
+    setSearchQuery(null);
+    setRows(null);
+    setRowCount(0);
+    setPaginationModel({
+      page: 0,
+      pageSize: DEFAULT_PAGE_SIZE,
+    });
+    setSortModel([
+      {
+        field: "balanceDate",
+        sort: "desc",
+      },
+    ]);
+    setFilterModel({
+      items: [],
+    });
+  }, [initialState]);
+
+  /* EXPORT */
+  const handleExcelExport = useCallback(async () => {
+    const payload = buildPayload();
+    if (!payload) return;
+    try {
+      setExporting(true);
+      console.log(payload);
+      const response = await callApi(
+        "/ES/ledger-wise-balances/export-excel",
+        payload,
+        "POST",
+        "arraybuffer",
+      );
+      const fileName = `GL_Enquiry_${searchQuery.cgl.split(" - ")[0]}`;
+      if (response?.byteLength) {
+        downloadFile(response, "excel", fileName);
+      } else {
+        showSnackBar(
+          "Failed to download, Something went wrong Kindly try again",
+          "error",
+        );
+      }
+    } catch (error) {
+      showSnackBar(
+        error?.message ||
+          "Failed to export, Something went wrong Kindly try again",
+        "error",
+      );
+    } finally {
+      setExporting(false);
+    }
+  }, [buildPayload, callApi, searchQuery, showSnackBar]);
+
+  return (
+    <LocalizationProvider dateAdapter={AdapterDayjs}>
+      <Box
+        sx={{
+          p: 2.5,
+        }}
+      >
+        <LedgerForm
+          filters={filters}
+          onFilterChange={(field, value) =>
+            setFilters((prev) => ({
+              ...prev,
+              [field]: value,
+            }))
+          }
+          onReset={handleReset}
+          onFetch={handleSearch}
+          permissions={{
+            hasWholeBank,
+            hasCircle,
+          }}
+          user={user}
+          circles={circles}
+          currencies={currencies}
+          FOREIGN_CIRCLE_CODE={FOREIGN_CIRCLE_CODE}
+          CIRCLE_GROUPS={CIRCLE_GROUPS}
+          minLimit={MIN_ALLOWED_DATE}
+          maxLimit={etlDate || dayjs()}
+          fetchLoading={loading}
+          isCollationMode={isCollationMode}
+        />
+
+        {rows && (
+          <LedgerDataGrid
+            rows={rows}
+            loading={loading}
+            rowCount={rowCount}
+            paginationModel={paginationModel}
+            setPaginationModel={setPaginationModel}
+            sortModel={sortModel}
+            setSortModel={setSortModel}
+            filterModel={filterModel}
+            setFilterModel={setFilterModel}
+            onExcelExport={handleExcelExport}
+            exporting={exporting}
+            selectedCurrency={searchQuery?.currencies || "ALL"}
+            selectedCircle={searchQuery?.circle || "ALL"}
+            branchOptions={selectedBranchOptions}
+            circleOptions={selectedCircleOptions}
+            currencyOptions={selectedCurrencyOptions}
+            searchPerformed={!!searchQuery}
+          />
+        )}
+      </Box>
+    </LocalizationProvider>
   );
 };
 
-export default BalanceLedgerForm;
+export default React.memo(LedgerWiseBalanceEnquiry);
