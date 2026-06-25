@@ -1,1 +1,62 @@
+renderInput={(params) => (
+  <TextField
+    {...params}
+    label="CGL"
+    InputProps={{
+      ...params.InputProps,
+
+      endAdornment: (
+        <>
+          <IconButton
+            size="small"
+            onClick={() =>
+              setViewList((p) => ({
+                ...p,
+                cgl: !p.cgl,
+              }))
+            }
+          >
+            {viewList.cgl ? (
+              <VisibilityOffIcon />
+            ) : (
+              <VisibilityIcon />
+            )}
+          </IconButton>
+
+          {params.InputProps.endAdornment}
+        </>
+      ),
+    }}
+  />
+)}
+
+
+
+InputProps={{
+  ...p.InputProps,
+
+  endAdornment: (
+    <>
+      <IconButton
+        size="small"
+        onClick={() =>
+          setViewList((prev) => ({
+            ...prev,
+            currency: !prev.currency,
+          }))
+        }
+      >
+        {viewList.currency ? (
+          <VisibilityOffIcon />
+        ) : (
+          <VisibilityIcon />
+        )}
+      </IconButton>
+
+      {p.InputProps.endAdornment}
+    </>
+  ),
+}}
+
+
 
