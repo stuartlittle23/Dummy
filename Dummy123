@@ -1,27 +1,26 @@
-renderOption={(props, option, { selected }) =>
+const handleCglChange = (val) => {
 
-  filters.enquiryType === "CONSOLIDATED" ? (
+  // COLLATION (single select)
+  if (filters.enquiryType !== "CONSOLIDATED") {
+    onFilterChange("cgl", val ? [val] : []);
+    return;
+  }
 
-    <li {...props}>
-      <Checkbox checked={selected} />
-      {option}
-    </li>
+  // CONSOLIDATED (multiple select)
+  const clickedAll =
+    val.includes("All CGLs") &&
+    !filters.cgl.includes("All CGLs");
 
-  ) : (
+  const isEmpty = val.length === 0;
 
-    <li {...props}>
-      {option}
-    </li>
+  if (clickedAll || isEmpty) {
+    onFilterChange("cgl", ["All CGLs"]);
+    setViewList(null);
+    return;
+  }
 
-  )
-}
-
-
-
-
-
-{filters.enquiryType === "CONSOLIDATED" && (
-  <>
-    ...
-  </>
-)}
+  onFilterChange(
+    "cgl",
+    val.filter((v) => v !== "All CGLs")
+  );
+};
