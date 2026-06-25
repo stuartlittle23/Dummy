@@ -1,26 +1,56 @@
-const handleCglChange = (val) => {
+const handleSearch = useCallback(() => {
+  const { cgl, balanceDate } = filters;
 
-  // COLLATION (single select)
-  if (filters.enquiryType !== "CONSOLIDATED") {
-    onFilterChange("cgl", val ? [val] : []);
+  if (cgl.length === 0 || !balanceDate) {
+    showSnackBar("Please fill all required fields", "warning");
     return;
   }
 
-  // CONSOLIDATED (multiple select)
-  const clickedAll =
-    val.includes("All CGLs") &&
-    !filters.cgl.includes("All CGLs");
-
-  const isEmpty = val.length === 0;
-
-  if (clickedAll || isEmpty) {
-    onFilterChange("cgl", ["All CGLs"]);
-    setViewList(null);
+  if (!balanceDate?.isValid?.()) {
+    showSnackBar("Invalid date selected", "warning");
     return;
   }
 
-  onFilterChange(
-    "cgl",
-    val.filter((v) => v !== "All CGLs")
-  );
-};
+  if (balanceDate.isBefore(MIN_ALLOWED_DATE, "day")) {
+    showSnackBar(
+      `Date cannot be earlier than ${MIN_ALLOWED_DATE.format(DATE_FORMAT)}`,
+      "warning"
+    );
+    return;
+  }
+
+  if (etlDate?.isValid?.() && balanceDate.isAfter(etlDate, "day")) {
+    showSnackBar(
+      `Date cannot exceed ETL date ${etlDate.format(DATE_FORMAT)}`,
+      "warning"
+    );
+    return;
+  }
+
+  setPaginationModel({
+    page: 0,
+    pageSize: paginationModel.pageSize,
+  });
+
+  setSortModel([
+    {
+      field: "balanceDate",
+      sort: "desc",
+    },
+  ]);
+
+  setFilterModel({
+    items: [],
+  });
+
+  setSearchQuery({
+    ...filters,
+  });
+}, [
+  filters,
+  etlDate,
+  MIN_ALLOWED_DATE,
+  DATE_FORMAT,
+  paginationModel.pageSize,
+  showSnackBar,
+]);
