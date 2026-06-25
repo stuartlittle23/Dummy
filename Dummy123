@@ -1,1 +1,27 @@
+renderOption={(props, option, { selected }) =>
 
+  filters.enquiryType === "CONSOLIDATED" ? (
+
+    <li {...props}>
+      <Checkbox checked={selected} />
+      {option}
+    </li>
+
+  ) : (
+
+    <li {...props}>
+      {option}
+    </li>
+
+  )
+}
+
+
+
+
+
+{filters.enquiryType === "CONSOLIDATED" && (
+  <>
+    ...
+  </>
+)}
