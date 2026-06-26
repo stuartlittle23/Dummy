@@ -1,79 +1,83 @@
+{
+  field: "cgl",
+  headerName: "CGL",
+  flex: 1,
+  minWidth: 180,
+  renderCell: (params) => (
+    <Box sx={{ lineHeight: 1.2, py: 0.5 }}>
+      <Typography
+        variant="body2"
+        sx={{ fontWeight: 700, fontSize: "0.8rem" }}
+      >
+        {params.row.cgl}
+      </Typography>
 
-const consolidatedColumns = useMemo(
-  () => [
-    {
-      field: "cgl",
-      headerName: "CGL",
-      flex: 1,
-      minWidth: 160,
-    },
-    {
-      field: "description",
-      headerName: "Description",
-      flex: 2,
-      minWidth: 250,
-    },
-    {
-      field: "currency",
-      headerName: "Currency",
-      flex: 1,
-      minWidth: 120,
-    },
-    {
-      field: "currencyName",
-      headerName: "Currency Name",
-      flex: 1.5,
-      minWidth: 180,
-    },
-    {
-      field: "balance",
-      headerName: "Balance",
-      flex: 1,
-      minWidth: 180,
-      align: "right",
-      headerAlign: "right",
-      renderCell: (params) => (
-        <Typography
-          fontWeight={700}
-          color={Number(params.value) < 0 ? "error.main" : "success.main"}
-        >
-          {new Intl.NumberFormat("en-IN", {
-            minimumFractionDigits: 2,
-          }).format(params.value || 0)}
-        </Typography>
-      ),
-    },
-    {
-      field: "inrBalance",
-      headerName: "INR Balance",
-      flex: 1,
-      minWidth: 180,
-      align: "right",
-      headerAlign: "right",
-      renderCell: (params) => (
-        <Typography
-          fontWeight={700}
-          color={Number(params.value) < 0 ? "error.main" : "success.main"}
-        >
-          {new Intl.NumberFormat("en-IN", {
-            minimumFractionDigits: 2,
-          }).format(params.value || 0)}
-        </Typography>
-      ),
-    },
-  ],
-  []
-);
-
-const balanceColumns =
-  enquiryType === "CONSOLIDATED"
-    ? consolidatedColumns
-    : collationColumns;
+      <Typography
+        variant="caption"
+        sx={{ color: "text.secondary", fontSize: "0.7rem" }}
+      >
+        {params.row.description}
+      </Typography>
+    </Box>
+  ),
+},
 
 
 
 
-enquiryType={filters.enquiryType}
+
+{
+  field: "cgl",
+  headerName: "CGL",
+  flex: 1,
+  minWidth: 180,
+  renderCell: (params) => (
+    <Box sx={{ lineHeight: 1.2, py: 0.5 }}>
+      <Typography
+        variant="body2"
+        sx={{ fontWeight: 700, fontSize: "0.8rem" }}
+      >
+        {params.row.cgl}
+      </Typography>
+
+      <Typography
+        variant="caption"
+        sx={{ color: "text.secondary", fontSize: "0.7rem" }}
+      >
+        {params.row.description}
+      </Typography>
+    </Box>
+  ),
+},
+
+
+
+
+{
+  field: "currency",
+  headerName: "Currency",
+  flex: 1,
+  minWidth: 170,
+  renderCell: (params) => (
+    <Box sx={{ lineHeight: 1.2, py: 0.5 }}>
+      <Typography
+        variant="body2"
+        sx={{ fontWeight: 700, fontSize: "0.8rem" }}
+      >
+        {params.row.currency}
+      </Typography>
+
+      <Typography
+        variant="caption"
+        sx={{ color: "text.secondary", fontSize: "0.7rem" }}
+      >
+        {params.row.currencyName}
+      </Typography>
+    </Box>
+  ),
+},
+
+
 
 
 
