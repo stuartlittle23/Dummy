@@ -1,1 +1,102 @@
+{permissions.hasWholeBank && (
+  <Box
+    sx={{
+      width: "100%",
+      display: "flex",
+      mt: 2,
+      mb: 4,
+    }}
+  >
+    <Grid
+      container
+      spacing={0}
+      sx={{
+        width: "100%",
+      }}
+    >
+      {/* COLLATION */}
+      <Grid item xs={6} sx={{ display: "flex" }}>
+        <Paper
+          elevation={0}
+          onClick={() => onFilterChange("enquiryType", "COLLATION")}
+          sx={{
+            width: "100%",
+            p: 2.5,
+            cursor: "pointer",
+            border: "1px solid #E5E7EB",
+            borderRight: "none",
+            borderRadius: "16px 0 0 16px",
+            bgcolor:
+              filters.enquiryType === "COLLATION"
+                ? "#F8F7FF"
+                : "#FFF",
+            borderBottom:
+              filters.enquiryType === "COLLATION"
+                ? "4px solid #58469F"
+                : "1px solid #E5E7EB",
+            transition: "0.25s",
+            "&:hover": {
+              bgcolor: "#F8F7FF",
+            },
+          }}
+        >
+          <Stack direction="row" spacing={2} alignItems="center">
+            <LayersIcon sx={{ color: "#58469F", fontSize: 34 }} />
 
+            <Box>
+              <Typography variant="subtitle1" sx={{ fontWeight: 700 }}>
+                COLLATION
+              </Typography>
+
+              <Typography variant="caption" color="text.secondary">
+                Search and view balances with Collation
+              </Typography>
+            </Box>
+          </Stack>
+        </Paper>
+      </Grid>
+
+      {/* CONSOLIDATED */}
+      <Grid item xs={6} sx={{ display: "flex" }}>
+        <Paper
+          elevation={0}
+          onClick={() => onFilterChange("enquiryType", "CONSOLIDATED")}
+          sx={{
+            width: "100%",
+            p: 2.5,
+            cursor: "pointer",
+            border: "1px solid #E5E7EB",
+            borderLeft: "none",
+            borderRadius: "0 16px 16px 0",
+            bgcolor:
+              filters.enquiryType === "CONSOLIDATED"
+                ? "#F8F7FF"
+                : "#FFF",
+            borderBottom:
+              filters.enquiryType === "CONSOLIDATED"
+                ? "4px solid #58469F"
+                : "1px solid #E5E7EB",
+            transition: "0.25s",
+            "&:hover": {
+              bgcolor: "#F8F7FF",
+            },
+          }}
+        >
+          <Stack direction="row" spacing={2} alignItems="center">
+            <PieChartIcon sx={{ color: "#58469F", fontSize: 34 }} />
+
+            <Box>
+              <Typography variant="subtitle1" sx={{ fontWeight: 700 }}>
+                CONSOLIDATED
+              </Typography>
+
+              <Typography variant="caption" color="text.secondary">
+                View consolidated balances across all entities
+              </Typography>
+            </Box>
+          </Stack>
+        </Paper>
+      </Grid>
+    </Grid>
+  </Box>
+)}
