@@ -1,83 +1,78 @@
-{
-  field: "cgl",
-  headerName: "CGL",
-  flex: 1,
-  minWidth: 180,
-  renderCell: (params) => (
-    <Box sx={{ lineHeight: 1.2, py: 0.5 }}>
-      <Typography
-        variant="body2"
-        sx={{ fontWeight: 700, fontSize: "0.8rem" }}
-      >
-        {params.row.cgl}
-      </Typography>
+<Grid container sx={{ mb: 4 }}>
+  <Grid item xs={12} md={6}>
+    <Paper
+      elevation={0}
+      onClick={() => setFilters(prev => ({ ...prev, enquiryType: "COLLATION" }))}
+      sx={{
+        p: 3,
+        borderRadius: "16px 0 0 16px",
+        cursor: "pointer",
+        border: "1px solid #E5E7EB",
+        borderBottom:
+          filters.enquiryType === "COLLATION"
+            ? "4px solid #58469f"
+            : "1px solid #E5E7EB",
+        bgcolor: "#fff",
+        height: "100%",
+      }}
+    >
+      <Stack direction="row" spacing={2} alignItems="center">
+        <LayersIcon sx={{ color: "#58469f", fontSize: 40 }} />
 
-      <Typography
-        variant="caption"
-        sx={{ color: "text.secondary", fontSize: "0.7rem" }}
-      >
-        {params.row.description}
-      </Typography>
-    </Box>
-  ),
-},
+        <Box>
+          <Typography
+            variant="h6"
+            sx={{ fontWeight: 700, color: "#1E1B4B" }}
+          >
+            COLLATION
+          </Typography>
 
+          <Typography variant="body2" color="text.secondary">
+            Search and view balances with Collation
+          </Typography>
+        </Box>
+      </Stack>
+    </Paper>
+  </Grid>
 
+  <Grid item xs={12} md={6}>
+    <Paper
+      elevation={0}
+      onClick={() =>
+        setFilters(prev => ({
+          ...prev,
+          enquiryType: "CONSOLIDATED",
+        }))
+      }
+      sx={{
+        p: 3,
+        borderRadius: "0 16px 16px 0",
+        cursor: "pointer",
+        border: "1px solid #E5E7EB",
+        borderBottom:
+          filters.enquiryType === "CONSOLIDATED"
+            ? "4px solid #58469f"
+            : "1px solid #E5E7EB",
+        bgcolor: "#fff",
+        height: "100%",
+      }}
+    >
+      <Stack direction="row" spacing={2} alignItems="center">
+        <PieChartIcon sx={{ color: "#58469f", fontSize: 40 }} />
 
+        <Box>
+          <Typography
+            variant="h6"
+            sx={{ fontWeight: 700, color: "#1E1B4B" }}
+          >
+            CONSOLIDATED
+          </Typography>
 
-
-{
-  field: "cgl",
-  headerName: "CGL",
-  flex: 1,
-  minWidth: 180,
-  renderCell: (params) => (
-    <Box sx={{ lineHeight: 1.2, py: 0.5 }}>
-      <Typography
-        variant="body2"
-        sx={{ fontWeight: 700, fontSize: "0.8rem" }}
-      >
-        {params.row.cgl}
-      </Typography>
-
-      <Typography
-        variant="caption"
-        sx={{ color: "text.secondary", fontSize: "0.7rem" }}
-      >
-        {params.row.description}
-      </Typography>
-    </Box>
-  ),
-},
-
-
-
-
-{
-  field: "currency",
-  headerName: "Currency",
-  flex: 1,
-  minWidth: 170,
-  renderCell: (params) => (
-    <Box sx={{ lineHeight: 1.2, py: 0.5 }}>
-      <Typography
-        variant="body2"
-        sx={{ fontWeight: 700, fontSize: "0.8rem" }}
-      >
-        {params.row.currency}
-      </Typography>
-
-      <Typography
-        variant="caption"
-        sx={{ color: "text.secondary", fontSize: "0.7rem" }}
-      >
-        {params.row.currencyName}
-      </Typography>
-    </Box>
-  ),
-},
-
-
-
-
-
+          <Typography variant="body2" color="text.secondary">
+            View consolidated balances across all entities
+          </Typography>
+        </Box>
+      </Stack>
+    </Paper>
+  </Grid>
+</Grid>
