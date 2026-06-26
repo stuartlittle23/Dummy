@@ -1,56 +1,85 @@
-const handleSearch = useCallback(() => {
-  const { cgl, balanceDate } = filters;
+<Grid
+  size={{ xs: 12 }}
+  sx={{
+    display: "flex",
+    justifyContent: "center",
+    mb: 3,
+  }}
+>
+  <Paper
+    elevation={3}
+    sx={{
+      px: 3,
+      py: 2,
+      borderRadius: "18px",
+      display: "flex",
+      alignItems: "center",
+      gap: 3,
+      border: "1px solid #e5e7eb",
+      bgcolor: "#fff",
+      boxShadow: "0 6px 18px rgba(0,0,0,0.08)",
+    }}
+  >
+    <Stack direction="row" spacing={1} alignItems="center">
+      <SummarizeIcon
+        sx={{
+          color: "#58469f",
+          fontSize: 22,
+        }}
+      />
 
-  if (cgl.length === 0 || !balanceDate) {
-    showSnackBar("Please fill all required fields", "warning");
-    return;
-  }
+      <Typography
+        variant="subtitle1"
+        sx={{
+          fontWeight: 700,
+          color: "#333",
+        }}
+      >
+        Enquiry Type
+      </Typography>
+    </Stack>
 
-  if (!balanceDate?.isValid?.()) {
-    showSnackBar("Invalid date selected", "warning");
-    return;
-  }
+    <ToggleButtonGroup
+      exclusive
+      size="small"
+      value={filters.enquiryType}
+      onChange={(_, value) => {
+        if (value) {
+          onFilterChange("enquiryType", value);
+        }
+      }}
+      sx={{
+        "& .MuiToggleButton-root": {
+          px: 3,
+          py: 0.8,
+          borderRadius: "10px !important",
+          textTransform: "none",
+          fontWeight: 700,
+          border: "1px solid #d0d7de",
+          color: "#555",
+          transition: "all 0.25s",
+          mx: 0.5,
+        },
 
-  if (balanceDate.isBefore(MIN_ALLOWED_DATE, "day")) {
-    showSnackBar(
-      `Date cannot be earlier than ${MIN_ALLOWED_DATE.format(DATE_FORMAT)}`,
-      "warning"
-    );
-    return;
-  }
+        "& .Mui-selected": {
+          bgcolor: "#58469f !important",
+          color: "#fff !important",
+          borderColor: "#58469f !important",
+          boxShadow: "0 4px 12px rgba(88,70,159,0.35)",
+        },
 
-  if (etlDate?.isValid?.() && balanceDate.isAfter(etlDate, "day")) {
-    showSnackBar(
-      `Date cannot exceed ETL date ${etlDate.format(DATE_FORMAT)}`,
-      "warning"
-    );
-    return;
-  }
+        "& .MuiToggleButton-root:hover": {
+          bgcolor: "rgba(88,70,159,0.08)",
+        },
+      }}
+    >
+      <ToggleButton value="COLLATION">
+        Collation
+      </ToggleButton>
 
-  setPaginationModel({
-    page: 0,
-    pageSize: paginationModel.pageSize,
-  });
-
-  setSortModel([
-    {
-      field: "balanceDate",
-      sort: "desc",
-    },
-  ]);
-
-  setFilterModel({
-    items: [],
-  });
-
-  setSearchQuery({
-    ...filters,
-  });
-}, [
-  filters,
-  etlDate,
-  MIN_ALLOWED_DATE,
-  DATE_FORMAT,
-  paginationModel.pageSize,
-  showSnackBar,
-]);
+      <ToggleButton value="CONSOLIDATED">
+        Consolidated
+      </ToggleButton>
+    </ToggleButtonGroup>
+  </Paper>
+</Grid>
