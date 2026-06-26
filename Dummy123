@@ -1,85 +1,70 @@
-<Grid
-  size={{ xs: 12 }}
-  sx={{
-    display: "flex",
-    justifyContent: "center",
-    mb: 3,
-  }}
+<Stack
+    direction="row"
+    justifyContent="space-between"
+    alignItems="flex-start"
+    sx={{ mb: 3 }}
 >
-  <Paper
-    elevation={3}
-    sx={{
-      px: 3,
-      py: 2,
-      borderRadius: "18px",
-      display: "flex",
-      alignItems: "center",
-      gap: 3,
-      border: "1px solid #e5e7eb",
-      bgcolor: "#fff",
-      boxShadow: "0 6px 18px rgba(0,0,0,0.08)",
-    }}
-  >
-    <Stack direction="row" spacing={1} alignItems="center">
-      <SummarizeIcon
+    <Box>
+        <Typography variant="h5" fontWeight={700}>
+            Ledger Balance Insights Explorer
+        </Typography>
+
+        <Typography variant="body2" color="text.secondary">
+            Ledger Balance search and analysis
+        </Typography>
+    </Box>
+
+    <Paper
+        variant="outlined"
         sx={{
-          color: "#58469f",
-          fontSize: 22,
+            px: 2,
+            py: 1.5,
+            borderRadius: 3,
+            display: "flex",
+            alignItems: "center",
+            gap: 2,
+            bgcolor: "#fafafa",
+            borderColor: "divider",
         }}
-      />
-
-      <Typography
-        variant="subtitle1"
-        sx={{
-          fontWeight: 700,
-          color: "#333",
-        }}
-      >
-        Enquiry Type
-      </Typography>
-    </Stack>
-
-    <ToggleButtonGroup
-      exclusive
-      size="small"
-      value={filters.enquiryType}
-      onChange={(_, value) => {
-        if (value) {
-          onFilterChange("enquiryType", value);
-        }
-      }}
-      sx={{
-        "& .MuiToggleButton-root": {
-          px: 3,
-          py: 0.8,
-          borderRadius: "10px !important",
-          textTransform: "none",
-          fontWeight: 700,
-          border: "1px solid #d0d7de",
-          color: "#555",
-          transition: "all 0.25s",
-          mx: 0.5,
-        },
-
-        "& .Mui-selected": {
-          bgcolor: "#58469f !important",
-          color: "#fff !important",
-          borderColor: "#58469f !important",
-          boxShadow: "0 4px 12px rgba(88,70,159,0.35)",
-        },
-
-        "& .MuiToggleButton-root:hover": {
-          bgcolor: "rgba(88,70,159,0.08)",
-        },
-      }}
     >
-      <ToggleButton value="COLLATION">
-        Collation
-      </ToggleButton>
+        <Typography
+            variant="subtitle2"
+            sx={{
+                fontWeight: 700,
+                whiteSpace: "nowrap",
+            }}
+        >
+            Enquiry Type
+        </Typography>
 
-      <ToggleButton value="CONSOLIDATED">
-        Consolidated
-      </ToggleButton>
-    </ToggleButtonGroup>
-  </Paper>
-</Grid>
+        <ToggleButtonGroup
+            exclusive
+            size="small"
+            value={filters.enquiryType}
+            onChange={(_, value) => {
+                if (value) {
+                    onFilterChange("enquiryType", value);
+                }
+            }}
+            sx={{
+                "& .MuiToggleButton-root": {
+                    textTransform: "none",
+                    px: 2.5,
+                    fontWeight: 600,
+                },
+                "& .Mui-selected": {
+                    bgcolor: "#58469f !important",
+                    color: "#fff !important",
+                },
+            }}
+        >
+            <ToggleButton value="COLLATION">
+                Collation
+            </ToggleButton>
+
+            <ToggleButton value="CONSOLIDATED">
+                Consolidated
+            </ToggleButton>
+        </ToggleButtonGroup>
+    </Paper>
+</Stack>
