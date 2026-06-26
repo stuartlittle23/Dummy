@@ -1,1 +1,79 @@
 
+const consolidatedColumns = useMemo(
+  () => [
+    {
+      field: "cgl",
+      headerName: "CGL",
+      flex: 1,
+      minWidth: 160,
+    },
+    {
+      field: "description",
+      headerName: "Description",
+      flex: 2,
+      minWidth: 250,
+    },
+    {
+      field: "currency",
+      headerName: "Currency",
+      flex: 1,
+      minWidth: 120,
+    },
+    {
+      field: "currencyName",
+      headerName: "Currency Name",
+      flex: 1.5,
+      minWidth: 180,
+    },
+    {
+      field: "balance",
+      headerName: "Balance",
+      flex: 1,
+      minWidth: 180,
+      align: "right",
+      headerAlign: "right",
+      renderCell: (params) => (
+        <Typography
+          fontWeight={700}
+          color={Number(params.value) < 0 ? "error.main" : "success.main"}
+        >
+          {new Intl.NumberFormat("en-IN", {
+            minimumFractionDigits: 2,
+          }).format(params.value || 0)}
+        </Typography>
+      ),
+    },
+    {
+      field: "inrBalance",
+      headerName: "INR Balance",
+      flex: 1,
+      minWidth: 180,
+      align: "right",
+      headerAlign: "right",
+      renderCell: (params) => (
+        <Typography
+          fontWeight={700}
+          color={Number(params.value) < 0 ? "error.main" : "success.main"}
+        >
+          {new Intl.NumberFormat("en-IN", {
+            minimumFractionDigits: 2,
+          }).format(params.value || 0)}
+        </Typography>
+      ),
+    },
+  ],
+  []
+);
+
+const balanceColumns =
+  enquiryType === "CONSOLIDATED"
+    ? consolidatedColumns
+    : collationColumns;
+
+
+
+
+enquiryType={filters.enquiryType}
+
+
+
