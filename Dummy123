@@ -1,1 +1,420 @@
 
+";
+
+const BalanceLedgerForm = ({
+  filters,
+  onFilterChange,
+  onReset,
+  onFetch,
+  permissions,
+  user,
+  circles,
+  currencies,
+  FOREIGN_CIRCLE_CODE,
+  CIRCLE_GROUPS,
+  minLimit,
+  maxLimit,
+  fetchLoading,
+}) => {
+  const { callApi } = useApi();
+  const { hasWholeBank, hasCircle } = permissions;
+  const [branchSearch, setBranchSearch] = useState(null);
+  const [branches, setBranches] = useState([]);
+  const [cgls, setCgls] = useState(["All CGLs"]);
+  const [loading, setLoading] = useState({ branch: false, cgl: false , currency: false});
+  const [viewList, setViewList] = useState(null);
+  const [balanceDateError, setBalanceDateError] = useState(null);
+  const [currencyOptions , setCurrencyOptions] = useState(["All Currencies",  ...(currencies || []),]);
+  useEffect(()=> {
+    setCurrencyOptions(["All Currencies",  ...(currencies || [])]);},[currencies]);
+
+  const isCircleVisible = !!hasWholeBank;
+  // const isBranchVisible =
+  //   (!!hasWholeBank && filters.circle !== CIRCLE_GROUPS.ALL) || user?.isCircle;
+  const isBranchVisible =
+  !permissions.hasWholeBank ||
+  filters.enquiryType === "COLLATION";
+
+  const branch = filters.branches || [];
+  const hasSelectedBranches =
+    !branch.includes("ALL") && branch.length > 0;
+
+  const cgl = filters.cgl || [];
+  const hasSelectedCgls =
+    !cgl.includes("All CGLs") && cgl.length > 0;
+  
+  const currency = filters.currencies || [];
+  const hasSelectedCurrencies =
+    !currency.includes("All Currencies") && currency.length > 0;
+  
+  const searchLogic = useCallback(
+    async (type, term) => {
+      if (!term || term.length < 3) return;
+      try {
+        setLoading((p) => ({ ...p, [type]: true }));
+        let cp = "";
+
+        if (hasWholeBank) {
+          if (
+            filters.circle !== CIRCLE_GROUPS.ALL &&
+            filters.circle !== CIRCLE_GROUPS.DOMESTIC &&
+            filters.circle !== CIRCLE_GROUPS.FOREIGN
+          ) {
+            cp = `&circleCode=${filters.circle}`;
+          } else if (filters.circle === CIRCLE_GROUPS.FOREIGN) {
+            cp = `&circleCode=${FOREIGN_CIRCLE_CODE}`;
+          } else if (filters.circle === CIRCLE_GROUPS.DOMESTIC) {
+            cp = `&circleCode=${CIRCLE_GROUPS.DOMESTIC}`;
+          } else {
+            cp = `&circleCode=${CIRCLE_GROUPS.ALL}`;
+          }
+        } else if (!hasWholeBank) {
+          cp = `&circleCode=${user.circleCode}`;
+        }
+
+        // const url =
+        //   type === "branch"
+        //     ? `/CM/common-master/branches-code-name-only?q=${encodeURIComponent(term)}${cp}`
+        //     : `/CM/common-master/cgl-code-description-only?q=${encodeURIComponent(term)}`;
+        
+      const url =
+        type === "branch"
+          ? `/CM/common-master/branches-code-name-only?q=${encodeURIComponent(term)}${cp}`
+          : type === "cgl"
+          ? `/CM/common-master/cgl-code-description-only?q=${encodeURIComponent(term)}`
+          : `/CM/common-master/currency-code-name-only?q=${encodeURIComponent(term)}`;
+
+        const res = await callApi(url, null, "GET");
+        // if (res?.data) {
+        //   const opts = res.data.map((i) =>
+        //     type === "branch"
+        //       ? `${i.code}-${i.name}`
+        //       : `${i.cglNumber} - ${i.description}`,
+        //   );
+        //   // type === "branch" ? setBranches(opts) : setCgls(opts);
+        //   if(type === "branch"){
+        //     setBranches(opts);
+        //   }else{
+        //     setCgls(hasWholeBank?["All CGLs", ...opts]:opts
+        //     );
+        //   }
+        // }
+        if (res?.data) {
+        let opts = [];
+
+        if (type === "branch") {
+          opts = res.data.map(
+            (i) => `${i.code}-${i.name}`
+          );
+
+          setBranches(opts);
+
+        } else if (type === "cgl") {
+
+          opts = res.data.map(
+            (i) => `${i.cglNumber} - ${i.description}`
+          );
+
+          setCgls(opts);
+
+        } else if (type === "currency") {
+
+          opts = res.data.map(
+            (i) => `${i.currencyCode} (${i.currencyName})`
+          );
+          console.log(res.data);
+          console.log(opts);
+          setCurrencyOptions(opts);
+        }
+      }
+      } catch (e) {
+        console.error(e);
+      } finally {
+        setLoading((p) => ({ ...p, [type]: false }));
+      }
+    },
+    [
+      hasWholeBank,
+      callApi,
+      filters.circle,
+      CIRCLE_GROUPS.ALL,
+      CIRCLE_GROUPS.DOMESTIC,
+      CIRCLE_GROUPS.FOREIGN,
+      FOREIGN_CIRCLE_CODE,
+      user.circleCode,
+    ],
+  );
+
+  const fetchSearchData = useMemo(
+    () => debounce((t, v) => searchLogic(t, v), 300),
+    [searchLogic],
+  );
+  useEffect(() => () => fetchSearchData.cancel(), [fetchSearchData]);
+
+  const handleBranchChange = (val) => {
+    const clickedAll = val.includes("ALL") && !filters.branches.includes("ALL");
+
+    // 2. If nothing is selected, default back to "ALL"
+    const isEmpty = val.length === 0;
+
+    if (clickedAll || isEmpty) {
+      onFilterChange("branches", ["ALL"]);
+      setViewList(null); // Close the tray automatically on reset
+      return;
+    }
+
+    // 3. If user selects a specific branch while "ALL" was active, remove "ALL"
+    const valWithoutAll = val.filter((v) => v !== "ALL");
+    onFilterChange("branches", valWithoutAll);
+  };
+
+  const removeBranch = (branchToRemove) => {
+    const updated = filters.branches.filter((b) => b !== branchToRemove);
+
+    if (updated.length === 0) {
+      onFilterChange("branches", ["ALL"]);
+      setViewList(null);// Auto-close tray if no specific branches left
+    } else {
+      onFilterChange("branches", updated);
+    }
+  };
+
+const handleCglChange = (val) => {
+
+  // COLLATION (single select)
+  if (filters.enquiryType !== "CONSOLIDATED") {
+    onFilterChange("cgl", val ? [val] : []);
+    return;
+  }
+
+  // CONSOLIDATED (multiple select)
+  const clickedAll =
+    val.includes("All CGLs") &&
+    !filters.cgl.includes("All CGLs");
+
+  const isEmpty = val.length === 0;
+
+  if (clickedAll || isEmpty) {
+    onFilterChange("cgl", ["All CGLs"]);
+    setViewList(null);
+    return;
+  }
+
+  onFilterChange(
+    "cgl",
+    val.filter((v) => v !== "All CGLs")
+  );
+};
+
+  const removeCgl = (item) => {
+    const updated = filters.cgl.filter(
+      (c) => c !== item
+    );
+
+    if (updated.length === 0) {
+      onFilterChange("cgl", ["All CGLs"]);
+      setViewList(null);
+    } else {
+      onFilterChange("cgl", updated);
+    }
+  };
+
+  const handleCurrencyChange = (val) => {
+    const clickedAll =
+      val.includes("All Currencies") &&
+      !filters.currencies.includes("All Currencies");
+
+    const isEmpty = val.length === 0;
+
+    if (clickedAll || isEmpty) {
+      onFilterChange(
+        "currencies",
+        ["All Currencies"]
+      );
+      setViewList(null);
+      return;
+    }
+
+    onFilterChange(
+      "currencies",
+      val.filter((v) => v !== "All Currencies")
+    );
+  };
+
+  const removeCurrency = (item) => {
+    const updated = filters.currencies.filter(
+      (c) => c !== item
+    );
+
+    if (updated.length === 0) {
+      onFilterChange(
+        "currencies",
+        ["All Currencies"]
+      );
+      setViewList(null);
+    } else {
+      onFilterChange("currencies", updated);
+    }
+  };
+
+  const handleCircleChange = (value) => {
+    onFilterChange("branches", ["ALL"]);
+    setBranches([]);
+    setViewList(null);;
+    onFilterChange("circle", value?.value || CIRCLE_GROUPS.ALL);
+  };
+
+  const SectionHeader = ({ icon, title }) => (
+    <Stack direction="row" spacing={1} alignItems="center" sx={{ mb: 2 }}>
+      <Box
+        sx={{
+          p: 0.5,
+          bgcolor: "primary.main",
+          borderRadius: 1,
+          color: "white",
+          display: "flex",
+        }}
+      >
+        {icon}
+      </Box>
+      <Typography
+        variant="subtitle2"
+        sx={{ fontWeight: 800, color: "text.primary", letterSpacing: 1 }}
+      >
+        {title}
+      </Typography>
+    </Stack>
+  );
+
+  const getDateErrorMessage = (field, error) => {
+    switch (error) {
+      case "maxDate":
+        return `${field} cannot be in future`;
+
+      case "minDate":
+        return `${field} cannot be before ${minLimit.format("DD/MM/YYYY")}`;
+
+      case "invalidDate":
+        return `Please enter a valid ${field}`;
+
+      default:
+        return "";
+    }
+  };
+
+  const validationMessages = [
+    balanceDateError && getDateErrorMessage("From Date", balanceDateError),
+  ].filter(Boolean);
+
+  return (
+    <Box sx={{ position: "relative", mb: 2 }}>
+      <Card
+        sx={{
+          borderRadius: "24px",
+          boxShadow: "0 20px 50px rgba(0,0,0,0.1)",
+          border: "1px solid rgba(255,255,255,0.3)",
+        }}
+      >
+        <CardContent sx={{ p: 4 }}>
+          <Stack
+            direction="row"
+            justifyContent="space-between"
+            sx={{ mb: 3}}
+          >
+            <Box>
+              <Typography variant="h4" sx={{ fontWeight: 900 }}>
+                Ledger  Balance Insights Explorer
+              </Typography>
+              <Typography variant="body2" color="text.secondary">
+                Ledger Balance search and analysis
+              </Typography>
+            </Box>
+            {/* <CustomChip
+              icon={<AccountBalanceIcon />}
+              label={`${hasWholeBank ? "Whole Bank" : hasCircle ? "Circle" : "Branch"} Level`}
+              color="primary"
+            /> */}
+          </Stack>
+          {permissions.hasWholeBank && (
+          <Grid container spacing={0} sx={{ mb: 4,mt:2 }}>
+  <Grid item xs={12} md={6}>
+    <Paper
+      elevation={0}
+      sx={{
+        p: 3,
+        height: "100%",
+        border: "1px solid #E5E7EB",
+        borderRadius: "16px 0 0 16px",
+        borderBottom:
+          filters.enquiryType === "COLLATION"
+            ? "4px solid #58469F"
+            : "1px solid #E5E7EB",
+        bgcolor:
+          filters.enquiryType === "COLLATION"
+            ? "#F8F7FF"
+            : "#FFF",
+      }}
+    >
+      <Stack direction="row" spacing={2} alignItems="center">
+        <LayersIcon sx={{ color: "#58469F", fontSize: 38 }} />
+
+        <Box>
+          <Typography
+            variant="h6"
+            sx={{ fontWeight: 700 }}
+          >
+            COLLATION
+          </Typography>
+
+          <Typography
+            variant="body2"
+            color="text.secondary"
+          >
+            Search and view balances with Collation
+          </Typography>
+        </Box>
+      </Stack>
+    </Paper>
+  </Grid>
+
+  <Grid item xs={12} md={6}>
+    <Paper
+      elevation={0}
+      sx={{
+        p: 3,
+        height: "100%",
+        border: "1px solid #E5E7EB",
+        borderLeft: "none",
+        borderRadius: "0 16px 16px 0",
+        borderBottom:
+          filters.enquiryType === "CONSOLIDATED"
+            ? "4px solid #58469F"
+            : "1px solid #E5E7EB",
+        bgcolor:
+          filters.enquiryType === "CONSOLIDATED"
+            ? "#F8F7FF"
+            : "#FFF",
+      }}
+    >
+      <Stack direction="row" spacing={2} alignItems="center">
+        <PieChartIcon sx={{ color: "#58469F", fontSize: 38 }} />
+
+        <Box>
+          <Typography
+            variant="h6"
+            sx={{ fontWeight: 700 }}
+          >
+            CONSOLIDATED
+          </Typography>
+
+          <Typography
+            variant="body2"
+            color="text.secondary"
+          >
+            View consolidated balances across all entities
+          </Typography>
+        </Box>
+      </Stack>
+    </Paper>
+  </Grid>
+</Grid>
