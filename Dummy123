@@ -1,533 +1,92 @@
-import React, { useMemo } from "react";
-import {
-  Box,
-  Typography,
-  Button,
-  CircularProgress,
-  Stack,
-  Chip,
-} from "@mui/material";
-import { DataGrid, GridToolbar } from "@mui/x-data-grid";
-import ErrorOutlineIcon from "@mui/icons-material/ErrorOutline";
-import FileDownloadIcon from "@mui/icons-material/FileDownload";
-import AccountBalanceWalletIcon from "@mui/icons-material/AccountBalanceWallet";
-import TrendingUpIcon from "@mui/icons-material/TrendingUp";
-import TrendingDownIcon from "@mui/icons-material/TrendingDown";
-import dayjs from "dayjs";
-import { useTheme, useMediaQuery } from "@mui/material";
+ <Grid container spacing={2}>
+                  <Grid size={{ xs: 12, sm: 7 }}>
+                    <Autocomplete
+                    multiple
+                    // multiple={filters.enquiryType==="CONSOLIDATED"}
+                      // forcePopupIcon={false}
+                      autoHighlight
+                      // disableCloseOnSelect={filters.enquiryType==="CONSOLIDATED"}
+                      disableCloseOnSelect
+                      renderTags={filters.enquiryType==="CONSOLIDATED"?()=>null:undefined}
+                      limitTags={0}
+                      value={filters.enquiryType === "CONSOLIDATED"? filters.cgl : filters.cgl?.includes("All CGLs")?null:filters.cgl?.[0]||null}
+                      options={filters.enquiryType==="CONSOLIDATED"?["All CGLs", ...cgls.filter(c => c!== "All CGLs")]:cgls.filter(c=>c!=="All CGLs")}
+                      clearIcon={filters.cgl ? undefined : null}
+                      noOptionsText={
+                        filters.enquiryType !== "CONSOLIDATED" &&
+                        (!filters.cgl || filters.cgl.length < 3)
+                          ? "Please enter at least 3 characters"
+                          : "No Options"
+                      }
+                      onInputChange={(e, v) => {
+                        if (v.length >= 3) fetchSearchData("cgl", v);
 
-const BalanceLedgerDataGrid = ({
-  rows,
-  loading,
-  rowCount,
-  paginationModel,
-  setPaginationModel,
-  sortModel,
-  setSortModel,
-  filterModel,
-  setFilterModel,
-  onExcelExport,
-  exporting,
-  selectedCurrency,
-  selectedCircle,
-  branchOptions,
-  circleOptions,
-  currencyOptions,
-  enquiryType,
-}) => {
-  const theme = useTheme();
+                      }}
+                      onChange={(_, v) => handleCglChange(v)}
+                      renderOption={(props, option, { selected }) =>
+                        filters.enquiryType === "CONSOLIDATED" ? (
 
-  const isMobile = useMediaQuery(theme.breakpoints.down("sm"));
-  const isTablet = useMediaQuery(theme.breakpoints.between("sm", "lg"));
+                          <li {...props}>
+                            <Checkbox checked={selected} />
+                            {option}
+                          </li>
 
-  const collationColumns = useMemo(() => {
-  const cols = [
-    {
-      field: "balanceDate",
-      headerName: "Balance Date",
-      flex: 0.8,
-      minWidth: 150,
-      valueFormatter: (v) =>
-        v ? dayjs(v).format("DD/MM/YYYY") : "-",
-    },
+                        ) : (
 
-    {
-      field: "branchCode",
-      headerName: "Branch",
-      flex: 1,
-      minWidth: 180,
+                          <li {...props}>
+                            {option}
+                          </li>
 
-      ...(branchOptions?.length
-        ? {
-            type: "singleSelect",
-            valueOptions: branchOptions,
-          }
-        : {}),
+                        )
+                      }
+                      renderInput={(params) => (
+                      <TextField
+                        {...params}
+                        variant="standard"
+                        label="CGL *"
+                        InputProps={{
+                          ...params.InputProps,
+                          startAdornment:null,
 
-      renderCell: (params) => (
-        <Box sx={{ lineHeight: "1.2", py: 0.5 }}>
-          <Typography
-            variant="body2"
-            sx={{
-              fontWeight: 700,
-              fontSize: "0.8rem",
-            }}
-          >
-            {params.row.branchCode}
-          </Typography>
+                          endAdornment: (
+                            <>
+                            {filters.enquiryType === "CONSOLIDATED" && filters.cgl.length>0 &&(
+                                <>
+                             <CustomChip
+                              label={
+                                filters.cgl.includes("All CGLs")
+                                  ? "All CGLs"
+                                  : `${filters.cgl.length} Selected`
+                              }
+                              color={
+                                filters.cgl.includes("All CGLs")
+                                  ? "default"
+                                  : "primary"
+                              }
+                            />
 
-          <Typography
-            variant="caption"
-            sx={{
-              color: "text.secondary",
-              fontSize: "0.7rem",
-            }}
-          >
-            {params.row.branchName}
-          </Typography>
-        </Box>
-      ),
-    },
-
-    {
-  field: "cgl",
-  headerName: "CGL",
-  flex: 1,
-  minWidth: 180,
-  renderCell: (params) => (
-    <Box sx={{ lineHeight: 1.2, py: 0.5 }}>
-      <Typography
-        variant="body2"
-        sx={{ fontWeight: 700, fontSize: "0.8rem" }}
-      >
-        {params.row.cgl}
-      </Typography>
-
-      <Typography
-        variant="caption"
-        sx={{ color: "text.secondary", fontSize: "0.7rem" }}
-      >
-        {params.row.description}
-      </Typography>
-    </Box>
-  ),
-},
-
-
-    {
-      field: "balance",
-      headerName: "Balance",
-      flex: 1,
-      minWidth: 180,
-      align: "right",
-      headerAlign: "right",
-
-      renderCell: (params) => (
-        <Typography
-          fontWeight={700}
-          color={
-            Number(params.value) < 0
-              ? "error.main"
-              : "success.main"
-          }
-        >
-          {new Intl.NumberFormat("en-IN", {
-            minimumFractionDigits: 2,
-          }).format(params.value || 0)}
-        </Typography>
-      ),
-    },
-
-    {
-      field: "inrBalance",
-      headerName: "INR Balance",
-      flex: 1,
-      minWidth: 180,
-      align: "right",
-      headerAlign: "right",
-
-      renderCell: (params) => (
-        <Typography
-          fontWeight={700}
-          color={
-            Number(params.value) < 0
-              ? "error.main"
-              : "success.main"
-          }
-        >
-          {new Intl.NumberFormat("en-IN", {
-            minimumFractionDigits: 2,
-          }).format(params.value || 0)}
-        </Typography>
-      ),
-    },
-  ];
-
-  if (selectedCircle === "ALL") {
-    cols.splice(1, 0, {
-      field: "circleCode",
-      headerName: "Circle",
-      flex: 1,
-      minWidth: 160,
-      type: "singleSelect",
-      valueOptions: circleOptions,
-
-      renderCell: (params) => (
-        <Box sx={{ lineHeight: "1.2", py: 0.5 }}>
-          <Typography
-            variant="body2"
-            sx={{
-              fontWeight: 700,
-              fontSize: "0.8rem",
-            }}
-          >
-            {params.row.circleCode}
-          </Typography>
-
-          <Typography
-            variant="caption"
-            sx={{
-              color: "text.secondary",
-              fontSize: "0.7rem",
-            }}
-          >
-            {params.row.circleName}
-          </Typography>
-        </Box>
-      ),
-    });
-  }
-
-  if (selectedCurrency === "All Currencies") {
-    cols.splice(3, 0, {
-      field: "currency",
-      headerName: "Currency",
-      flex: 1,
-      minWidth: 150,
-      type: "singleSelect",
-      valueOptions: currencyOptions,
-
-      renderCell: (params) => (
-        <Box sx={{ lineHeight: "1.2", py: 0.5 }}>
-          <Typography
-            variant="body2"
-            sx={{
-              fontWeight: 700,
-              fontSize: "0.8rem",
-            }}
-          >
-            {params.row.currency}
-          </Typography>
-
-          <Typography
-            variant="caption"
-            sx={{
-              color: "text.secondary",
-              fontSize: "0.7rem",
-            }}
-          >
-            {params.row.currencyName}
-          </Typography>
-        </Box>
-      ),
-    });
-  }
-
-  return cols;
-}, [
-  branchOptions,
-  selectedCircle,
-  selectedCurrency,
-  circleOptions,
-  currencyOptions,
-]);
-
-  const consolidatedColumns = useMemo(
-  () => [
-    
-    {
-      field: "cgl",
-      headerName: "CGL",
-      flex: 1,
-      minWidth: 180,
-      renderCell: (params) => (
-        <Box sx={{ lineHeight: 1.2, py: 0.5 }}>
-          <Typography
-            variant="body2"
-            sx={{ fontWeight: 700, fontSize: "0.8rem" }}
-          >
-            {params.row.cgl}
-          </Typography>
-
-          <Typography
-            variant="caption"
-            sx={{ color: "text.secondary", fontSize: "0.7rem" }}
-          >
-            {params.row.description}
-          </Typography>
-        </Box>
-      ),
-    },
-    {
-      field: "currency",
-      headerName: "Currency",
-      flex: 1,
-      minWidth: 170,
-      renderCell: (params) => (
-        <Box sx={{ lineHeight: 1.2, py: 0.5 }}>
-          <Typography
-            variant="body2"
-            sx={{ fontWeight: 700, fontSize: "0.8rem" }}
-          >
-            {params.row.currency}
-          </Typography>
-
-          <Typography
-            variant="caption"
-            sx={{ color: "text.secondary", fontSize: "0.7rem" }}
-          >
-            {params.row.currencyName}
-          </Typography>
-        </Box>
-      ),
-    },
-    {
-      field: "balance",
-      headerName: "Balance",
-      flex: 1,
-      minWidth: 180,
-      align: "right",
-      headerAlign: "right",
-      renderCell: (params) => (
-        <Typography
-          fontWeight={700}
-          color={Number(params.value) < 0 ? "error.main" : "success.main"}
-        >
-          {new Intl.NumberFormat("en-IN", {
-            minimumFractionDigits: 2,
-          }).format(params.value || 0)}
-        </Typography>
-      ),
-    },
-    {
-      field: "inrBalance",
-      headerName: "INR Balance",
-      flex: 1,
-      minWidth: 180,
-      align: "right",
-      headerAlign: "right",
-      renderCell: (params) => (
-        <Typography
-          fontWeight={700}
-          color={Number(params.value) < 0 ? "error.main" : "success.main"}
-        >
-          {new Intl.NumberFormat("en-IN", {
-            minimumFractionDigits: 2,
-          }).format(params.value || 0)}
-        </Typography>
-      ),
-    },
-  ],
-  []
-);
-
-const balanceColumns =
-  enquiryType === "CONSOLIDATED"
-    ? consolidatedColumns
-    : collationColumns;
-
-
-  const columnVisibilityModel = useMemo(
-    () => ({
-      branchName: false,
-      circleName: false,
-
-      ...(isMobile && {
-        narration: false,
-        circleCode: false,
-      }),
-
-      ...(isTablet && {
-        narration: false,
-      }),
-    }),
-    [isMobile, isTablet],
-  );
-
-  const CustomNoRowsOverlay = () => (
-    <Box
-      sx={{
-        display: "flex",
-        flexDirection: "column",
-        height: "100%",
-        justifyContent: "center",
-        alignItems: "center",
-      }}
-    >
-      <ErrorOutlineIcon fontSize="large" color="action" />
-      <Typography variant="h5" fontSize="1.2rem" color="text.secondary">
-        No balances available for the selected criteria
-      </Typography>
-    </Box>
-  );
-
-  return (
-    <Box sx={{ width: "100%", height: "100%", mt: 3 }}>
-      {/* SEPARATE HEADER SECTION (Replacing Internal Toolbar) */}
-      <Box
-        sx={{
-          p: 2.5,
-          mb: 3,
-          borderRadius: "20px",
-          background: "rgba(255, 255, 255, 0.4)",
-          backdropFilter: "blur(12px)",
-          border: "1px solid rgba(255, 255, 255, 0.3)",
-          boxShadow: "0 8px 32px rgba(0,0,0,0.05)",
-          display: "flex",
-          flexDirection: "column",
-          gap: 2.5,
-        }}
-      >
-        <Stack
-          direction={{ xs: "column", sm: "row" }}
-          spacing={2}
-          justifyContent="space-between"
-          alignItems={{ xs: "stretch", sm: "center" }}
-        >
-          <Box
-            sx={{
-              display: "flex",
-              flexDirection: {
-                xs: "column",
-                sm: "row",
-              },
-              alignItems: {
-                xs: "flex-start",
-                sm: "baseline",
-              },
-              gap: {
-                xs: 1,
-                sm: 1.5,
-              },
-            }}
-          >
-            <Typography
-              variant="h6"
-              fontWeight={800}
-              sx={{
-                color: "#1a1a1a",
-                letterSpacing: "-0.5px",
-              }}
-            >
-              Balance Ledger
-            </Typography>
-
-            <Chip
-              label={
-                rowCount > 0
-                  ? `${rowCount.toLocaleString("en-IN")} Records Found`
-                  : "No Records"
-              }
-              size="small"
-              sx={{
-                fontWeight: 700,
-                color: "#58469f",
-                bgcolor: "rgba(88, 70, 159, 0.1)",
-                borderRadius: "8px",
-                width: {
-                  xs: "fit-content",
-                  sm: "auto",
-                },
-              }}
-            />
-          </Box>
-          <Button
-            variant="contained"
-            // size="small"
-            size={isMobile ? "medium" : "small"}
-            startIcon={
-              exporting ? (
-                <CircularProgress size={16} color="inherit" />
-              ) : (
-                <FileDownloadIcon />
-              )
-            }
-            onClick={onExcelExport}
-            disabled={!rowCount || loading || exporting}
-            sx={{
-              textTransform: "none",
-              bgcolor: "#58469f",
-              fontWeight: 700,
-              borderRadius: "8px",
-              px: 3,
-              "&:hover": { bgcolor: "#45357a" },
-            }}
-          >
-            {exporting ? "Preparing..." : "Export"}
-          </Button>
-        </Stack>
-
-        {/* DATA GRID SECTION */}
-        <Box
-          sx={{
-            width: "100%",
-            overflowX: "auto",
-            height: {
-              xs: "65vh",
-              sm: "70vh",
-              md: 600,
-            },
-          }}
-        >
-          <DataGrid
-            rows={rows}
-            columns={balanceColumns}
-            rowCount={rowCount}
-            loading={loading}
-            getRowId={(row) => row.id}
-            pagination
-            paginationMode="server"
-            sortingMode="server"
-            filterMode="server"
-            pageSizeOptions={[10, 20, 50, 100]}
-            paginationModel={paginationModel}
-            onPaginationModelChange={setPaginationModel}
-            sortModel={sortModel}
-            onSortModelChange={setSortModel}
-            filterModel={filterModel}
-            onFilterModelChange={setFilterModel}
-            rowHeight={50}
-            disableRowSelectionOnClick
-            slots={{ noRowsOverlay: CustomNoRowsOverlay }}
-            // showToolbar={rowCount > 0}
-            // slotProps={{
-            //   toolbar: {
-            //     showQuickFilter: false,
-            //     csvOptions: { disableToolbarButton: true }, // Hides CSV export
-            //     printOptions: { disableToolbarButton: true }, // Hides Print option
-            //   },
-            // }}
-
-            initialState={{
-              columns: {
-                columnVisibilityModel,
-              },
-            }}
-            sx={{
-              borderRadius: "20px",
-              backgroundColor: "rgba(255,255,255,0.4)",
-              border: "1px solid rgba(255,255,255,0.3)",
-
-              "& .MuiDataGrid-columnHeaders": {
-                bgcolor: "#f8f9fa",
-                fontWeight: 700,
-              },
-            }}
-          />
-        </Box>
-      </Box>
-    </Box>
-  );
-};
-
-export default BalanceLedgerDataGrid;
+                            {!filters.cgl.includes("All CGLs") &&
+                            filters.cgl.length > 0 && (
+                              <IconButton
+                                size="small"
+                                onClick={() =>
+                                  setViewList(
+                                    viewList === "cgl" ? null : "cgl"
+                                  )
+                                }
+                              >
+                                {viewList === "cgl"
+                                  ? <VisibilityOffIcon fontSize="small"/>
+                                  : <VisibilityIcon fontSize="small"/>}
+                              </IconButton>
+                            )}
+                            </>
+                              )}
+                              {params.InputProps.endAdornment}
+                            </>
+                          ),
+                        }}
+                      />
+                    )}
+                      loadingText="Searching Cgls..."
+                    />
