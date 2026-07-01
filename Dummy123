@@ -1,9 +1,27 @@
-useEffect(() => {
-  const allCurrencies = ["All Currencies", ...(currencies || [])];
+const handleCurrencyChange = (val) => {
+  const hadAll = filters.currencies.includes("All Currencies");
+  const hasAll = val.includes("All Currencies");
 
-  setCurrencyOptions(allCurrencies);
-
-  if (filters.currencies?.includes("All Currencies")) {
-    onFilterChange("currencies", allCurrencies);
+  // User clicked "All Currencies" -> select everything
+  if (!hadAll && hasAll) {
+    onFilterChange(
+      "currencies",
+      ["All Currencies", ...currencies.filter(c => c !== "All Currencies")]
+    );
+    setViewList(null);
+    return;
   }
-}, [currencies]);
+
+  // User unchecked "All Currencies" -> clear everything
+  if (hadAll && !hasAll) {
+    onFilterChange("currencies", []);
+    setViewList(null);
+    return;
+  }
+
+  // Normal selection
+  onFilterChange(
+    "currencies",
+    val.filter(v => v !== "All Currencies")
+  );
+};
