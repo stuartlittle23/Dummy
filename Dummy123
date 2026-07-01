@@ -1,92 +1,26 @@
- <Grid container spacing={2}>
-                  <Grid size={{ xs: 12, sm: 7 }}>
-                    <Autocomplete
-                    multiple
-                    // multiple={filters.enquiryType==="CONSOLIDATED"}
-                      // forcePopupIcon={false}
-                      autoHighlight
-                      // disableCloseOnSelect={filters.enquiryType==="CONSOLIDATED"}
-                      disableCloseOnSelect
-                      renderTags={filters.enquiryType==="CONSOLIDATED"?()=>null:undefined}
-                      limitTags={0}
-                      value={filters.enquiryType === "CONSOLIDATED"? filters.cgl : filters.cgl?.includes("All CGLs")?null:filters.cgl?.[0]||null}
-                      options={filters.enquiryType==="CONSOLIDATED"?["All CGLs", ...cgls.filter(c => c!== "All CGLs")]:cgls.filter(c=>c!=="All CGLs")}
-                      clearIcon={filters.cgl ? undefined : null}
-                      noOptionsText={
-                        filters.enquiryType !== "CONSOLIDATED" &&
-                        (!filters.cgl || filters.cgl.length < 3)
-                          ? "Please enter at least 3 characters"
-                          : "No Options"
-                      }
-                      onInputChange={(e, v) => {
-                        if (v.length >= 3) fetchSearchData("cgl", v);
+const handleCurrencyChange = (val) => {
+  const clickedAll =
+    val.includes("All Currencies") &&
+    !filters.currencies.includes("All Currencies");
 
-                      }}
-                      onChange={(_, v) => handleCglChange(v)}
-                      renderOption={(props, option, { selected }) =>
-                        filters.enquiryType === "CONSOLIDATED" ? (
+  const isEmpty = val.length === 0;
 
-                          <li {...props}>
-                            <Checkbox checked={selected} />
-                            {option}
-                          </li>
+  if (clickedAll) {
+    onFilterChange(
+      "currencies",
+      ["All Currencies", ...currencies.filter(c => c !== "All Currencies")]
+    );
+    setViewList(null);
+    return;
+  }
 
-                        ) : (
+  if (isEmpty) {
+    onFilterChange("currencies", ["All Currencies"]);
+    setViewList(null);
+    return;
+  }
 
-                          <li {...props}>
-                            {option}
-                          </li>
+  const updated = val.filter(v => v !== "All Currencies");
 
-                        )
-                      }
-                      renderInput={(params) => (
-                      <TextField
-                        {...params}
-                        variant="standard"
-                        label="CGL *"
-                        InputProps={{
-                          ...params.InputProps,
-                          startAdornment:null,
-
-                          endAdornment: (
-                            <>
-                            {filters.enquiryType === "CONSOLIDATED" && filters.cgl.length>0 &&(
-                                <>
-                             <CustomChip
-                              label={
-                                filters.cgl.includes("All CGLs")
-                                  ? "All CGLs"
-                                  : `${filters.cgl.length} Selected`
-                              }
-                              color={
-                                filters.cgl.includes("All CGLs")
-                                  ? "default"
-                                  : "primary"
-                              }
-                            />
-
-                            {!filters.cgl.includes("All CGLs") &&
-                            filters.cgl.length > 0 && (
-                              <IconButton
-                                size="small"
-                                onClick={() =>
-                                  setViewList(
-                                    viewList === "cgl" ? null : "cgl"
-                                  )
-                                }
-                              >
-                                {viewList === "cgl"
-                                  ? <VisibilityOffIcon fontSize="small"/>
-                                  : <VisibilityIcon fontSize="small"/>}
-                              </IconButton>
-                            )}
-                            </>
-                              )}
-                              {params.InputProps.endAdornment}
-                            </>
-                          ),
-                        }}
-                      />
-                    )}
-                      loadingText="Searching Cgls..."
-                    />
+  onFilterChange("currencies", updated);
+};
