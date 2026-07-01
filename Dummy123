@@ -1,26 +1,9 @@
-const handleCurrencyChange = (val) => {
-  const clickedAll =
-    val.includes("All Currencies") &&
-    !filters.currencies.includes("All Currencies");
+useEffect(() => {
+  const allCurrencies = ["All Currencies", ...(currencies || [])];
 
-  const isEmpty = val.length === 0;
+  setCurrencyOptions(allCurrencies);
 
-  if (clickedAll) {
-    onFilterChange(
-      "currencies",
-      ["All Currencies", ...currencies.filter(c => c !== "All Currencies")]
-    );
-    setViewList(null);
-    return;
+  if (filters.currencies?.includes("All Currencies")) {
+    onFilterChange("currencies", allCurrencies);
   }
-
-  if (isEmpty) {
-    onFilterChange("currencies", ["All Currencies"]);
-    setViewList(null);
-    return;
-  }
-
-  const updated = val.filter(v => v !== "All Currencies");
-
-  onFilterChange("currencies", updated);
-};
+}, [currencies]);
