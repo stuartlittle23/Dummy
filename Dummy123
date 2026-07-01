@@ -1,27 +1,56 @@
-const handleCurrencyChange = (val) => {
-  const hadAll = filters.currencies.includes("All Currencies");
-  const hasAll = val.includes("All Currencies");
+const handleSearch = useCallback(() => {
+    const { cgl, balanceDate } = filters;
 
-  // User clicked "All Currencies" -> select everything
-  if (!hadAll && hasAll) {
-    onFilterChange(
-      "currencies",
-      ["All Currencies", ...currencies.filter(c => c !== "All Currencies")]
-    );
-    setViewList(null);
-    return;
-  }
+    if (cgl.length === 0 || !balanceDate) {
+      showSnackBar("Please fill all required fields", "warning");
+      return;
+    }
 
-  // User unchecked "All Currencies" -> clear everything
-  if (hadAll && !hasAll) {
-    onFilterChange("currencies", []);
-    setViewList(null);
-    return;
-  }
+    if (!balanceDate?.isValid?.()) {
+      showSnackBar("Invalid date selected", "warning");
+      return;
+    }
 
-  // Normal selection
-  onFilterChange(
-    "currencies",
-    val.filter(v => v !== "All Currencies")
-  );
-};
+    if (balanceDate.isBefore(MIN_ALLOWED_DATE, "day")) {
+      showSnackBar(
+        `Date cannot be earlier than ${MIN_ALLOWED_DATE.format(DATE_FORMAT)}`,
+        "warning",
+      );
+      return;
+    }
+
+    if (etlDate?.isValid?.() && balanceDate.isAfter(etlDate, "day")) {
+      showSnackBar(
+        `Date cannot exceed ETL date ${etlDate.format(DATE_FORMAT)}`,
+        "warning",
+      );
+      return;
+    }
+
+    setPaginationModel({
+      page: 0,
+      pageSize: paginationModel.pageSize,
+    });
+
+    setSortModel([
+      {
+        field: "balanceDate",
+        sort: "desc",
+      },
+    ]);
+
+    setFilterModel({
+      items: [],
+    });
+
+    setSearchQuery({
+      ...filters,
+    });
+  }, [
+    filters,
+    etlDate,
+    MIN_ALLOWED_DATE,
+    DATE_FORMAT,
+    paginationModel.pageSize,
+    showSnackBar,
+  ]);
