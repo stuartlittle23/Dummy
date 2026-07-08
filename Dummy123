@@ -1,95 +1,103 @@
 package com.fincore.enquiry_service.specification;
 
-import com.fincore.enquiry_service.dto.GridFilter;
-import com.fincore.enquiry_service.dto.LedgerWiseBalanceRequest;
-import com.fincore.enquiry_service.model.LedgerBalance;
-
 import jakarta.persistence.criteria.Expression;
 import jakarta.persistence.criteria.Path;
 import jakarta.persistence.criteria.Predicate;
 import jakarta.persistence.criteria.Root;
 import org.springframework.data.jpa.domain.Specification;
 
-import java.math.BigDecimal;
+import com.fincore.enquiry_service.dto.GetPayloadDTO;
+import com.fincore.enquiry_service.dto.GridFilter;
+import com.fincore.enquiry_service.model.GlTransactions;
+
+import java.sql.Timestamp;
 import java.text.SimpleDateFormat;
+import java.time.LocalDate;
+import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
 
-public class LedgerWiseBalanceSpecification {
+public class TransactionEnquirySpecification {
 
-    public static Specification<LedgerBalance> build(
-            LedgerWiseBalanceRequest dto) {
+    public static Specification<GlTransactions> build(GetPayloadDTO dto) {
 
         return (root, query, cb) -> {
 
             List<Predicate> predicates = new ArrayList<>();
 
-            /* CGL */
-            predicates.add(
-                    cb.equal(root.get("cgl"), dto.getCgl()));
+            String branch = dto.getBranch().split("-")[0];
 
-            /* BALANCE DATE */
+            DateTimeFormatter formatter = DateTimeFormatter.ofPattern("dd/MM/yyyy");
+
+            LocalDate fromDate = LocalDate.parse(dto.getFromDate(), formatter);
+
+            LocalDate toDate = LocalDate.parse(dto.getToDate(), formatter);
+
+            /* BRANCH */
             predicates.add(
-                    cb.between(
-                            root.get("balanceDate"),
-                            parseDate(dto.getFromDate()),
-                            parseDate(dto.getToDate())
-                    )
-            );
+                    cb.equal(
+                            root.get("branchCode"),
+                            branch));
 
             /* CURRENCY */
-            if (dto.getCurrencies() != null
-                    && !"ALL".equalsIgnoreCase(dto.getCurrencies())) {
+            predicates.add(
+                    cb.equal(
+                            root.get("currency"),
+                            dto.getCurrency()));
+
+            /* CGL */
+            predicates.add(
+                    cb.equal(
+                            root.get("cgl"),
+                            dto.getCgl()));
+
+            /* DATE RANGE */
+            predicates.add(
+                    cb.between(
+                            root.get("transactionDate"),
+                            fromDate,
+                            toDate));
+
+            /* SOURCE FLAGS */
+            if (dto.getSourceFlags() != null
+                    && !dto.getSourceFlags().isEmpty()
+                    && !dto.getSourceFlags().contains("ALL")) {
 
                 predicates.add(
-                        cb.equal(
-                                root.get("currency"),
-                                dto.getCurrencies()));
+                        root.get("sourceFlag")
+                                .in(dto.getSourceFlags()));
             }
 
-            /* CIRCLE */
-            if ("DOMESTIC".equals(dto.getCircle())) {
+            /* MIN AMOUNT */
+            if (dto.getMinAmount() != null) {
 
                 predicates.add(
-                        cb.notEqual(
-                                root.get("branch")
-                                        .get("circle")
-                                        .get("circleCode"),
-                                "021"));
-
-            } else if ("FOREIGN".equals(dto.getCircle())) {
-
-                predicates.add(
-                        cb.equal(
-                                root.get("branch")
-                                        .get("circle")
-                                        .get("circleCode"),
-                                "021"));
-
-            } else if (!"ALL".equals(dto.getCircle())) {
-
-                predicates.add(
-                        cb.equal(
-                                root.get("branch")
-                                        .get("circle")
-                                        .get("circleCode"),
-                                dto.getCircle()));
+                        cb.or(
+                                cb.greaterThanOrEqualTo(
+                                        root.get("debitAmount"),
+                                        dto.getMinAmount()),
+                                cb.greaterThanOrEqualTo(
+                                        root.get("creditAmount"),
+                                        dto.getMinAmount())));
             }
 
-            /* BRANCHES */
-            if (dto.getBranches() != null
-                    && !dto.getBranches().isEmpty()
-                    && !dto.getBranches().contains("ALL")) {
+            /* MAX AMOUNT */
+            if (dto.getMaxAmount() != null) {
 
                 predicates.add(
-                        root.get("branch")
-                                .get("code")
-                                .in(dto.getBranches()));
+                        cb.or(
+                                cb.lessThanOrEqualTo(
+                                        root.get("debitAmount"),
+                                        dto.getMaxAmount()),
+                                cb.lessThanOrEqualTo(
+                                        root.get("creditAmount"),
+                                        dto.getMaxAmount())));
             }
 
             /* GRID FILTERS */
-            if (dto.getGridFilters() != null) {
+            if (dto.getGridFilters() != null
+                    && !dto.getGridFilters().isEmpty()) {
 
                 for (GridFilter filter : dto.getGridFilters()) {
 
@@ -99,147 +107,264 @@ public class LedgerWiseBalanceSpecification {
                         continue;
                     }
 
-                    Path<?> path =
-                            getPath(root, filter.getField());
+                    String field = filter.getField();
+                    String operator = filter.getOperator();
 
-                    if (path.getJavaType()
-                            .equals(BigDecimal.class)) {
+                    Path<?> path = getPath(root, field);
 
-                        BigDecimal value =
-                                new BigDecimal(
-                                        filter.getValue().toString());
+                    /* DATE FILTERS */
+                    if (path.getJavaType().equals(Date.class)
+                            || path.getJavaType().equals(Timestamp.class)
+                            || path.getJavaType().equals(LocalDate.class)) {
 
-                        Expression<BigDecimal> numberPath =
-                                path.as(BigDecimal.class);
+                        Date filterDate = parseDate(filter.getValue().toString());
 
-                        switch (filter.getOperator()) {
+                        Expression<Date> truncDate = cb.function(
+                                "TRUNC",
+                                Date.class,
+                                path);
 
-                            case "=",
-                                 "equals",
-                                 "is" ->
-                                    predicates.add(
-                                            cb.equal(
-                                                    numberPath,
-                                                    value));
+                        switch (operator) {
 
-                            case ">" ->
-                                    predicates.add(
-                                            cb.greaterThan(
-                                                    numberPath,
-                                                    value));
+                            case "equals" -> predicates.add(
+                                    cb.equal(
+                                            truncDate,
+                                            filterDate));
 
-                            case ">=" ->
-                                    predicates.add(
-                                            cb.greaterThanOrEqualTo(
-                                                    numberPath,
-                                                    value));
+                            case "after" -> predicates.add(
+                                    cb.greaterThan(
+                                            truncDate,
+                                            filterDate));
 
-                            case "<" ->
-                                    predicates.add(
-                                            cb.lessThan(
-                                                    numberPath,
-                                                    value));
+                            case "onOrAfter" -> predicates.add(
+                                    cb.greaterThanOrEqualTo(
+                                            truncDate,
+                                            filterDate));
 
-                            case "<=" ->
-                                    predicates.add(
-                                            cb.lessThanOrEqualTo(
-                                                    numberPath,
-                                                    value));
+                            case "before" -> predicates.add(
+                                    cb.lessThan(
+                                            truncDate,
+                                            filterDate));
+
+                            case "onOrBefore" -> predicates.add(
+                                    cb.lessThanOrEqualTo(
+                                            truncDate,
+                                            filterDate));
                         }
 
                         continue;
                     }
 
-                    Expression<String> expression =
-                            cb.lower(path.as(String.class));
+                    if (path.getJavaType().equals(Double.class)) {
 
-                    String value =
-                            filter.getValue()
-                                    .toString()
-                                    .toLowerCase();
+                        Double numberValue = Double.valueOf(filter.getValue().toString());
 
-                    switch (filter.getOperator()) {
+                        Expression<Double> numberPath = path.as(Double.class);
 
-                        case "contains" ->
+                        switch (operator) {
+
+                            case "=", "equals", "is" -> predicates.add(
+                                    cb.equal(
+                                            numberPath,
+                                            numberValue));
+
+                            case "!=", "not" -> predicates.add(
+                                    cb.notEqual(
+                                            numberPath,
+                                            numberValue));
+
+                            case ">" -> predicates.add(
+                                    cb.greaterThan(
+                                            numberPath,
+                                            numberValue));
+
+                            case ">=" -> predicates.add(
+                                    cb.greaterThanOrEqualTo(
+                                            numberPath,
+                                            numberValue));
+
+                            case "<" -> predicates.add(
+                                    cb.lessThan(
+                                            numberPath,
+                                            numberValue));
+
+                            case "<=" -> predicates.add(
+                                    cb.lessThanOrEqualTo(
+                                            numberPath,
+                                            numberValue));
+
+                            case "isEmpty" -> predicates.add(
+                                    cb.isNull(path));
+
+                            case "isNotEmpty" -> predicates.add(
+                                    cb.isNotNull(path));
+                        }
+
+                        continue;
+                    }
+
+                    /* STRING FILTERS */
+                    Expression<String> expression = cb.lower(
+                            path.as(String.class));
+
+                    String value = filter.getValue()
+                            .toString()
+                            .toLowerCase();
+
+                    switch (operator) {
+
+                        case "contains" -> predicates.add(
+                                cb.like(
+                                        expression,
+                                        "%" + value + "%"));
+
+                        case "startsWith" -> predicates.add(
+                                cb.like(
+                                        expression,
+                                        value + "%"));
+
+                        case "endsWith" -> predicates.add(
+                                cb.like(
+                                        expression,
+                                        "%" + value));
+
+                        case "equals", "is", "=" -> predicates.add(
+                                cb.equal(
+                                        expression,
+                                        value));
+
+                        case "not" -> predicates.add(
+                                cb.notEqual(
+                                        expression,
+                                        value));
+
+                        case "isAnyOf" -> {
+
+                            if (filter.getValue() instanceof List<?> values) {
+
+                                List<String> lowerValues = values.stream()
+                                        .map(Object::toString)
+                                        .map(String::toLowerCase)
+                                        .toList();
+
                                 predicates.add(
-                                        cb.like(
-                                                expression,
-                                                "%" + value + "%"));
+                                        expression.in(lowerValues));
 
-                        case "equals",
-                             "=" ->
+                            } else {
+
                                 predicates.add(
                                         cb.equal(
                                                 expression,
-                                                value));
+                                                filter.getValue()
+                                                        .toString()
+                                                        .toLowerCase()));
+                            }
+                        }
+
+                        case "isEmpty" -> predicates.add(
+                                cb.or(
+                                        cb.isNull(path),
+                                        cb.equal(expression, "")));
+
+                        case "isNotEmpty" -> predicates.add(
+                                cb.and(
+                                        cb.isNotNull(path),
+                                        cb.notEqual(expression, "")));
                     }
                 }
             }
 
             return cb.and(
-                    predicates.toArray(new Predicate[0]));
+                    predicates.toArray(
+                            new Predicate[0]));
+        };
+    }
+
+    // =========================================================
+    // NEW: 3-Level Offset Calculation Specification
+    // =========================================================
+    @SuppressWarnings({"rawtypes", "unchecked"})
+    public static Specification<GlTransactions> strictlyBefore(
+            Object targetDate,
+            Object targetPostDate,
+            Object targetId,
+            String sortOrder) {
+
+        return (root, query, cb) -> {
+            boolean isDesc = "DESC".equalsIgnoreCase(sortOrder);
+
+            // --- LEVEL 1: Transaction Date ---
+            Predicate dateBefore = isDesc ?
+                    cb.greaterThan(root.get("transactionDate"), (Comparable) targetDate) :
+                    cb.lessThan(root.get("transactionDate"), (Comparable) targetDate);
+
+            Predicate dateEqual = cb.equal(root.get("transactionDate"), targetDate);
+
+            // --- LEVEL 2: Post Date ---
+            Predicate postDateBefore = isDesc ?
+                    cb.greaterThan(root.get("postDate"), (Comparable) targetPostDate) :
+                    cb.lessThan(root.get("postDate"), (Comparable) targetPostDate);
+
+            Predicate postDateEqual = cb.equal(root.get("postDate"), targetPostDate);
+
+            // --- LEVEL 3: Transaction ID ---
+            Predicate idBefore = isDesc ?
+                    cb.greaterThan(root.get("transactionId").as(String.class), targetId.toString()) :
+                    cb.lessThan(root.get("transactionId").as(String.class), targetId.toString());
+
+            // --- COMBINE LOGIC ---
+            // 1. Date is strictly before OR
+            // 2. Date is same AND Post Date is strictly before OR
+            // 3. Date is same AND Post Date is same AND ID is strictly before
+            return cb.or(
+                    dateBefore,
+                    cb.and(dateEqual, postDateBefore),
+                    cb.and(dateEqual, postDateEqual, idBefore)
+            );
         };
     }
 
     private static Path<?> getPath(
-            Root<LedgerBalance> root,
+            Root<GlTransactions> root,
             String field) {
 
         return switch (field) {
 
-            case "branchCode" ->
-                    root.get("branch").get("code");
+            case "date" -> root.get("transactionDate");
 
-            case "branchName" ->
-                    root.get("branch").get("name");
+            case "journalNumber" -> root.get("journalId");
 
-            case "circleCode" ->
-                    root.get("branch")
-                            .get("circle")
-                            .get("circleCode");
+            case "batchId" -> root.get("batchId");
 
-            case "circleName" ->
-                    root.get("branch")
-                            .get("circle")
-                            .get("circleName");
+            case "sourceFlag" -> root.get("sourceFlag");
 
-            case "currency" ->
-                    root.get("currencyMaster")
-                            .get("currencyCode");
+            case "particulars" -> root.get("narration");
 
-            case "currencyName" ->
-                    root.get("currencyMaster")
-                            .get("currencyName");
+            case "postDate" -> root.get("postDate");
 
-            case "cgl" ->
-                    root.get("cglMaster")
-                            .get("cglNumber");
-
-            case "description" ->
-                    root.get("cglMaster")
-                            .get("description");
-
-            default ->
-                    root.get(field);
+            default -> root.get(field);
         };
     }
 
-    private static Date parseDate(
-            String date) {
+    private static Date parseDate(String date) {
 
         try {
+
             return new SimpleDateFormat(
-                    "dd/MM/yyyy")
-                    .parse(date);
+                    "yyyy-MM-dd").parse(date);
 
         } catch (Exception e) {
 
-            throw new RuntimeException(
-                    "Invalid date format : " + date);
+            try {
+
+                return new SimpleDateFormat(
+                        "dd/MM/yyyy").parse(date);
+
+            } catch (Exception ex) {
+
+                throw new RuntimeException(
+                        "Invalid date format : " + date);
+            }
         }
     }
 }
-
-
-
-in FE the data grid filters are not woorking for circle filter currency filter 
