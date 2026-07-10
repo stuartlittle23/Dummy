@@ -1,370 +1,321 @@
-package com.fincore.enquiry_service.specification;
+import React, { useState, useEffect, useMemo } from "react";
+import {
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
+  Button,
+  IconButton,
+  FormControl,
+  InputLabel,
+  Select,
+  MenuItem,
+  TextField,
+  Autocomplete,
+  Box,
+  Typography,
+  CircularProgress,
+  FormHelperText,
+} from "@mui/material";
+import CloseIcon from "@mui/icons-material/Close";
+import InfoIcon from "@mui/icons-material/Info";
+import QueryStatsIcon from "@mui/icons-material/QueryStats";
+import { fetchHeads } from "../api/analyticsApi";
 
-import jakarta.persistence.criteria.Expression;
-import jakarta.persistence.criteria.Path;
-import jakarta.persistence.criteria.Predicate;
-import jakarta.persistence.criteria.Root;
-import org.springframework.data.jpa.domain.Specification;
+export default function FilterDialog({
+  open,
+  onClose,
+  onApply,
+  reportsConfig = [],
+  currentFilters,
+  callApi,
+  user,
+  isApplying,
+}) {
+  const [reportCode, setReportCode] = useState("");
+  const [viewCode, setViewCode] = useState(""); // Replaces "scope" state
+  const [head, setHead] = useState(null);
+  const [entityCode, setEntityCode] = useState("");
+  const [reportDate, setReportDate] = useState("");
 
-import com.fincore.enquiry_service.dto.GetPayloadDTO;
-import com.fincore.enquiry_service.dto.GridFilter;
-import com.fincore.enquiry_service.model.GlTransactions;
+  const [headInputValue, setHeadInputValue] = useState("");
+  const [headOptions, setHeadOptions] = useState([]);
+  const [isHeadsLoading, setIsHeadsLoading] = useState(false);
 
-import java.sql.Timestamp;
-import java.text.SimpleDateFormat;
-import java.time.LocalDate;
-import java.time.format.DateTimeFormatter;
-import java.util.ArrayList;
-import java.util.Date;
-import java.util.List;
+  // Sync state when dialog opens
+  useEffect(() => {
+    if (open) {
+      setReportCode(currentFilters?.reportCode || "");
+      setViewCode(currentFilters?.viewCode || "");
+      setHead(currentFilters?.head || null);
+      setEntityCode(currentFilters?.entityCode || "");
+      setReportDate(currentFilters?.reportDate || "");
+      if (currentFilters?.head) setHeadOptions([currentFilters.head]);
+    }
+  }, [open, currentFilters]);
 
-public class TransactionEnquirySpecification {
+  // Derived available Scopes directly from Config Views
+  const availableViews = useMemo(() => {
+    if (!reportCode) return [];
+    const report = reportsConfig.find((r) => r.reportCode === reportCode);
+    return report?.views || [];
+  }, [reportCode, reportsConfig]);
 
-    public static Specification<GlTransactions> build(GetPayloadDTO dto) {
+  // Determine if we need to show the Entity Dropdown based on the selected view
+  const isCircleScope = viewCode.includes("CIRCLE");
+  const isBranchScope = viewCode.includes("BRANCH");
 
-        return (root, query, cb) -> {
+  // Dynamically load Entities from User Profile instead of an API
+  const entityOptions = useMemo(() => {
+    if (!user) return [];
+    if (isCircleScope) return user.circles || []; // Fallback array if undefined
+    if (isBranchScope) return user.branches || [];
+    return [];
+  }, [user, isCircleScope, isBranchScope]);
 
-            List<Predicate> predicates = new ArrayList<>();
+  // Debounced API call for Head Code Autocomplete
+  useEffect(() => {
+    const delayDebounceFn = setTimeout(async () => {
+      if (headInputValue && headInputValue.length >= 2 && reportCode) {
+        setIsHeadsLoading(true);
+        const data = await fetchHeads(callApi, reportCode, headInputValue);
+        setHeadOptions(data);
+        setIsHeadsLoading(false);
+      } else {
+        setHeadOptions(head ? [head] : []);
+      }
+    }, 500);
+    return () => clearTimeout(delayDebounceFn);
+  }, [headInputValue, reportCode, callApi, head]);
 
-            String branch = dto.getBranch().split("-")[0];
+  const handleReset = () => {
+    setReportCode("");
+    setViewCode("");
+    setHead(null);
+    setEntityCode("");
+    setReportDate("");
+    setHeadOptions([]);
+  };
 
-            DateTimeFormatter formatter = DateTimeFormatter.ofPattern("dd/MM/yyyy");
+  const handleApply = () => {
+    onApply({
+      reportCode,
+      viewCode,
+      head,
+      entityCode: !isCircleScope && !isBranchScope ? "" : entityCode,
+      reportDate,
+    });
+    //onClose();
+  };
 
-            LocalDate fromDate = LocalDate.parse(dto.getFromDate(), formatter);
+  const isApplyEnabled = useMemo(() => {
+    const baseValid = reportCode && viewCode && head?.headCode && reportDate;
+    if (!baseValid) return false;
+    if (isCircleScope || isBranchScope) return !!entityCode;
+    return true;
+  }, [
+    reportCode,
+    viewCode,
+    head,
+    entityCode,
+    reportDate,
+    isCircleScope,
+    isBranchScope,
+  ]);
 
-            LocalDate toDate = LocalDate.parse(dto.getToDate(), formatter);
+  return (
+    <Dialog open={open} onClose={onClose} maxWidth="sm" fullWidth>
+      <DialogTitle
+        sx={{
+          display: "flex",
+          justifyContent: "space-between",
+          alignItems: "center",
+          gap: 2,
+        }}
+      >
+        <Typography
+          variant="h6"
+          fontWeight="bold"
+          sx={{ display: "flex", alignItems: "center", gap: 2 }}
+        >
+          <QueryStatsIcon /> Drill Down Filters
+        </Typography>
+        <IconButton onClick={onClose} size="small">
+          <CloseIcon />
+        </IconButton>
+      </DialogTitle>
 
-            /* BRANCH */
-            predicates.add(
-                    cb.equal(
-                            root.get("branchCode"),
-                            branch));
+      <DialogContent dividers>
+        <Box display="flex" flexDirection="column" gap={3} py={1}>
+          <FormControl size="small" fullWidth>
+            <InputLabel id="dialog-report-label">Select Report</InputLabel>
+            <Select
+              labelId="dialog-report-label"
+              value={reportCode}
+              label="Select Report"
+              onChange={(e) => {
+                setReportCode(e.target.value);
+                setViewCode("");
+                setEntityCode("");
+                setHead(null);
+                setHeadInputValue("");
+                setHeadOptions([]);
+              }}
+            >
+              {reportsConfig.map((report) => (
+                <MenuItem key={report.reportCode} value={report.reportCode}>
+                  {report.displayName}
+                </MenuItem>
+              ))}
+            </Select>
+            <FormHelperText
+              id="scope-helper-text"
+              sx={{
+                fontStyle: "italic",
+                fontSize: "0.75rem",
+                display: "flex",
+                alignItems: "center",
+                gap: "4px",
+                lineHeight: 1.5,
+              }}
+            >
+              <InfoIcon sx={{ fontSize: "0.625rem" }} />
+              Please select a report to initiate drill-down analysis.
+            </FormHelperText>
+          </FormControl>
 
-            /* CURRENCY */
-            predicates.add(
-                    cb.equal(
-                            root.get("currency"),
-                            dto.getCurrency()));
-
-            /* CGL */
-            predicates.add(
-                    cb.equal(
-                            root.get("cgl"),
-                            dto.getCgl()));
-
-            /* DATE RANGE */
-            predicates.add(
-                    cb.between(
-                            root.get("transactionDate"),
-                            fromDate,
-                            toDate));
-
-            /* SOURCE FLAGS */
-            if (dto.getSourceFlags() != null
-                    && !dto.getSourceFlags().isEmpty()
-                    && !dto.getSourceFlags().contains("ALL")) {
-
-                predicates.add(
-                        root.get("sourceFlag")
-                                .in(dto.getSourceFlags()));
+          <Autocomplete
+            size="small"
+            options={headOptions}
+            getOptionLabel={(option) =>
+              option ? `${option.headCode} - ${option.headName}` : ""
             }
-
-            /* MIN AMOUNT */
-            if (dto.getMinAmount() != null) {
-
-                predicates.add(
-                        cb.or(
-                                cb.greaterThanOrEqualTo(
-                                        root.get("debitAmount"),
-                                        dto.getMinAmount()),
-                                cb.greaterThanOrEqualTo(
-                                        root.get("creditAmount"),
-                                        dto.getMinAmount())));
+            value={head}
+            onChange={(event, newValue) => setHead(newValue)}
+            onInputChange={(event, newInputValue) =>
+              setHeadInputValue(newInputValue)
             }
-
-            /* MAX AMOUNT */
-            if (dto.getMaxAmount() != null) {
-
-                predicates.add(
-                        cb.or(
-                                cb.lessThanOrEqualTo(
-                                        root.get("debitAmount"),
-                                        dto.getMaxAmount()),
-                                cb.lessThanOrEqualTo(
-                                        root.get("creditAmount"),
-                                        dto.getMaxAmount())));
-            }
-
-            /* GRID FILTERS */
-            if (dto.getGridFilters() != null
-                    && !dto.getGridFilters().isEmpty()) {
-
-                for (GridFilter filter : dto.getGridFilters()) {
-
-                    if (filter.getField() == null
-                            || filter.getOperator() == null
-                            || filter.getValue() == null) {
-                        continue;
-                    }
-
-                    String field = filter.getField();
-                    String operator = filter.getOperator();
-
-                    Path<?> path = getPath(root, field);
-
-                    /* DATE FILTERS */
-                    if (path.getJavaType().equals(Date.class)
-                            || path.getJavaType().equals(Timestamp.class)
-                            || path.getJavaType().equals(LocalDate.class)) {
-
-                        Date filterDate = parseDate(filter.getValue().toString());
-
-                        Expression<Date> truncDate = cb.function(
-                                "TRUNC",
-                                Date.class,
-                                path);
-
-                        switch (operator) {
-
-                            case "equals" -> predicates.add(
-                                    cb.equal(
-                                            truncDate,
-                                            filterDate));
-
-                            case "after" -> predicates.add(
-                                    cb.greaterThan(
-                                            truncDate,
-                                            filterDate));
-
-                            case "onOrAfter" -> predicates.add(
-                                    cb.greaterThanOrEqualTo(
-                                            truncDate,
-                                            filterDate));
-
-                            case "before" -> predicates.add(
-                                    cb.lessThan(
-                                            truncDate,
-                                            filterDate));
-
-                            case "onOrBefore" -> predicates.add(
-                                    cb.lessThanOrEqualTo(
-                                            truncDate,
-                                            filterDate));
-                        }
-
-                        continue;
-                    }
-
-                    if (path.getJavaType().equals(Double.class)) {
-
-                        Double numberValue = Double.valueOf(filter.getValue().toString());
-
-                        Expression<Double> numberPath = path.as(Double.class);
-
-                        switch (operator) {
-
-                            case "=", "equals", "is" -> predicates.add(
-                                    cb.equal(
-                                            numberPath,
-                                            numberValue));
-
-                            case "!=", "not" -> predicates.add(
-                                    cb.notEqual(
-                                            numberPath,
-                                            numberValue));
-
-                            case ">" -> predicates.add(
-                                    cb.greaterThan(
-                                            numberPath,
-                                            numberValue));
-
-                            case ">=" -> predicates.add(
-                                    cb.greaterThanOrEqualTo(
-                                            numberPath,
-                                            numberValue));
-
-                            case "<" -> predicates.add(
-                                    cb.lessThan(
-                                            numberPath,
-                                            numberValue));
-
-                            case "<=" -> predicates.add(
-                                    cb.lessThanOrEqualTo(
-                                            numberPath,
-                                            numberValue));
-
-                            case "isEmpty" -> predicates.add(
-                                    cb.isNull(path));
-
-                            case "isNotEmpty" -> predicates.add(
-                                    cb.isNotNull(path));
-                        }
-
-                        continue;
-                    }
-
-                    /* STRING FILTERS */
-                    Expression<String> expression = cb.lower(
-                            path.as(String.class));
-
-                    String value = filter.getValue()
-                            .toString()
-                            .toLowerCase();
-
-                    switch (operator) {
-
-                        case "contains" -> predicates.add(
-                                cb.like(
-                                        expression,
-                                        "%" + value + "%"));
-
-                        case "startsWith" -> predicates.add(
-                                cb.like(
-                                        expression,
-                                        value + "%"));
-
-                        case "endsWith" -> predicates.add(
-                                cb.like(
-                                        expression,
-                                        "%" + value));
-
-                        case "equals", "is", "=" -> predicates.add(
-                                cb.equal(
-                                        expression,
-                                        value));
-
-                        case "not" -> predicates.add(
-                                cb.notEqual(
-                                        expression,
-                                        value));
-
-                        case "isAnyOf" -> {
-
-                            if (filter.getValue() instanceof List<?> values) {
-
-                                List<String> lowerValues = values.stream()
-                                        .map(Object::toString)
-                                        .map(String::toLowerCase)
-                                        .toList();
-
-                                predicates.add(
-                                        expression.in(lowerValues));
-
-                            } else {
-
-                                predicates.add(
-                                        cb.equal(
-                                                expression,
-                                                filter.getValue()
-                                                        .toString()
-                                                        .toLowerCase()));
-                            }
-                        }
-
-                        case "isEmpty" -> predicates.add(
-                                cb.or(
-                                        cb.isNull(path),
-                                        cb.equal(expression, "")));
-
-                        case "isNotEmpty" -> predicates.add(
-                                cb.and(
-                                        cb.isNotNull(path),
-                                        cb.notEqual(expression, "")));
-                    }
+            loading={isHeadsLoading}
+            disabled={!reportCode}
+            renderInput={(params) => (
+              <TextField
+                {...params}
+                label="Search Head Code"
+                variant="outlined"
+                InputProps={{
+                  ...params.InputProps,
+                  endAdornment: (
+                    <React.Fragment>
+                      {isHeadsLoading ? (
+                        <CircularProgress color="inherit" size={20} />
+                      ) : null}
+                      {params.InputProps.endAdornment}
+                    </React.Fragment>
+                  ),
+                }}
+                helperText={
+                  <span
+                    style={{
+                      display: "flex",
+                      alignItems: "center",
+                      gap: "4px",
+                    }}
+                  >
+                    <InfoIcon sx={{ fontSize: "0.625rem" }} />
+                    <em>Type 2+ characters to search.</em>
+                  </span>
                 }
-            }
+              />
+            )}
+          />
 
-            return cb.and(
-                    predicates.toArray(
-                            new Predicate[0]));
-        };
-    }
+          <FormControl size="small" fullWidth disabled={!reportCode}>
+            <InputLabel id="dialog-scope-label">Scope</InputLabel>
+            <Select
+              labelId="dialog-scope-label"
+              value={viewCode}
+              label="Scope"
+              onChange={(e) => {
+                setViewCode(e.target.value);
+                setEntityCode("");
+              }}
+            >
+              {availableViews.map((view) => (
+                <MenuItem key={view.viewCode} value={view.viewCode}>
+                  {view.displayName}
+                </MenuItem>
+              ))}
+            </Select>
+            <FormHelperText
+              id="scope-helper-text"
+              sx={{
+                fontStyle: "italic",
+                fontSize: "0.75rem",
+                display: "flex",
+                alignItems: "center",
+                gap: "4px",
+                lineHeight: 1.5,
+              }}
+            >
+              <InfoIcon sx={{ fontSize: "0.625rem" }} />
+              View scope is determined by your authorized access level.
+            </FormHelperText>
+          </FormControl>
 
-    // =========================================================
-    // NEW: 3-Level Offset Calculation Specification
-    // =========================================================
-    @SuppressWarnings({"rawtypes", "unchecked"})
-    public static Specification<GlTransactions> strictlyBefore(
-            Object targetDate,
-            Object targetPostDate,
-            Object targetId,
-            String sortOrder) {
+          {(isCircleScope || isBranchScope) && (
+            <FormControl size="small" fullWidth>
+              <InputLabel id="dialog-entity-label">
+                Select {isCircleScope ? "Circle" : "Branch"} *
+              </InputLabel>
+              <Select
+                labelId="dialog-entity-label"
+                value={entityCode}
+                label={`Select ${isCircleScope ? "Circle" : "Branch"} *`}
+                onChange={(e) => setEntityCode(e.target.value)}
+              >
+                {entityOptions.length === 0 ? (
+                  <MenuItem disabled value="">
+                    No entities found in user profile
+                  </MenuItem>
+                ) : (
+                  entityOptions.map((entity) => (
+                    <MenuItem
+                      key={entity.id || entity.code}
+                      value={entity.id || entity.code}
+                    >
+                      {entity.name}
+                    </MenuItem>
+                  ))
+                )}
+              </Select>
+            </FormControl>
+          )}
 
-        return (root, query, cb) -> {
-            boolean isDesc = "DESC".equalsIgnoreCase(sortOrder);
+          <TextField
+            type="date"
+            size="small"
+            fullWidth
+            label="Report Date"
+            InputLabelProps={{ shrink: true }}
+            value={reportDate}
+            onChange={(e) => setReportDate(e.target.value)}
+          />
+        </Box>
+      </DialogContent>
 
-            // --- LEVEL 1: Transaction Date ---
-            Predicate dateBefore = isDesc ?
-                    cb.greaterThan(root.get("transactionDate"), (Comparable) targetDate) :
-                    cb.lessThan(root.get("transactionDate"), (Comparable) targetDate);
-
-            Predicate dateEqual = cb.equal(root.get("transactionDate"), targetDate);
-
-            // --- LEVEL 2: Post Date ---
-            Predicate postDateBefore = isDesc ?
-                    cb.greaterThan(root.get("postDate"), (Comparable) targetPostDate) :
-                    cb.lessThan(root.get("postDate"), (Comparable) targetPostDate);
-
-            Predicate postDateEqual = cb.equal(root.get("postDate"), targetPostDate);
-
-            // --- LEVEL 3: Transaction ID ---
-            Predicate idBefore = isDesc ?
-                    cb.greaterThan(root.get("transactionId").as(String.class), targetId.toString()) :
-                    cb.lessThan(root.get("transactionId").as(String.class), targetId.toString());
-
-            // --- COMBINE LOGIC ---
-            // 1. Date is strictly before OR
-            // 2. Date is same AND Post Date is strictly before OR
-            // 3. Date is same AND Post Date is same AND ID is strictly before
-            return cb.or(
-                    dateBefore,
-                    cb.and(dateEqual, postDateBefore),
-                    cb.and(dateEqual, postDateEqual, idBefore)
-            );
-        };
-    }
-
-    private static Path<?> getPath(
-            Root<GlTransactions> root,
-            String field) {
-
-        return switch (field) {
-
-            case "date" -> root.get("transactionDate");
-
-            case "journalNumber" -> root.get("journalId");
-
-            case "batchId" -> root.get("batchId");
-
-            case "sourceFlag" -> root.get("sourceFlag");
-
-            case "particulars" -> root.get("narration");
-
-            case "postDate" -> root.get("postDate");
-
-            default -> root.get(field);
-        };
-    }
-
-    private static Date parseDate(String date) {
-
-        try {
-
-            return new SimpleDateFormat(
-                    "yyyy-MM-dd").parse(date);
-
-        } catch (Exception e) {
-
-            try {
-
-                return new SimpleDateFormat(
-                        "dd/MM/yyyy").parse(date);
-
-            } catch (Exception ex) {
-
-                throw new RuntimeException(
-                        "Invalid date format : " + date);
-            }
-        }
-    }
+      <DialogActions sx={{ p: 2, px: 3 }}>
+        <Button onClick={handleReset} color="inherit" variant="outlined">
+          Reset
+        </Button>
+        <Button
+          onClick={handleApply}
+          color="primary"
+          variant="contained"
+          disabled={!isApplyEnabled}
+        >
+          Apply
+        </Button>
+      </DialogActions>
+    </Dialog>
+  );
 }
