@@ -1,1 +1,264 @@
 
+import React from "react";
+import { Box, Paper, Typography, IconButton, Tooltip, Divider } from "@mui/material";
+import AnalyticsIcon from "@mui/icons-material/Analytics";
+import TuneIcon from "@mui/icons-material/Tune";
+import FilterAltOffIcon from "@mui/icons-material/FilterAltOff"; 
+import AssignmentIcon from "@mui/icons-material/Assignment";
+import AccountBalanceIcon from "@mui/icons-material/AccountBalance";
+import LayersIcon from "@mui/icons-material/Layers";
+import CalendarMonthIcon from "@mui/icons-material/CalendarMonth";
+import dayjs from "dayjs";
+
+export default function ReportAnalysisHeader({
+  activeReport,
+  onOpenFilter,
+  onClearFilters, 
+  filtersApplied,
+  appliedFilters, 
+}) {
+  
+  // Extract and sanitize filter display values
+  const reportDisplay = 
+    activeReport?.displayName || 
+    appliedFilters?.reportName || 
+    appliedFilters?.reportCode || 
+    "YSA Report";
+
+  const headDisplay = 
+    appliedFilters?.headCode || 
+    appliedFilters?.head || 
+    appliedFilters?.searchHeadCode || 
+    "None Selected";
+
+  const scopeDisplay = 
+    appliedFilters?.scope || 
+    appliedFilters?.selectedViewCode || 
+    appliedFilters?.viewCode || 
+    "None Selected";
+
+  const dateValue = 
+    appliedFilters?.reportDate || 
+    appliedFilters?.date;
+
+  // Render values smoothly whether objects or raw strings
+  const cleanReport = typeof reportDisplay === "object" ? reportDisplay?.displayName : reportDisplay;
+  const cleanHead = typeof headDisplay === "object" ? `${headDisplay.headCode || ""} - ${headDisplay.headName || ""}` : headDisplay;
+  const cleanScope = typeof scopeDisplay === "object" ? scopeDisplay?.displayName || scopeDisplay?.viewCode : scopeDisplay;
+  const cleanDate = dateValue ? (dayjs(dateValue).isValid() ? dayjs(dateValue).format("DD MMM YYYY") : dateValue) : "Not Set";
+
+  // Modern UI Premium Card Styles - Clean Glassmorphism without Hover Shifting
+  const premiumCardStyle = {
+    display: "flex", 
+    alignItems: "center", 
+    gap: 1.5, 
+    p: "10px 18px", 
+    borderRadius: "12px",
+    background: "rgba(255, 255, 255, 0.45)", 
+    backdropFilter: "blur(8px)", 
+    border: "1px solid rgba(255, 255, 255, 0.6)", 
+    boxShadow: "0 2px 8px rgba(0,0,0,0.02)",
+    flexShrink: 0
+  };
+
+  const miniIconWrapper = {
+    display: "flex", 
+    alignItems: "center", 
+    justifyContent: "center", 
+    bgcolor: "rgba(255, 255, 255, 0.5)", 
+    p: 1, 
+    borderRadius: "8px"
+  };
+
+  const topLabelStyle = { 
+    display: "block", 
+    textTransform: "uppercase", 
+    fontSize: "10px", 
+    fontWeight: 700, 
+    color: "#475569", 
+    letterSpacing: "0.5px", 
+    lineHeight: 1 
+  };
+
+  const bottomValueStyle = { 
+    fontWeight: 600, 
+    color: "#0f172a", 
+    fontSize: "13px", 
+    mt: 0.3 
+  };
+
+  return (
+    <Paper
+      elevation={0}
+      sx={{
+        p: "14px 20px", 
+        borderRadius: 0,
+        bgcolor: "transparent", 
+        display: "flex",
+        justifyContent: "space-between",
+        flexDirection: "row",
+        flexShrink: 0,
+        alignItems: "center",
+        gap: 2.5,
+      }}
+    >
+      {/* Left Module: Identity */}
+      <Box display="flex" alignItems="center" gap={1.5} sx={{ pl: 0.5 }}>
+        <Box
+          sx={{
+            background: "linear-gradient(135deg, #4f46e5 0%, #3730a3 100%)",
+            borderRadius: "12px", 
+            width: 42,
+            height: 42,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            boxShadow: "0 4px 12px rgba(79, 70, 229, 0.2)",
+          }}
+        >
+          <AnalyticsIcon sx={{ color: "#fff", fontSize: 22 }} />
+        </Box>
+        <Box sx={{ overflow: "hidden" }}>
+          <Typography variant="subtitle1" sx={{ fontWeight: 700, color: "text.primary", letterSpacing: "-0.3px", lineHeight: 1.1 }}>
+            {cleanReport}
+          </Typography>
+          <Typography variant="caption" sx={{ color: "text.secondary", fontWeight: 500, display: "block", mt: 0.1, fontSize: "11px" }}>
+            Matrix Live Analytics
+          </Typography>
+        </Box>
+      </Box>
+
+      {/* Divider after Identity Module */}
+      <Divider orientation="vertical" flexItem sx={{ mx: 0.5, my: 0.5, borderColor: "rgba(15, 23, 42, 0.12)" }} />
+
+      {/* Center Module: Filter Context Display Blocks */}
+      {filtersApplied && (
+        <>
+          <Box
+            display="flex"
+            alignItems="center"
+            justifyContent="center" // Medium balanced alignment
+            gap={2} // Clean medium spacing
+            sx={{
+              flexGrow: 1,
+              px: 1,
+              overflowX: "auto",
+              scrollbarWidth: "none",
+              "&::-webkit-scrollbar": { display: "none" },
+            }}
+          >
+            {/* Card 1: Target Report */}
+            <Box sx={{ ...premiumCardStyle, width: 190 }}>
+              <Box sx={miniIconWrapper}>
+                <AssignmentIcon sx={{ color: "#475569", fontSize: 16 }} />
+              </Box>
+              <Box sx={{ overflow: "hidden" }}>
+                <Typography variant="caption" sx={topLabelStyle}>Report Type</Typography>
+                <Typography variant="body2" noWrap sx={bottomValueStyle}>
+                  {cleanReport}
+                </Typography>
+              </Box>
+            </Box>
+
+            {/* Card 2: Account Head */}
+            <Box sx={{ ...premiumCardStyle, width: 250 }}>
+              <Box sx={miniIconWrapper}>
+                <AccountBalanceIcon sx={{ color: "#475569", fontSize: 16 }} />
+              </Box>
+              <Box sx={{ overflow: "hidden" }}>
+                <Typography variant="caption" sx={topLabelStyle}>Account Head</Typography>
+                <Typography variant="body2" noWrap sx={bottomValueStyle}>
+                  {cleanHead}
+                </Typography>
+              </Box>
+            </Box>
+
+            {/* Card 3: Scope */}
+            <Box sx={{ ...premiumCardStyle, width: 190 }}>
+              <Box sx={miniIconWrapper}>
+                <LayersIcon sx={{ color: "#475569", fontSize: 16 }} />
+              </Box>
+              <Box sx={{ overflow: "hidden" }}>
+                <Typography variant="caption" sx={topLabelStyle}>Scope View</Typography>
+                <Typography variant="body2" noWrap sx={bottomValueStyle}>
+                  {cleanScope}
+                </Typography>
+              </Box>
+            </Box>
+
+            {/* Card 4: Date */}
+            <Box sx={{ ...premiumCardStyle, width: 160 }}>
+              <Box sx={miniIconWrapper}>
+                <CalendarMonthIcon sx={{ color: "#475569", fontSize: 16 }} />
+              </Box>
+              <Box sx={{ overflow: "hidden" }}>
+                <Typography variant="caption" sx={topLabelStyle}>Reporting Date</Typography>
+                <Typography variant="body2" sx={bottomValueStyle}>
+                  {cleanDate}
+                </Typography>
+              </Box>
+            </Box>
+          </Box>
+
+          {/* Divider after the 4 filter boxes */}
+          <Divider orientation="vertical" flexItem sx={{ mx: 0.5, my: 0.5, borderColor: "rgba(15, 23, 42, 0.12)" }} />
+        </>
+      )}
+
+      {/* Right Module: Actions Area */}
+      <Box display="flex" alignItems="center" gap={1.2} sx={{ pr: 0.5 }}>
+        
+        {/* Clear Active Filters Button */}
+        {filtersApplied && (
+          <Tooltip title="Clear Active Filters" arrow placement="bottom">
+            <IconButton
+              onClick={onClearFilters}
+              size="small"
+              sx={{
+                p: 1.2,
+                borderRadius: "12px",
+                border: "1px solid #fee2e2",
+                bgcolor: "#fff5f5",
+                color: "#ef4444",
+                boxShadow: "0 1px 2px rgba(239, 68, 68, 0.05)",
+                transition: "all 0.2s ease",
+                "&:hover": {
+                  bgcolor: "#ef4444",
+                  color: "#ffffff",
+                  borderColor: "#ef4444",
+                },
+              }}
+            >
+              <FilterAltOffIcon sx={{ fontSize: 18 }} />
+            </IconButton>
+          </Tooltip>
+        )}
+
+        {/* Modify Report Criteria Button */}
+        <Tooltip title="Modify Report Criteria" arrow placement="bottom">
+          <IconButton
+            onClick={onOpenFilter}
+            size="small"
+            sx={{
+              p: 1.2,
+              borderRadius: "12px",
+              border: "1px solid rgba(255, 255, 255, 0.6)",
+              bgcolor: "rgba(255, 255, 255, 0.45)",
+              backdropFilter: "blur(8px)",
+              color: "#475569",
+              boxShadow: "0 2px 6px rgba(0,0,0,0.03)",
+              transition: "all 0.2s ease",
+              "&:hover": {
+                bgcolor: "rgba(255, 255, 255, 0.75)",
+                borderColor: "#4f46e5",
+                color: "#4f46e5",
+              },
+            }}
+          >
+            <TuneIcon sx={{ fontSize: 18 }} />
+          </IconButton>
+        </Tooltip>
+      </Box>
+    </Paper>
+  );
+}
