@@ -1,131 +1,126 @@
-{/* ================= UPPER BOX ================= */}
-<Paper
-  elevation={0}
-  sx={{
-    p: 2, // Adjusted padding to fit cards perfectly
-    px: 3,
-    borderRadius: 2,
-    boxShadow: "0 5px 10px rgba(0,0,0,0.1)",
-    border: 1,
-    borderColor: "divider",
-    display: "flex",
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    flexDirection: "row",
-  }}
->
-  {/* Left Branding Side */}
-  <Box display="flex" alignItems="center" gap={2}>
-    <MotionBox
-      initial={{ scale: 0, rotate: -180 }}
-      animate={{ scale: 1, rotate: 0 }}
-      transition={{ type: "spring", stiffness: 260, damping: 20 }}
-      sx={{
-        backgroundColor: "primary.main",
-        borderRadius: "10px",
-        width: 44,
-        height: 44,
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
-      }}
-    >
-      <AnalyticsIcon sx={{ color: "primary.contrastText", fontSize: 24 }} />
-    </MotionBox>
+import React from "react";
+import { Box, Paper, Typography, IconButton, Tooltip } from "@mui/material";
+import AnalyticsIcon from "@mui/icons-material/Analytics";
+import TuneIcon from "@mui/icons-material/Tune";
+import FullscreenIcon from "@mui/icons-material/Fullscreen";
+import FullscreenExitIcon from "@mui/icons-material/FullscreenExit";
 
-    <Box sx={{ overflow: "hidden" }}>
-      <Typography variant="h6" sx={{ fontWeight: 700, color: "text.primary", lineHeight: 1.2 }}>
-        {activeReport?.displayName || "Financial Analytics"}
-      </Typography>
-      <Typography variant="caption" sx={{ color: "text.secondary" }}>
-        Dynamic Drill-Down Matrix
-      </Typography>
-    </Box>
-  </Box>
-
-  {/* ================= 🟢 NEW: ACTIVE FILTERS CENTER SUMMARY BOXES ================= */}
-  {isSetupComplete && (
-    <Box
-      component={motion.div}
-      initial={{ opacity: 0, y: -10 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.3, delay: 0.1 }}
-      display="flex"
-      alignItems="center"
-      justifyContent="center"
-      gap={1.5}
+export default function ReportAnalysisHeader({
+  activeReport,
+  isFullscreen,
+  toggleFullscreen,
+  onOpenFilter,
+  filtersApplied,
+}) {
+  return (
+    <Paper
+      elevation={0}
       sx={{
-        flexGrow: 1,
-        mx: 4,
-        px: 2,
-        py: 0.5,
-        borderLeft: "2px dashed",
-        borderRight: "2px dashed",
+        p: 3,
+        borderRadius: 2,
+        boxShadow: "0 5px 10px rgba(0,0,0,0.2)",
+        border: 1,
         borderColor: "divider",
-        overflowX: "auto",
-        scrollbarWidth: "none", // Clean hide scrollbar for Firefox
-        "&::-webkit-scrollbar": { display: "none" }, // Clean hide scrollbar for Chrome/Safari
+        display: "flex",
+        justifyContent: "space-between",
+        flexDirection: "row",
+        flexShrink: 0,
       }}
     >
-      {/* 1. Report Card */}
-      <Box sx={{ minWidth: 110, bgcolor: "action.hover", p: "6px 12px", borderRadius: "6px", border: "1px solid", borderColor: "divider" }}>
-        <Typography variant="caption" display="block" color="text.secondary" sx={{ fontWeight: 600, fontSize: "10px", textTransform: "uppercase" }}>
-          Report
-        </Typography>
-        <Typography variant="body2" noWrap sx={{ fontWeight: 700, color: "primary.main" }}>
-          {activeReport?.displayName || selectedReportCode}
-        </Typography>
-      </Box>
-
-      {/* 2. Search Head Code Card (Optional rendering check based on your states) */}
-      {currentFilters?.head && (
-        <Box sx={{ minWidth: 130, maxWidth: 180, bgcolor: "action.hover", p: "6px 12px", borderRadius: "6px", border: "1px solid", borderColor: "divider" }}>
-          <Typography variant="caption" display="block" color="text.secondary" sx={{ fontWeight: 600, fontSize: "10px", textTransform: "uppercase" }}>
-            Account Head
+      <Box display="flex" alignItems="center" gap={2}>
+        <Box
+          sx={{
+            backgroundColor: "primary.main",
+            borderRadius: "10px",
+            width: 44,
+            height: 44,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+          }}
+        >
+          <AnalyticsIcon sx={{ color: "primary.contrastText", fontSize: 24 }} />
+        </Box>
+        <Box sx={{ overflow: "hidden" }}>
+          <Typography
+            variant="h6"
+            sx={{ fontWeight: 700, color: "text.primary" }}
+          >
+            {activeReport?.displayName || "Financial Analytics"}
           </Typography>
-          <Typography variant="body2" noWrap sx={{ fontWeight: 700, color: "text.primary" }}>
-            {`${currentFilters.head.headCode} - ${currentFilters.head.headName}`}
+          <Typography variant="caption" sx={{ color: "text.primary" }}>
+            Dynamic Drill-Down Matrix
           </Typography>
         </Box>
-      )}
-
-      {/* 3. Scope View Card */}
-      <Box sx={{ minWidth: 100, bgcolor: "action.hover", p: "6px 12px", borderRadius: "6px", border: "1px solid", borderColor: "divider" }}>
-        <Typography variant="caption" display="block" color="text.secondary" sx={{ fontWeight: 600, fontSize: "10px", textTransform: "uppercase" }}>
-          Scope Level
-        </Typography>
-        <Typography variant="body2" noWrap sx={{ fontWeight: 700, color: "text.primary" }}>
-          {activeView?.displayName || selectedViewCode}
-        </Typography>
       </Box>
 
-      {/* 4. Circle / Branch Regional Entity Card (Renders only if checked scope is region specific) */}
-      {currentFilters?.entityCode && (
-        <Box sx={{ minWidth: 100, bgcolor: "action.hover", p: "6px 12px", borderRadius: "6px", border: "1px solid", borderColor: "divider" }}>
-          <Typography variant="caption" display="block" color="text.secondary" sx={{ fontWeight: 600, fontSize: "10px", textTransform: "uppercase" }}>
-            Region Unit
+      {/* <Box display="flex" alignItems="center" gap={1}>
+        <Tooltip title="Filter Reports" arrow placement="bottom">
+          <IconButton
+            onClick={onOpenFilter}
+            color="primary"
+            sx={{ border: "1px solid", borderColor: "divider" }}
+          >
+            <TuneIcon />
+          </IconButton>
+        </Tooltip>
+      </Box> */}
+
+      <Box
+        display="flex"
+        alignItems="center"
+        gap={1.5}
+        sx={{
+          p: 1,
+          //bgcolor: "action.hover", // Light background to group the elements
+          borderRadius: 1,
+          //border: "1px dashed",
+          borderColor: filtersApplied ? "divider" : "primary.main", // Dashed border highlights importance
+        }}
+      >
+        {/* Button with Badge */}
+        <Tooltip
+          title="Select criteria to generate the report"
+          arrow
+          placement="bottom"
+        >
+          <IconButton
+            onClick={onOpenFilter}
+            color="primary" // Makes the icon blue/prominent
+            size="medium"
+            sx={{
+              border: "1px solid",
+              borderColor: "divider",
+              bgcolor: "background.paper",
+              boxShadow: 1,
+              "&:hover": {
+                bgcolor: "primary.main",
+                color: "primary.contrastText",
+                boxShadow: 2,
+              },
+            }}
+          >
+            <TuneIcon />
+          </IconButton>
+        </Tooltip>
+
+        {/* Instructional Text */}
+        
+        <Box sx={{ display: "flex", flexDirection: "column" }}>
+          <Typography
+            variant="body2"
+            fontWeight="bold"
+            color={filtersApplied ? "text.secondary" : "primary.main"}
+          >
+            {filtersApplied ? "Filters Applied" : "Set Filters to Start"}
           </Typography>
-          <Typography variant="body2" noWrap sx={{ fontWeight: 700, color: "text.primary" }}>
-            {currentFilters.entityCode}
-          </Typography>
+          {!filtersApplied && (
+            <Typography variant="caption" color="text.secondary">
+              Required to view report
+            </Typography>
+          )}
         </Box>
-      )}
-
-      {/* 5. Clean Structured Date Format Card */}
-      <Box sx={{ minWidth: 95, bgcolor: "primary.light", color: "primary.contrastText", p: "6px 12px", borderRadius: "6px", opacity: 0.95 }}>
-        <Typography variant="caption" display="block" sx={{ fontWeight: 600, fontSize: "10px", textTransform: "uppercase", opacity: 0.8 }}>
-          Report Date
-        </Typography>
-        <Typography variant="body2" sx={{ fontWeight: 800 }}>
-          {currentFilters?.reportDate ? dayjs(currentFilters.reportDate).format("DD/MM/YYYY") : "Not Set"}
-        </Typography>
       </Box>
-    </Box>
-  )}
-
-  {/* Right Actions Controls Side */}
-  <Box display="flex" alignItems="center" gap={2}>
-     {/* Your Existing "Set Filters to Start" Button or Dropdowns go here */}
-  </Box>
-</Paper>
-
+    </Paper>
+  );
+}
