@@ -12,12 +12,24 @@ export default function ReportAnalysisHeader({
   toggleFullscreen,
   onOpenFilter,
   filtersApplied,
-  // The 4 distinct values from your filter modal
+  
+  // Accepts BOTH naming variations to guarantee data passage
   selectedReport,
+  selectedReportCode,
   selectedHead,
+  head,
   selectedScope,
+  selectedViewCode,
   selectedDate,
+  reportDate,
 }) {
+  
+  // Robust data merging selectors
+  const finalReport = activeReport?.displayName || selectedReport || selectedReportCode || "YSA Report";
+  const finalHead = head || selectedHead;
+  const finalScope = selectedViewCode || selectedScope;
+  const finalDate = reportDate || selectedDate;
+
   return (
     <Paper
       elevation={0}
@@ -34,7 +46,7 @@ export default function ReportAnalysisHeader({
         alignItems: "center",
       }}
     >
-      {/* Left Section: Title & Icon (Existing) */}
+      {/* Left Section: Branding */}
       <Box display="flex" alignItems="center" gap={2}>
         <Box
           sx={{
@@ -54,7 +66,7 @@ export default function ReportAnalysisHeader({
             variant="h6"
             sx={{ fontWeight: 700, color: "text.primary" }}
           >
-            {activeReport?.displayName || (typeof selectedReport === 'string' ? selectedReport : "") || "Financial Analytics"}
+            {finalReport}
           </Typography>
           <Typography variant="caption" sx={{ color: "text.primary" }}>
             Dynamic Drill-Down Matrix
@@ -62,7 +74,7 @@ export default function ReportAnalysisHeader({
         </Box>
       </Box>
 
-      {/* ================= 🟢 THE 4 FILTER BLOCKS DETAILED DISPLAY ================= */}
+      {/* ================= 🟢 4 FILTER BLOCKS ================= */}
       {filtersApplied && (
         <Box
           display="flex"
@@ -88,7 +100,7 @@ export default function ReportAnalysisHeader({
               Report
             </Typography>
             <Typography variant="body2" noWrap sx={{ fontWeight: 700, color: "primary.main" }}>
-              {activeReport?.displayName || (typeof selectedReport === 'object' ? selectedReport?.displayName : selectedReport) || "Selected"}
+              {finalReport}
             </Typography>
           </Box>
 
@@ -98,8 +110,8 @@ export default function ReportAnalysisHeader({
               Account Head
             </Typography>
             <Typography variant="body2" noWrap sx={{ fontWeight: 700, color: "text.primary" }}>
-              {selectedHead 
-                ? (typeof selectedHead === "object" ? `${selectedHead.headCode || ""} - ${selectedHead.headName || ""}` : selectedHead) 
+              {finalHead 
+                ? (typeof finalHead === "object" ? `${finalHead.headCode || ""} - ${finalHead.headName || ""}` : finalHead) 
                 : "None Selected"
               }
             </Typography>
@@ -111,21 +123,18 @@ export default function ReportAnalysisHeader({
               Scope Level
             </Typography>
             <Typography variant="body2" noWrap sx={{ fontWeight: 700, color: "text.primary" }}>
-              {selectedScope 
-                ? (typeof selectedScope === "object" ? selectedScope?.displayName || selectedScope?.viewCode : selectedScope) 
-                : "None Selected"
-              }
+              {typeof finalScope === "object" ? finalScope?.displayName || finalScope?.viewCode : finalScope || "None Selected"}
             </Typography>
           </Box>
 
-          {/* Block 4: Target Report Date Selection */}
+          {/* Block 4: Report Date Selection */}
           <Box sx={{ minWidth: 105, bgcolor: "primary.light", color: "primary.contrastText", p: "6px 12px", borderRadius: "6px", opacity: 0.95 }}>
             <Typography variant="caption" display="block" sx={{ fontWeight: 600, fontSize: "10px", textTransform: "uppercase", opacity: 0.8 }}>
               Report Date
             </Typography>
             <Typography variant="body2" sx={{ fontWeight: 800 }}>
-              {selectedDate 
-                ? (dayjs(selectedDate).isValid() ? dayjs(selectedDate).format("DD/MM/YYYY") : selectedDate) 
+              {finalDate 
+                ? (dayjs(finalDate).isValid() ? dayjs(finalDate).format("DD/MM/YYYY") : finalDate) 
                 : "Not Set"
               }
             </Typography>
@@ -133,7 +142,7 @@ export default function ReportAnalysisHeader({
         </Box>
       )}
 
-      {/* Right Section: Filter Control Action Box (Existing) */}
+      {/* Right Section: Controls */}
       <Box
         display="flex"
         alignItems="center"
