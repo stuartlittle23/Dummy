@@ -12,23 +12,31 @@ export default function ReportAnalysisHeader({
   toggleFullscreen,
   onOpenFilter,
   filtersApplied,
-  
-  // Accepts BOTH naming variations to guarantee data passage
-  selectedReport,
-  selectedReportCode,
-  selectedHead,
-  head,
-  selectedScope,
-  selectedViewCode,
-  selectedDate,
-  reportDate,
+  appliedFilters, // 🟢 Receives the data object from the screen state
 }) {
   
-  // Robust data merging selectors
-  const finalReport = activeReport?.displayName || selectedReport || selectedReportCode || "YSA Report";
-  const finalHead = head || selectedHead;
-  const finalScope = selectedViewCode || selectedScope;
-  const finalDate = reportDate || selectedDate;
+  // Safely extract values from the appliedFilters state object
+  const reportDisplay = 
+    activeReport?.displayName || 
+    appliedFilters?.reportName || 
+    appliedFilters?.reportCode || 
+    "YSA Report";
+
+  const headDisplay = 
+    appliedFilters?.headCode || 
+    appliedFilters?.head || 
+    appliedFilters?.searchHeadCode || 
+    "None Selected";
+
+  const scopeDisplay = 
+    appliedFilters?.scope || 
+    appliedFilters?.selectedViewCode || 
+    appliedFilters?.viewCode || 
+    "None Selected";
+
+  const dateValue = 
+    appliedFilters?.reportDate || 
+    appliedFilters?.date;
 
   return (
     <Paper
@@ -46,7 +54,7 @@ export default function ReportAnalysisHeader({
         alignItems: "center",
       }}
     >
-      {/* Left Section: Branding */}
+      {/* Branding Left Block */}
       <Box display="flex" alignItems="center" gap={2}>
         <Box
           sx={{
@@ -62,11 +70,8 @@ export default function ReportAnalysisHeader({
           <AnalyticsIcon sx={{ color: "primary.contrastText", fontSize: 24 }} />
         </Box>
         <Box sx={{ overflow: "hidden" }}>
-          <Typography
-            variant="h6"
-            sx={{ fontWeight: 700, color: "text.primary" }}
-          >
-            {finalReport}
+          <Typography variant="h6" sx={{ fontWeight: 700, color: "text.primary" }}>
+            {reportDisplay}
           </Typography>
           <Typography variant="caption" sx={{ color: "text.primary" }}>
             Dynamic Drill-Down Matrix
@@ -74,7 +79,7 @@ export default function ReportAnalysisHeader({
         </Box>
       </Box>
 
-      {/* ================= 🟢 4 FILTER BLOCKS ================= */}
+      {/* ================= 🟢 THE 4 SUMMARY BLOCKS ================= */}
       {filtersApplied && (
         <Box
           display="flex"
@@ -100,7 +105,7 @@ export default function ReportAnalysisHeader({
               Report
             </Typography>
             <Typography variant="body2" noWrap sx={{ fontWeight: 700, color: "primary.main" }}>
-              {finalReport}
+              {typeof reportDisplay === "object" ? reportDisplay?.displayName : reportDisplay}
             </Typography>
           </Box>
 
@@ -110,10 +115,7 @@ export default function ReportAnalysisHeader({
               Account Head
             </Typography>
             <Typography variant="body2" noWrap sx={{ fontWeight: 700, color: "text.primary" }}>
-              {finalHead 
-                ? (typeof finalHead === "object" ? `${finalHead.headCode || ""} - ${finalHead.headName || ""}` : finalHead) 
-                : "None Selected"
-              }
+              {typeof headDisplay === "object" ? `${headDisplay.headCode || ""} - ${headDisplay.headName || ""}` : headDisplay}
             </Typography>
           </Box>
 
@@ -123,7 +125,7 @@ export default function ReportAnalysisHeader({
               Scope Level
             </Typography>
             <Typography variant="body2" noWrap sx={{ fontWeight: 700, color: "text.primary" }}>
-              {typeof finalScope === "object" ? finalScope?.displayName || finalScope?.viewCode : finalScope || "None Selected"}
+              {typeof scopeDisplay === "object" ? scopeDisplay?.displayName || scopeDisplay?.viewCode : scopeDisplay}
             </Typography>
           </Box>
 
@@ -133,26 +135,16 @@ export default function ReportAnalysisHeader({
               Report Date
             </Typography>
             <Typography variant="body2" sx={{ fontWeight: 800 }}>
-              {finalDate 
-                ? (dayjs(finalDate).isValid() ? dayjs(finalDate).format("DD/MM/YYYY") : finalDate) 
-                : "Not Set"
-              }
+              {dateValue 
+                ? (dayjs(dateValue).isValid() ? dayjs(dateValue).format("DD/MM/YYYY") : dateValue) 
+                : "Not Set"}
             </Typography>
           </Box>
         </Box>
       )}
 
-      {/* Right Section: Controls */}
-      <Box
-        display="flex"
-        alignItems="center"
-        gap={1.5}
-        sx={{
-          p: 1,
-          borderRadius: 1,
-          borderColor: filtersApplied ? "divider" : "primary.main",
-        }}
-      >
+      {/* Right Controls Area */}
+      <Box display="flex" alignItems="center" gap={1.5}>
         <Tooltip title="Select criteria to generate the report" arrow placement="bottom">
           <IconButton
             onClick={onOpenFilter}
@@ -163,31 +155,18 @@ export default function ReportAnalysisHeader({
               borderColor: "divider",
               bgcolor: "background.paper",
               boxShadow: 1,
-              "&:hover": {
-                bgcolor: "primary.main",
-                color: "primary.contrastText",
-                boxShadow: 2,
-              },
+              "&:hover": { bgcolor: "primary.main", color: "primary.contrastText" },
             }}
           >
             <TuneIcon />
           </IconButton>
         </Tooltip>
 
-        <Box sx={{ display: "flex", flexDirection: "column" }}>
-          <Typography
-            variant="body2"
-            fontWeight="bold"
-            color={filtersApplied ? "text.secondary" : "primary.main"}
-          >
-            {filtersApplied ? "Filters Applied" : "Set Filters to Start"}
-          </Typography>
-          {!filtersApplied && (
-            <Typography variant="caption" color="text.secondary">
-              Required to view report
-            </Typography>
-          )}
-        </Box>
+        {toggleFullscreen && (
+          <IconButton onClick={toggleFullscreen} color="inherit" size="medium" sx={{ border: "1px solid", borderColor: "divider" }}>
+            {isFullscreen ? <FullscreenExitIcon /> : <FullscreenIcon />}
+          </IconButton>
+        )}
       </Box>
     </Paper>
   );
