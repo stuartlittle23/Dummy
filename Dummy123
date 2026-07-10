@@ -4,6 +4,7 @@ import AnalyticsIcon from "@mui/icons-material/Analytics";
 import TuneIcon from "@mui/icons-material/Tune";
 import FullscreenIcon from "@mui/icons-material/Fullscreen";
 import FullscreenExitIcon from "@mui/icons-material/FullscreenExit";
+import dayjs from "dayjs"; // Added for date formatting
 
 export default function ReportAnalysisHeader({
   activeReport,
@@ -11,6 +12,13 @@ export default function ReportAnalysisHeader({
   toggleFullscreen,
   onOpenFilter,
   filtersApplied,
+  // New props passed down for the filter summary badges
+  activeView,
+  selectedReportCode,
+  selectedViewCode,
+  reportDate,
+  head,
+  entityCode,
 }) {
   return (
     <Paper
@@ -25,8 +33,10 @@ export default function ReportAnalysisHeader({
         justifyContent: "space-between",
         flexDirection: "row",
         flexShrink: 0,
+        alignItems: "center", // Ensures vertical alignment across the row remains clean
       }}
     >
+      {/* Existing Left Branding Box */}
       <Box display="flex" alignItems="center" gap={2}>
         <Box
           sx={{
@@ -54,6 +64,83 @@ export default function ReportAnalysisHeader({
         </Box>
       </Box>
 
+      {/* ================= 🟢 NEW FEATURE: FILTER SUMMARY BOXES ================= */}
+      {filtersApplied && (
+        <Box
+          display="flex"
+          alignItems="center"
+          justifyContent="center"
+          gap={1.5}
+          sx={{
+            flexGrow: 1,
+            mx: 4,
+            px: 2,
+            py: 0.5,
+            borderLeft: "2px dashed",
+            borderRight: "2px dashed",
+            borderColor: "divider",
+            overflowX: "auto",
+            scrollbarWidth: "none",
+            "&::-webkit-scrollbar": { display: "none" },
+          }}
+        >
+          {/* 1. Report Badge */}
+          <Box sx={{ minWidth: 110, bgcolor: "action.hover", p: "6px 12px", borderRadius: "6px", border: "1px solid", borderColor: "divider" }}>
+            <Typography variant="caption" display="block" color="text.secondary" sx={{ fontWeight: 600, fontSize: "10px", textTransform: "uppercase" }}>
+              Report
+            </Typography>
+            <Typography variant="body2" noWrap sx={{ fontWeight: 700, color: "primary.main" }}>
+              {activeReport?.displayName || selectedReportCode || "N/A"}
+            </Typography>
+          </Box>
+
+          {/* 2. Account Head Badge */}
+          {head && (
+            <Box sx={{ minWidth: 130, maxWidth: 180, bgcolor: "action.hover", p: "6px 12px", borderRadius: "6px", border: "1px solid", borderColor: "divider" }}>
+              <Typography variant="caption" display="block" color="text.secondary" sx={{ fontWeight: 600, fontSize: "10px", textTransform: "uppercase" }}>
+                Account Head
+              </Typography>
+              <Typography variant="body2" noWrap sx={{ fontWeight: 700, color: "text.primary" }}>
+                {`${head.headCode} - ${head.headName || ""}`}
+              </Typography>
+            </Box>
+          )}
+
+          {/* 3. Scope View Badge */}
+          <Box sx={{ minWidth: 100, bgcolor: "action.hover", p: "6px 12px", borderRadius: "6px", border: "1px solid", borderColor: "divider" }}>
+            <Typography variant="caption" display="block" color="text.secondary" sx={{ fontWeight: 600, fontSize: "10px", textTransform: "uppercase" }}>
+              Scope Level
+            </Typography>
+            <Typography variant="body2" noWrap sx={{ fontWeight: 700, color: "text.primary" }}>
+              {activeView?.displayName || selectedViewCode || "N/A"}
+            </Typography>
+          </Box>
+
+          {/* 4. Regional Unit Badge */}
+          {entityCode && (
+            <Box sx={{ minWidth: 100, bgcolor: "action.hover", p: "6px 12px", borderRadius: "6px", border: "1px solid", borderColor: "divider" }}>
+              <Typography variant="caption" display="block" color="text.secondary" sx={{ fontWeight: 600, fontSize: "10px", textTransform: "uppercase" }}>
+                Region Unit
+              </Typography>
+              <Typography variant="body2" noWrap sx={{ fontWeight: 700, color: "text.primary" }}>
+                {entityCode}
+              </Typography>
+            </Box>
+          )}
+
+          {/* 5. Target Date Badge */}
+          <Box sx={{ minWidth: 95, bgcolor: "primary.light", color: "primary.contrastText", p: "6px 12px", borderRadius: "6px", opacity: 0.95 }}>
+            <Typography variant="caption" display="block" sx={{ fontWeight: 600, fontSize: "10px", textTransform: "uppercase", opacity: 0.8 }}>
+              Report Date
+            </Typography>
+            <Typography variant="body2" sx={{ fontWeight: 800 }}>
+              {reportDate ? dayjs(reportDate).format("DD/MM/YYYY") : "Not Set"}
+            </Typography>
+          </Box>
+        </Box>
+      )}
+
+      {/* Existing Commented Box preserved exactly as it was */}
       {/* <Box display="flex" alignItems="center" gap={1}>
         <Tooltip title="Filter Reports" arrow placement="bottom">
           <IconButton
@@ -66,19 +153,17 @@ export default function ReportAnalysisHeader({
         </Tooltip>
       </Box> */}
 
+      {/* Existing Right Action Control Box */}
       <Box
         display="flex"
         alignItems="center"
         gap={1.5}
         sx={{
           p: 1,
-          //bgcolor: "action.hover", // Light background to group the elements
           borderRadius: 1,
-          //border: "1px dashed",
-          borderColor: filtersApplied ? "divider" : "primary.main", // Dashed border highlights importance
+          borderColor: filtersApplied ? "divider" : "primary.main",
         }}
       >
-        {/* Button with Badge */}
         <Tooltip
           title="Select criteria to generate the report"
           arrow
@@ -86,7 +171,7 @@ export default function ReportAnalysisHeader({
         >
           <IconButton
             onClick={onOpenFilter}
-            color="primary" // Makes the icon blue/prominent
+            color="primary"
             size="medium"
             sx={{
               border: "1px solid",
@@ -104,8 +189,6 @@ export default function ReportAnalysisHeader({
           </IconButton>
         </Tooltip>
 
-        {/* Instructional Text */}
-        
         <Box sx={{ display: "flex", flexDirection: "column" }}>
           <Typography
             variant="body2"
