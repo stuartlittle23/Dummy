@@ -1,1 +1,91 @@
 
+useEffect(() => {
+  const fetchSystemDate = async () => {
+    if (!open) return; // 🟢 Minimal add: Only fetch when dialog opens
+    try {
+      const dateRes = await callApi("/PS/file/fincore-date", {}, "GET"); //
+      const etlRaw = dateRes?.data?.userDate; //
+      const etl = etlRaw ? dayjs(etlRaw.split("T")[0]) : dayjs(); //
+      setEtlDate(etl); //
+    } catch (e) {
+      console.error("Date error:", e); //
+      setEtlDate(dayjs()); //
+    }
+  };
+  fetchSystemDate(); //
+}, [open, callApi]); // 🟢 Minimal add: tracking 'open'
+
+
+
+
+const dateValidation = useMemo(() => {
+  if (!reportDate) {
+    return { error: false, text: "Please select a date to initiate drill-down analysis." };
+  }
+
+  const selectedDate = dayjs(reportDate);
+  const maxLimit = etlDate || dayjs(); // Fallback to current date if API is processing
+
+  if (!selectedDate.isValid()) {
+    return { error: true, text: "Please enter a valid date format (DD/MM/YYYY)." };
+  }
+  if (selectedDate.isAfter(maxLimit, "day")) {
+    return { error: true, text: `Future dates beyond ${maxLimit.format("DD/MM/YYYY")} are not allowed.` };
+  }
+  if (selectedDate.isBefore(dayjs("2026-03-31"), "day")) {
+    return { error: true, text: "Date cannot be before 31st March 2026." };
+  }
+
+  return { error: false, text: "Report date verified and valid within authorized bounds." };
+}, [reportDate, etlDate]);
+
+
+<LocalizationProvider dateAdapter={AdapterDayjs}>
+  <DatePicker
+    label="Report Date"
+    format="DD/MM/YYYY"
+    value={reportDate ? dayjs(reportDate) : null}
+    minDate={dayjs("2026-03-31")}
+    maxDate={etlDate || dayjs()}
+    slotProps={{
+      textField: {
+        size: "small",
+        fullWidth: true,
+        error: dateValidation.error, 
+        helperText: (
+          <span style={{ fontStyle: "italic", fontSize: "0.75rem", display: "flex", alignItems: "center", gap: "4px", marginTop: "4px" }}>
+            <InfoIcon sx={{ fontSize: "0.625rem" }} />
+            {dateValidation.text}
+          </span>
+        ),
+      },
+    }}
+    onChange={(newValue) => {
+      setReportDate(newValue && newValue.isValid() ? newValue.format("YYYY-MM-DD") : "");
+    }}
+  />
+</LocalizationProvider>
+
+
+
+
+
+const isApplyEnabled = useMemo(() => {
+  if (!reportCode || !viewCode || !head?.headCode || !reportDate) return false;
+
+  const selectedDate = dayjs(reportDate);
+  const maxLimit = etlDate || dayjs();
+  
+  const isValidRange = 
+    selectedDate.isValid() && 
+    !selectedDate.isAfter(maxLimit, "day") && 
+    !selectedDate.isBefore(dayjs("2026-03-31"), "day");
+
+  if (!isValidRange) return false;
+  if (isCircleScope || isBranchScope) return !!entityCode;
+  return true;
+}, [reportCode, viewCode, head, entityCode, reportDate, isCircleScope, isBranchScope, etlDate]);
+
+
+
+
