@@ -25,9 +25,7 @@ import { LocalizationProvider } from "@mui/x-date-pickers/LocalizationProvider";
 import { AdapterDayjs } from "@mui/x-date-pickers/AdapterDayjs";
 import { DatePicker } from "@mui/x-date-pickers/DatePicker";
 import dayjs from "dayjs";
-
-// Ensure 'en-gb' locale logic maps uniformly across matching fields
-import "dayjs/locale/en-gb";
+import { IconStar } from "@tabler/icons-react";
 
 export default function FilterDialog({
   open,
@@ -39,13 +37,21 @@ export default function FilterDialog({
   user,
   isApplying,
 }) {
+  // --- USER AUTH MAPPING ---
+  // Verify these keys match exactly what your Redis auth object returns
+  // const isAdmin = user?.role === 10 || user?.roleName === "ADMIN";
+  const userCircleCode = user?.circleCode;
+  const userCircleName = user?.circleName;
+  const userBranchCode = user?.branch;
+  const userBranchName = user?.branchName;
+
   const [reportCode, setReportCode] = useState("");
   const [viewCode, setViewCode] = useState("");
   const [head, setHead] = useState(null);
   const [reportDate, setReportDate] = useState("");
 
-  // Entity State mapping
-  const [entity, setEntity] = useState(null);
+  // Entity (Circle/Branch) State mapping
+  const [entity, setEntity] = useState(null); // Stores the selected object { code, name }
   const [entityInputValue, setEntityInputValue] = useState("");
   const [entityOptions, setEntityOptions] = useState([]);
   const [isEntityLoading, setIsEntityLoading] = useState(false);
@@ -56,10 +62,9 @@ export default function FilterDialog({
 
   const isCircleScope = viewCode.includes("CIRCLE");
   const isBranchScope = viewCode.includes("BRANCH");
-  
-  const minLimit = dayjs("2026-03-31").startOf("day");
+  const MIN_ALLOWED_DATE = dayjs("2026-03-31");
+
   const [etlDate, setEtlDate] = useState(null);
-  const [balanceDateError, setBalanceDateError] = useState(null);
 
   // Sync state when dialog opens
   useEffect(() => {
@@ -68,12 +73,11 @@ export default function FilterDialog({
       setViewCode(currentFilters?.viewCode || "");
       setHead(currentFilters?.head || null);
       setReportDate(currentFilters?.reportDate || "");
-      setBalanceDateError(null);
 
       // Restore Head
       if (currentFilters?.head) {
         setHeadInputValue(
-          `${currentFilters.head.headCode} - ${currentFilters.head.headName}`
+          `${currentFilters.head.headCode} - ${currentFilters.head.headName}`,
         );
         setHeadOptions([currentFilters.head]);
       } else {
@@ -88,7 +92,7 @@ export default function FilterDialog({
           name: currentFilters.entityName,
         });
         setEntityInputValue(
-          `${currentFilters.entityCode} - ${currentFilters.entityName}`
+          `${currentFilters.entityCode} - ${currentFilters.entityName}`,
         );
       } else {
         setEntity(null);
@@ -105,8 +109,27 @@ export default function FilterDialog({
     return report?.views || [];
   }, [reportCode, reportsConfig]);
 
-  // --- ENTITY FETCHING LOGIC ---
+  // --- ENTITY FETCHING & AUTO-FILL LOGIC ---
   useEffect(() => {
+    // 1. If not admin, auto-select their default entity and lock it
+    // if (!isAdmin) {
+    //   if (isCircleScope && userCircleCode) {
+    //     setEntity({
+    //       code: userCircleCode,
+    //       name: userCircleName || userCircleCode,
+    //     });
+    //   } else if (isBranchScope && userBranchCode) {
+    //     setEntity({
+    //       code: userBranchCode,
+    //       name: userBranchName || userBranchCode,
+    //     });
+    //   } else {
+    //     setEntity(null);
+    //   }
+    //   return; // Exit early so non-admins don't fetch data
+    // }
+
+    // 2. If Admin, fetch data dynamically on input change
     const delayDebounceFn = setTimeout(async () => {
       if (entityInputValue && entityInputValue.length >= 2) {
         setIsEntityLoading(true);
@@ -115,19 +138,30 @@ export default function FilterDialog({
           let mappedData = [];
 
           if (isCircleScope) {
-            response = await callApi(`/CM/common-master/circle-codes`, {}, "GET");
+            // Assuming the circle search API endpoint
+            response = await callApi(
+              `/CM/common-master/circle-codes`,
+              {},
+              "GET",
+            );
+            console.log("Circle code: ", response);
+
             const data = response?.data || [];
+            // Map Circle response to a standard { code, name } format
             mappedData = data.map((c) => ({
               code: c.circleCode,
               name: c.circleName,
             }));
           } else if (isBranchScope) {
+            // Branch API endpoint as requested
             response = await callApi(
               `/CM/common-master/branches-code-name-only?q=${entityInputValue}&circleCode=`,
               {},
-              "GET"
+              "GET",
             );
+            console.log("Branch code: ", response);
             const data = response?.data || [];
+            // Branch response is already in { code, name } format, but we ensure mapping
             mappedData = data.map((b) => ({ code: b.code, name: b.name }));
           }
 
@@ -144,7 +178,17 @@ export default function FilterDialog({
     }, 500);
 
     return () => clearTimeout(delayDebounceFn);
-  }, [entityInputValue, isCircleScope, isBranchScope, callApi, entity]);
+  }, [
+    entityInputValue,
+    isCircleScope,
+    isBranchScope,
+    callApi,
+    entity,
+    userCircleCode,
+    userCircleName,
+    userBranchCode,
+    userBranchName,
+  ]);
 
   // --- HEAD CODE FETCHING LOGIC ---
   useEffect(() => {
@@ -161,95 +205,120 @@ export default function FilterDialog({
     return () => clearTimeout(delayDebounceFn);
   }, [headInputValue, reportCode, callApi, head]);
 
-  // --- SYSTEM DATE FETCHING LOGIC ---
-  useEffect(() => {
-    const fetchSystemDate = async () => {
-      if (!open) return;
-      try {
-        const dateRes = await callApi("/PS/file/fincore-date", {}, "GET");
-        const etlRaw = dateRes?.data?.userDate;
-        const etl = etlRaw ? dayjs(etlRaw.split("T")[0]).endOf("day") : dayjs().endOf("day");
-        setEtlDate(etl);
-      } catch (e) {
-        console.error("Date error:", e);
-        setEtlDate(dayjs().endOf("day"));
-      }
-    };
-    fetchSystemDate();
-  }, [open, callApi]);
-
   const handleReset = () => {
     setReportCode("");
     setViewCode("");
     setHead(null);
     setHeadInputValue("");
     setHeadOptions([]);
+
     setEntity(null);
     setEntityInputValue("");
     setEntityOptions([]);
+
     setReportDate("");
-    setBalanceDateError(null);
   };
 
+  useEffect(() => {
+    const fetchSystemDate = async () => {
+      if (!open) return;
+      try {
+        const dateRes = await callApi("/PS/file/fincore-date", {}, "GET");
+        const etlRaw = dateRes?.data?.userDate;
+        const etl = etlRaw ? dayjs(etlRaw.split("T")[0]) : dayjs();
+        setEtlDate(etl);
+      } catch (e) {
+        console.error("Date error:", e);
+        setEtlDate(dayjs());
+      }
+    };
+    fetchSystemDate();
+  }, [open, callApi]);
+
   const handleApply = () => {
-    if (effectiveError) return;
     onApply({
       reportCode,
       viewCode,
       head,
       entityCode: entity?.code || "",
-      entityName: entity?.name || "",
+      entityName: entity?.name || "", // Saving name for restoring filter state cleanly
       reportDate,
     });
   };
 
-  // Manual fallback check calculation to catch broken native states like '0008'
-  const effectiveError = useMemo(() => {
-    if (balanceDateError) return balanceDateError;
-    if (!reportDate) return null;
-
-    const checkDate = dayjs(reportDate);
-    if (!checkDate.isValid()) return "invalidDate";
-
-    const maxLimit = etlDate || dayjs().endOf("day");
-    if (checkDate.isBefore(minLimit, "day")) return "minDate";
-    if (checkDate.isAfter(maxLimit, "day")) return "maxDate";
-
-    return null;
-  }, [balanceDateError, reportDate, minLimit, etlDate]);
-
-  // Ported Validation Message Logic Structure from GlifReports reference
-  const getErrorMessage = (error) => {
-    const minDateStr = minLimit?.isValid() ? minLimit.format("DD/MM/YYYY") : "Allowed Min Date";
-    const maxLimit = etlDate || dayjs();
-    const maxDateStr = maxLimit.format("DD/MM/YYYY");
-
-    switch (error) {
-      case "maxDate":
-        return `Date cannot be in the future (${maxDateStr} is max)`;
-      case "minDate":
-        return `Date cannot be prior to ${minDateStr}`;
-      case "invalidDate":
-        return "Invalid date (Check day for this month)";
-      default:
-        return `Allowed Range: ${minDateStr} - ${maxDateStr}`;
-    }
-  };
+  // const isApplyEnabled = useMemo(() => {
+  //   const baseValid = reportCode && viewCode && head?.headCode && reportDate;
+  //   if (!baseValid) return false;
+  //   if (isCircleScope || isBranchScope) return !!entity?.code;
+  //   return true;
+  // }, [
+  //   reportCode,
+  //   viewCode,
+  //   head,
+  //   entity,
+  //   reportDate,
+  //   isCircleScope,
+  //   isBranchScope,
+  // ]);
 
   const isApplyEnabled = useMemo(() => {
-    if (!reportCode || !viewCode || !head?.headCode || !reportDate || !!effectiveError) {
+    if (!reportCode || !viewCode || !head?.headCode || !reportDate)
       return false;
-    }
+
+    const selectedDate = dayjs(reportDate);
+    const maxLimit = etlDate || dayjs();
+
+    const isValidRange =
+      selectedDate.isValid() &&
+      !selectedDate.isAfter(maxLimit, "day") &&
+      !selectedDate.isBefore(dayjs("2026-03-31"), "day");
+
+    if (!isValidRange) return false;
     if (isCircleScope || isBranchScope) return !!entity?.code;
     return true;
-  }, [reportCode, viewCode, head, entity, reportDate, isCircleScope, isBranchScope, effectiveError]);
+  }, [
+    reportCode,
+    viewCode,
+    head,
+    entity,
+    reportDate,
+    isCircleScope,
+    isBranchScope,
+    etlDate,
+  ]);
 
-  // Convert state securely into picker formats
-  const parsedDatePickerValue = useMemo(() => {
-    if (!reportDate) return null;
-    const parsed = dayjs(reportDate);
-    return parsed.isValid() ? parsed : null;
-  }, [reportDate]);
+  const dateValidation = useMemo(() => {
+    if (!reportDate) {
+      return {
+        error: false,
+        text: "Please select a date to initiate drill-down analysis.",
+      };
+    }
+
+    const selectedDate = dayjs(reportDate);
+    const maxLimit = etlDate || dayjs(); // Fallback to current date if API is processing
+
+    if (!selectedDate.isValid()) {
+      return {
+        error: true,
+        text: "Please enter a valid date format (DD/MM/YYYY).",
+      };
+    }
+    if (selectedDate.isAfter(maxLimit, "day")) {
+      return {
+        error: true,
+        text: `Future dates beyond ${maxLimit.format("DD/MM/YYYY")} are not allowed.`,
+      };
+    }
+    if (selectedDate.isBefore(dayjs("2026-03-31"), "day")) {
+      return { error: true, text: "Date cannot be before 31st March 2026." };
+    }
+
+    return {
+      error: false,
+      text: "Report date verified and valid within authorized bounds.",
+    };
+  }, [reportDate, etlDate]);
 
   return (
     <Dialog open={open} onClose={onClose} maxWidth="sm" fullWidth>
@@ -285,10 +354,13 @@ export default function FilterDialog({
               disabled={isApplying}
               onChange={(e) => {
                 setReportCode(e.target.value);
+
                 setViewCode("");
+
                 setHead(null);
                 setHeadInputValue("");
                 setHeadOptions([]);
+
                 setEntity(null);
                 setEntityInputValue("");
                 setEntityOptions([]);
@@ -320,6 +392,7 @@ export default function FilterDialog({
           <Autocomplete
             size="small"
             options={headOptions}
+            // 1. Explicitly control the input value
             inputValue={headInputValue}
             value={head}
             getOptionLabel={(option) =>
@@ -327,8 +400,13 @@ export default function FilterDialog({
             }
             onChange={(event, newValue) => setHead(newValue)}
             onInputChange={(event, newInputValue, reason) => {
+              // 2. Ignore 'reset' events (happens when selecting an option)
               if (reason === "reset") return;
+
+              // 3. Filter special characters immediately
               const filteredValue = newInputValue.replace(/[^a-zA-Z0-9 ]/g, "");
+
+              // Update state only if the value actually changed to prevent unnecessary renders
               if (filteredValue !== headInputValue) {
                 setHeadInputValue(filteredValue);
               }
@@ -352,7 +430,13 @@ export default function FilterDialog({
                   ),
                 }}
                 helperText={
-                  <span style={{ display: "flex", alignItems: "center", gap: "4px" }}>
+                  <span
+                    style={{
+                      display: "flex",
+                      alignItems: "center",
+                      gap: "4px",
+                    }}
+                  >
                     <InfoIcon sx={{ fontSize: "0.625rem" }} />
                     <em>Enter at least 2 letters or numbers to search.</em>
                   </span>
@@ -362,7 +446,11 @@ export default function FilterDialog({
           />
 
           {/* Scope Selection */}
-          <FormControl size="small" fullWidth disabled={!reportCode || isApplying}>
+          <FormControl
+            size="small"
+            fullWidth
+            disabled={!reportCode || isApplying}
+          >
             <InputLabel id="dialog-scope-label">Scope</InputLabel>
             <Select
               labelId="dialog-scope-label"
@@ -370,7 +458,9 @@ export default function FilterDialog({
               label="Scope"
               onChange={(e) => {
                 setViewCode(e.target.value);
-                setEntity(null);
+                setEntity(null); // Clear entity when switching scope
+                setEntityInputValue("");
+                setEntityOptions("");
               }}
             >
               {availableViews.map((view) => (
@@ -398,8 +488,10 @@ export default function FilterDialog({
           {/* Conditional Autocomplete for Circle/Branch */}
           {(isCircleScope || isBranchScope) && (
             <Autocomplete
+              key={isCircleScope ? "circle" : "branch"}
               size="small"
               options={entityOptions}
+              // 1. CRITICAL: Bind the input value explicitly to state
               inputValue={entityInputValue}
               value={entity}
               getOptionLabel={(option) =>
@@ -407,8 +499,18 @@ export default function FilterDialog({
               }
               onChange={(event, newValue) => setEntity(newValue)}
               onInputChange={(event, newInputValue, reason) => {
+                // 2. Ignore 'reset' events (occurs when selecting an option or clearing)
                 if (reason === "reset") return;
-                const filteredValue = newInputValue.replace(/[^a-zA-Z0-9 ]/g, "");
+
+                // 3. Filter out special characters immediately
+                // Allows only letters, numbers, and spaces.
+                // Add '-' or '_' inside the brackets if needed: [^a-zA-Z0-9 _-]
+                const filteredValue = newInputValue.replace(
+                  /[^a-zA-Z0-9 ]/g,
+                  "",
+                );
+
+                // Update state only if the value differs to prevent render loops
                 if (filteredValue !== entityInputValue) {
                   setEntityInputValue(filteredValue);
                 }
@@ -420,9 +522,10 @@ export default function FilterDialog({
                   {...params}
                   label={`Search ${isCircleScope ? "Circle" : "Branch"}`}
                   variant="outlined"
+                  // 4. Ensure no conflicting value/onChange props are passed here
                   inputProps={{
                     ...params.inputProps,
-                    autoComplete: "off",
+                    autoComplete: "off", // Prevent browser autofill bypass
                   }}
                   InputProps={{
                     ...params.InputProps,
@@ -436,10 +539,17 @@ export default function FilterDialog({
                     ),
                   }}
                   helperText={
-                    <span style={{ display: "flex", alignItems: "center", gap: "4px" }}>
+                    <span
+                      style={{
+                        display: "flex",
+                        alignItems: "center",
+                        gap: "4px",
+                      }}
+                    >
                       <InfoIcon sx={{ fontSize: "0.625rem" }} />
                       <em>
-                        Type at least 2 alphanumeric characters to find a {isCircleScope ? "circle" : "branch"}.
+                        `Type at least 2 alphanumeric characters to find a{" "}
+                        {isCircleScope ? "circle" : "branch"}. `
                       </em>
                     </span>
                   }
@@ -448,46 +558,21 @@ export default function FilterDialog({
             />
           )}
 
-          {/* Report Date Picker */}
-          <LocalizationProvider dateAdapter={AdapterDayjs} adapterLocale="en-gb">
+          {/* Report Date */}
+
+          <LocalizationProvider dateAdapter={AdapterDayjs}>
             <DatePicker
-              label="Select report date *"
-              value={parsedDatePickerValue}
+              label="Report Date"
               format="DD/MM/YYYY"
-              minDate={minLimit}
-              maxDate={etlDate || dayjs().endOf("day")}
-              views={["year", "month", "day"]}
+              value={reportDate ? dayjs(reportDate) : null}
+              minDate={dayjs("2026-03-31")}
+              maxDate={etlDate || dayjs()}
               disabled={!reportCode || isApplying}
-              onChange={(newValue) => {
-                if (newValue && dayjs.isDayjs(newValue) && newValue.isValid()) {
-                  let correctedValue = newValue;
-                  // Map inputs typed as 2-digit years cleanly
-                  if (correctedValue.year() < 100) {
-                    correctedValue = correctedValue.set("year", correctedValue.year() + 2000);
-                  }
-                  setReportDate(correctedValue.format("YYYY-MM-DD"));
-                } else {
-                  // Fallback to let manual validation handle incomplete strings like "31/01/0008"
-                  if (newValue && typeof newValue.format === "function") {
-                     setReportDate(newValue.format("YYYY-MM-DD"));
-                  } else {
-                     setReportDate("");
-                  }
-                }
-              }}
-              onError={(error) => {
-                setBalanceDateError(error || null);
-              }}
               slotProps={{
                 textField: {
                   size: "small",
                   fullWidth: true,
-                  placeholder: "DD/MM/YYYY",
-                  error: !!effectiveError,
-                  sx: {
-                    bgcolor: "white",
-                    borderRadius: 1,
-                  },
+                  error: dateValidation.error,
                   helperText: (
                     <span
                       style={{
@@ -497,40 +582,20 @@ export default function FilterDialog({
                         alignItems: "center",
                         gap: "4px",
                         marginTop: "4px",
-                        color: effectiveError ? "#d32f2f" : "inherit",
-                        fontWeight: effectiveError ? 600 : "normal",
                       }}
                     >
                       <InfoIcon sx={{ fontSize: "0.625rem" }} />
-                      {getErrorMessage(effectiveError)}
+                      {dateValidation.text}
                     </span>
                   ),
                 },
-                day: {
-                  showDaysOutsideCurrentMonth: true,
-                  sx: {
-                    fontWeight: 600,
-                    "&.MuiPickersDay-root": { color: "#111" },
-                    "&.MuiPickersDay-today": {
-                      border: "2px solid #58469f",
-                      fontWeight: 800,
-                    },
-                    "&.Mui-selected": {
-                      backgroundColor: "#58469f !important",
-                      color: "#fff !important",
-                      fontWeight: 800,
-                    },
-                    "&:hover": {
-                      backgroundColor: "rgba(88,70,159,0.08)",
-                    },
-                    "&.Mui-disabled": {
-                      color: "rgba(0,0,0,0.25) !important",
-                      backgroundColor: "rgba(0,0,0,0.04)",
-                      opacity: 0.45,
-                      textDecoration: "line-through",
-                    },
-                  },
-                },
+              }}
+              onChange={(newValue) => {
+                setReportDate(
+                  newValue && newValue.isValid()
+                    ? newValue.format("YYYY-MM-DD")
+                    : "",
+                );
               }}
             />
           </LocalizationProvider>
@@ -558,4 +623,3 @@ export default function FilterDialog({
     </Dialog>
   );
 }
-
