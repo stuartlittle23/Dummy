@@ -1,48 +1,16 @@
-<Autocomplete
-  size="small"
-  options={headOptions}
-  // 1. Keep this exactly as you had it so your search API logic doesn't change
-  inputValue={headInputValue}
-  value={head}
-  getOptionLabel={(option) =>
-    option ? `${option.headCode} - ${option.headName}` : ""
+onInputChange={(event, newInputValue, reason) => {
+  // 1. ADD THIS BLOCK: If the reason is clear/reset, wipe the text state clean
+  if (reason === "clear" || reason === "reset" || !newInputValue) {
+    setHeadInputValue("");
+    return;
   }
-  onChange={(event, newValue) => setHead(newValue)}
-  onInputChange={(event, newInputValue, reason) => {
-    // FIX: If the reason is 'clear' or 'reset', explicitly wipe the text state clean
-    if (reason === "clear" || reason === "reset" || !newInputValue) {
-      setHeadInputValue("");
-      return;
-    }
 
-    // Your original guard condition remains exactly the same
-    if (reason === "reset") return;
+  // 2. Keep the rest of your original code exactly the same below it:
+  if (reason === "reset") return;
 
-    // Your original character filtering logic remains exactly the same
-    const filteredValue = newInputValue.replace(/[^a-zA-Z0-9 ]/g, "");
+  const filteredValue = newInputValue.replace(/[^a-zA-Z0-9 ]/g, "");
 
-    if (filteredValue !== headInputValue) {
-      setHeadInputValue(filteredValue);
-    }
-  }}
-  loading={isHeadsLoading}
-  disabled={!reportCode || isApplying}
-  renderInput={(params) => (
-    <TextField
-      {...params}
-      label="Search Head Code"
-      variant="outlined"
-      InputProps={{
-        ...params.InputProps,
-        endAdornment: (
-          <React.Fragment>
-            {isHeadsLoading ? (
-              <CircularProgress color="inherit" size={20} />
-            ) : null}
-            {params.InputProps.endAdornment}
-          </React.Fragment>
-        ),
-      }}
-    />
-  )}
-/>
+  if (filteredValue !== headInputValue) {
+    setHeadInputValue(filteredValue);
+  }
+}}
