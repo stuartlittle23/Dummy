@@ -1,574 +1,403 @@
-import React, { useState, useEffect, useMemo } from "react";
+import { useEffect, useState } from "react";
 import {
-  Dialog,
-  DialogTitle,
-  DialogContent,
-  DialogActions,
-  Button,
-  IconButton,
+  Box,
+  Typography,
   FormControl,
   InputLabel,
   Select,
   MenuItem,
-  TextField,
-  Autocomplete,
-  Box,
-  Typography,
-  CircularProgress,
-  FormHelperText,
+  Stack,
+  Button,
+  Card,
+  LinearProgress,
+  Grow,
+  Fade,
 } from "@mui/material";
-import CloseIcon from "@mui/icons-material/Close";
-import InfoIcon from "@mui/icons-material/Info";
-import QueryStatsIcon from "@mui/icons-material/QueryStats";
-import { fetchHeads } from "../api/analyticsApi";
-import { LocalizationProvider } from "@mui/x-date-pickers/LocalizationProvider";
 import { AdapterDayjs } from "@mui/x-date-pickers/AdapterDayjs";
+import { LocalizationProvider } from "@mui/x-date-pickers/LocalizationProvider";
 import { DatePicker } from "@mui/x-date-pickers/DatePicker";
+import DescriptionIcon from "@mui/icons-material/Description";
+import {
+  Summarize,
+  CloudDownloadTwoTone,
+  LooksOne,
+  LooksTwo,
+  Looks3,
+} from "@mui/icons-material";
+import useApi from "../../hooks/useApi";
 import dayjs from "dayjs";
+import { useSelector } from "react-redux";
+import useCustomSnackbar from "../../utils/useCustomSnackbar";
+import { useTheme } from "@mui/material/styles";
+import CustomChip from "../../utils/CustomChip";
+import GlifReportsStyles from "./GlifReportsStyles";
 
-export default function FilterDialog({
-  open,
-  onClose,
-  onApply,
-  reportsConfig = [],
-  currentFilters,
-  callApi,
-  user,
-  isApplying,
-}) {
-  const [reportCode, setReportCode] = useState("");
-  const [viewCode, setViewCode] = useState("");
-  const [head, setHead] = useState(null);
-  const [reportDate, setReportDate] = useState("");
+// 1. Ensure strictly 'en-gb' locale logic if specific DD/MM formats are fighting with browser locale
+import "dayjs/locale/en-gb";
+const moduleType = "WHOLE_BANK";
 
-  // Entity State mapping
-  const [entity, setEntity] = useState(null);
-  const [entityInputValue, setEntityInputValue] = useState("");
-  const [entityOptions, setEntityOptions] = useState([]);
-  const [isEntityLoading, setIsEntityLoading] = useState(false);
+export default function GlifReports() {
+  const { callApi } = useApi();
+  const showSnackBar = useCustomSnackbar();
+  const user = useSelector((state) => state.auth.user);
 
-  const [headInputValue, setHeadInputValue] = useState("");
-  const [headOptions, setHeadOptions] = useState([]);
-  const [isHeadsLoading, setIsHeadsLoading] = useState(false);
+  const [dateError, setDateError] = useState(null);
+  const [isLoading, setIsLoading] = useState(false);
+  const [repTypes, setRepTypes] = useState([]);
+  const [selectedReport, setReport] = useState(null);
+  const [selectedDate, setDate] = useState(null);
 
-  const isCircleScope = viewCode.includes("CIRCLE");
-  const isBranchScope = viewCode.includes("BRANCH");
-  
-  const minLimit = dayjs("2026-03-31");
-  const [etlDate, setEtlDate] = useState(null);
-  const [balanceDateError, setBalanceDateError] = useState(null);
+  // Defaulting to a safe past date initially
+  const [minDate, setMinDate] = useState(dayjs("2020-01-01"));
 
-  // Sync state when dialog opens
+  const [isDownloading, setIsDownloading] = useState(false);
+  const [downloadedBytes, setDownloadedBytes] = useState(0);
+
+  const theme = useTheme();
+  const styles = GlifReportsStyles(theme);
+
+  const disableInputs = isLoading || isDownloading;
+
+  const downloadedMB =
+    downloadedBytes > 0 ? (downloadedBytes / (1024 * 1024)).toFixed(2) : null;
+
+  // --- API Fetch ---
   useEffect(() => {
-    if (open) {
-      setReportCode(currentFilters?.reportCode || "");
-      setViewCode(currentFilters?.viewCode || "");
-      setHead(currentFilters?.head || null);
-      setReportDate(currentFilters?.reportDate || "");
-      setBalanceDateError(null);
-
-      // Restore Head
-      if (currentFilters?.head) {
-        setHeadInputValue(
-          `${currentFilters.head.headCode} - ${currentFilters.head.headName}`
-        );
-        setHeadOptions([currentFilters.head]);
-      } else {
-        setHeadInputValue("");
-        setHeadOptions([]);
-      }
-
-      // Restore Entity
-      if (currentFilters?.entityCode && currentFilters?.entityName) {
-        setEntity({
-          code: currentFilters.entityCode,
-          name: currentFilters.entityName,
-        });
-        setEntityInputValue(
-          `${currentFilters.entityCode} - ${currentFilters.entityName}`
-        );
-      } else {
-        setEntity(null);
-        setEntityInputValue("");
-        setEntityOptions([]);
-      }
-    }
-  }, [open, currentFilters]);
-
-  // Derived available Scopes directly from Config Views
-  const availableViews = useMemo(() => {
-    if (!reportCode) return [];
-    const report = reportsConfig.find((r) => r.reportCode === reportCode);
-    return report?.views || [];
-  }, [reportCode, reportsConfig]);
-
-  // --- ENTITY FETCHING LOGIC ---
-  useEffect(() => {
-    const delayDebounceFn = setTimeout(async () => {
-      if (entityInputValue && entityInputValue.length >= 2) {
-        setIsEntityLoading(true);
-        try {
-          let response;
-          let mappedData = [];
-
-          if (isCircleScope) {
-            response = await callApi(`/CM/common-master/circle-codes`, {}, "GET");
-            const data = response?.data || [];
-            mappedData = data.map((c) => ({
-              code: c.circleCode,
-              name: c.circleName,
-            }));
-          } else if (isBranchScope) {
-            response = await callApi(
-              `/CM/common-master/branches-code-name-only?q=${entityInputValue}&circleCode=`,
-              {},
-              "GET"
-            );
-            const data = response?.data || [];
-            mappedData = data.map((b) => ({ code: b.code, name: b.name }));
-          }
-
-          setEntityOptions(mappedData);
-        } catch (error) {
-          console.error("Error fetching entities:", error);
-          setEntityOptions([]);
-        } platform;
-        finally {
-          setIsEntityLoading(false);
-        }
-      } else {
-        setEntityOptions(entity ? [entity] : []);
-      }
-    }, 500);
-
-    return () => clearTimeout(delayDebounceFn);
-  }, [entityInputValue, isCircleScope, isBranchScope, callApi, entity]);
-
-  // --- HEAD CODE FETCHING LOGIC ---
-  useEffect(() => {
-    const delayDebounceFn = setTimeout(async () => {
-      if (headInputValue && headInputValue.length >= 2 && reportCode) {
-        setIsHeadsLoading(true);
-        const data = await fetchHeads(callApi, reportCode, headInputValue);
-        setHeadOptions(data);
-        setIsHeadsLoading(false);
-      } else {
-        setHeadOptions(head ? [head] : []);
-      }
-    }, 500);
-    return () => clearTimeout(delayDebounceFn);
-  }, [headInputValue, reportCode, callApi, head]);
-
-  // --- SYSTEM DATE FETCHING LOGIC ---
-  useEffect(() => {
-    const fetchSystemDate = async () => {
-      if (!open) return;
+    async function fetchData() {
+      setIsLoading(true);
       try {
-        const dateRes = await callApi("/PS/file/fincore-date", {}, "GET");
-        const etlRaw = dateRes?.data?.userDate;
-        const etl = etlRaw ? dayjs(etlRaw.split("T")[0]) : dayjs();
-        setEtlDate(etl);
-      } catch (e) {
-        console.error("Date error:", e);
-        setEtlDate(dayjs());
+        const data = await callApi(
+          "/RS/reports/types",
+          { roleId: user.role, moduleType: moduleType },
+          "POST",
+        );
+        const types = data.data || [];
+        setRepTypes(types);
+
+        if (types.length > 0 && types[0].selectedDate) {
+          // IMPORTANT: Use .startOf('day') to ensure time is 00:00:00
+          // This fixes the "sometimes enabled/disabled arrow" issue by ensuring strict day comparison
+          setMinDate(dayjs(types[0].selectedDate).startOf("day"));
+        } else {
+          // Fallback
+          setMinDate(dayjs("2025-10-01").startOf("day"));
+        }
+      } catch (error) {
+        console.error("Failed to fetch report types:", error);
+        showSnackBar("Failed to load report types", "error");
       }
+      setIsLoading(false);
+    }
+    fetchData();
+  }, [callApi, user.role, showSnackBar]);
+
+  const handleSelect = (report) => {
+    setReport(report);
+  };
+
+  // --- Download Logic ---
+  const handleFetchReportData = async () => {
+    if (!selectedReport?.fileName || !selectedDate) return;
+
+    if (dateError) {
+      showSnackBar(getErrorMessage(dateError), "error");
+      return;
+    }
+
+    setIsLoading(true);
+    setIsDownloading(true);
+    setDownloadedBytes(0);
+
+    const payload = {
+      moduleType: moduleType,
+      fileName: selectedReport.fileName,
+      date: selectedDate.format("YYYY-MM-DD"),
+      roleId: user.role,
     };
-    fetchSystemDate();
-  }, [open, callApi]);
 
-  const handleReset = () => {
-    setReportCode("");
-    setViewCode("");
-    setHead(null);
-    setHeadInputValue("");
-    setHeadOptions([]);
-    setEntity(null);
-    setEntityInputValue("");
-    setEntityOptions([]);
-    setReportDate("");
-    setBalanceDateError(null);
+    try {
+      const response = await callApi(
+        "/RS/reports/download",
+        payload,
+        "POST",
+        "blob",
+        "application/json",
+        {
+          onDownloadProgress: (event) => {
+            setIsDownloading(true);
+            if (event && typeof event.loaded === "number") {
+              setDownloadedBytes(event.loaded);
+            }
+          },
+        },
+        false,
+      );
+
+      if (response.data && response.data.size > 22) {
+        const contentDisposition =
+          response.headers["content-disposition"] ||
+          response.headers["Content-Disposition"];
+
+        let filename = "report.zip";
+        if (
+          contentDisposition &&
+          contentDisposition.indexOf("attachment") !== -1
+        ) {
+          const filenameMatch = contentDisposition.match(/filename="(.+?)"/);
+          if (filenameMatch && filenameMatch.length > 1) {
+            filename = filenameMatch[1];
+          }
+        }
+
+        const downloadUrl = window.URL.createObjectURL(response.data);
+        const a = document.createElement("a");
+        a.href = downloadUrl;
+        a.download = filename;
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        window.URL.revokeObjectURL(downloadUrl);
+        showSnackBar(
+          `Reports "${filename}" downloaded successfully`,
+          "success",
+        );
+      } else {
+        showSnackBar("No reports found", "warning");
+      }
+    } catch (error) {
+      console.log("error", error);
+
+      if (error && error instanceof Blob) {
+        const reader = new FileReader();
+        reader.onload = () => {
+          try {
+            const errorJson = JSON.parse(reader.result);
+            console.error(errorJson.message);
+            showSnackBar(errorJson.message || "No reports found", "error");
+          } catch (e) {
+            console.error(e);
+            showSnackBar("Something went wrong, kindly try again.", "error");
+          }
+        };
+        reader.readAsText(error);
+      } else {
+        showSnackBar("Network Error: Could not connect to server", "error");
+      }
+    } finally {
+      setIsLoading(false);
+      setIsDownloading(false);
+      setDownloadedBytes(0);
+    }
   };
 
-  const handleApply = () => {
-    onApply({
-      reportCode,
-      viewCode,
-      head,
-      entityCode: entity?.code || "",
-      entityName: entity?.name || "",
-      reportDate,
-    });
+  // --- Validation Message Logic ---
+  const getErrorMessage = (error) => {
+    const minDateStr = minDate?.isValid()
+      ? minDate.format("DD/MM/YYYY")
+      : "Allowed Min Date";
+
+    switch (error) {
+      case "maxDate":
+        return "Date cannot be in the future (Today is max)";
+      case "minDate":
+        return `Date cannot be prior to ${minDateStr}`;
+      case "invalidDate":
+        // This covers cases like 31st Feb or 31st April
+        return "Invalid date (Check day for this month)";
+      default:
+        // When no error, return instructions
+        return `Allowed Range: ${minDateStr} - Today`;
+    }
   };
-
-  // Inline Validation Message computation display context
-  const computedHelperText = useMemo(() => {
-    const maxLimit = etlDate || dayjs();
-    
-    if (balanceDateError === "invalidDate") {
-      return "Please enter a valid date format (DD-MM-YYYY).";
-    }
-    if (balanceDateError === "minDate") {
-      return `Date cannot be before ${minLimit.format("DD-MM-YYYY")}.`;
-    }
-    if (balanceDateError === "maxDate") {
-      return `Future dates beyond ${maxLimit.format("DD-MM-YYYY")} are not allowed.`;
-    }
-    return "Please select a date to initiate drill-down analysis.";
-  }, [balanceDateError, etlDate, minLimit]);
-
-  const isApplyEnabled = useMemo(() => {
-    if (!reportCode || !viewCode || !head?.headCode || !reportDate || !!balanceDateError) {
-      return false;
-    }
-
-    const selectedDate = dayjs(reportDate);
-    const maxLimit = etlDate || dayjs();
-
-    const isValidRange =
-      selectedDate.isValid() &&
-      !selectedDate.isAfter(maxLimit, "day") &&
-      !selectedDate.isBefore(minLimit, "day");
-
-    if (!isValidRange) return false;
-    if (isCircleScope || isBranchScope) return !!entity?.code;
-    return true;
-  }, [reportCode, viewCode, head, entity, reportDate, isCircleScope, isBranchScope, etlDate, balanceDateError, minLimit]);
-
-  // Convert raw value dynamically to isolate raw strings from breaking the date framework
-  const parsedDatePickerValue = useMemo(() => {
-    if (!reportDate) return null;
-    const parsed = dayjs(reportDate);
-    return parsed.isValid() ? parsed : null;
-  }, [reportDate]);
 
   return (
-    <Dialog open={open} onClose={onClose} maxWidth="sm" fullWidth>
-      <DialogTitle
-        sx={{
-          display: "flex",
-          justifyContent: "space-between",
-          alignItems: "center",
-          gap: 2,
-        }}
-      >
-        <Typography
-          variant="h6"
-          fontWeight="bold"
-          sx={{ display: "flex", alignItems: "center", gap: 2 }}
-        >
-          <QueryStatsIcon /> Drill Down Filters
-        </Typography>
-        <IconButton onClick={onClose} size="small" disabled={isApplying}>
-          <CloseIcon />
-        </IconButton>
-      </DialogTitle>
+    <Grow in timeout={500}>
+      <Stack spacing={4}>
+        <Box sx={styles.rootBox} elevation={10}>
+          <Stack
+            spacing={3}
+            direction={"column"}
+            alignItems="center"
+            justifyContent="center"
+          >
+            <Card sx={styles.card}>
+              <Box sx={styles.headerContainer}>
+                <Box sx={styles.headerIconWrapper}>
+                  <DescriptionIcon sx={styles.summaryIcon} />
+                </Box>
+                <Box sx={styles.headerTextBox}>
+                  <Typography
+                    variant="h5"
+                    fontWeight="bold"
+                    sx={styles.headerTitle}
+                  >
+                    Reports Generation
+                  </Typography>
+                  <Typography variant="body2" sx={styles.headerSubtitle}>
+                    Choose a specific required Report type and Date using the
+                    criteria below to download reports
+                  </Typography>
+                </Box>
+              </Box>
 
-      <DialogContent dividers>
-        <Box display="flex" flexDirection="column" gap={3} py={1}>
-          {/* Report Code Selection */}
-          <FormControl size="small" fullWidth>
-            <InputLabel id="dialog-report-label">Select Report</InputLabel>
-            <Select
-              labelId="dialog-report-label"
-              value={reportCode}
-              label="Select Report"
-              disabled={isApplying}
-              onChange={(e) => {
-                setReportCode(e.target.value);
-                setViewCode("");
-                setHead(null);
-                setHeadInputValue("");
-                setHeadOptions([]);
-                setEntity(null);
-                setEntityInputValue("");
-                setEntityOptions([]);
-              }}
-            >
-              {reportsConfig.map((report) => (
-                <MenuItem key={report.reportCode} value={report.reportCode}>
-                  {report.displayName}
-                </MenuItem>
-              ))}
-            </Select>
-            <FormHelperText
-              id="scope-helper-text"
-              sx={{
-                fontStyle: "italic",
-                fontSize: "0.75rem",
-                display: "flex",
-                alignItems: "center",
-                gap: "4px",
-                lineHeight: 1.5,
-              }}
-            >
-              <InfoIcon sx={{ fontSize: "0.625rem" }} />
-              Please select a report to initiate drill-down analysis.
-            </FormHelperText>
-          </FormControl>
+              <Box sx={styles.noteContainer}>
+                <Typography variant="body2">
+                  Note: The generated reports cannot be viewed on-screen it can
+                  only be downloaded.
+                </Typography>
 
-          {/* Head Code Autocomplete */}
-          <Autocomplete
-            size="small"
-            options={headOptions}
-            inputValue={headInputValue}
-            value={head}
-            getOptionLabel={(option) =>
-              option ? `${option.headCode} - ${option.headName}` : ""
-            }
-            onChange={(event, newValue) => setHead(newValue)}
-            onInputChange={(event, newInputValue, reason) => {
-              if (reason === "reset") return;
-              const filteredValue = newInputValue.replace(/[^a-zA-Z0-9 ]/g, "");
-              if (filteredValue !== headInputValue) {
-                setHeadInputValue(filteredValue);
-              }
-            }}
-            loading={isHeadsLoading}
-            disabled={!reportCode || isApplying}
-            renderInput={(params) => (
-              <TextField
-                {...params}
-                label="Search Head Code"
-                variant="outlined"
-                InputProps={{
-                  ...params.InputProps,
-                  endAdornment: (
-                    <React.Fragment>
-                      {isHeadsLoading ? (
-                        <CircularProgress color="inherit" size={20} />
-                      ) : null}
-                      {params.InputProps.endAdornment}
-                    </React.Fragment>
-                  ),
-                }}
-                helperText={
-                  <span style={{ display: "flex", alignItems: "center", gap: "4px" }}>
-                    <InfoIcon sx={{ fontSize: "0.625rem" }} />
-                    <em>Enter at least 2 letters or numbers to search.</em>
-                  </span>
-                }
-              />
-            )}
-          />
-
-          {/* Scope Selection */}
-          <FormControl size="small" fullWidth disabled={!reportCode || isApplying}>
-            <InputLabel id="dialog-scope-label">Scope</InputLabel>
-            <Select
-              labelId="dialog-scope-label"
-              value={viewCode}
-              label="Scope"
-              onChange={(e) => {
-                setViewCode(e.target.value);
-                setEntity(null);
-              }}
-            >
-              {availableViews.map((view) => (
-                <MenuItem key={view.viewCode} value={view.viewCode}>
-                  {view.displayName}
-                </MenuItem>
-              ))}
-            </Select>
-            <FormHelperText
-              id="scope-helper-text"
-              sx={{
-                fontStyle: "italic",
-                fontSize: "0.75rem",
-                display: "flex",
-                alignItems: "center",
-                gap: "4px",
-                lineHeight: 1.5,
-              }}
-            >
-              <InfoIcon sx={{ fontSize: "0.625rem" }} />
-              View scope is determined by your authorized access level.
-            </FormHelperText>
-          </FormControl>
-
-          {/* Conditional Autocomplete for Circle/Branch */}
-          {(isCircleScope || isBranchScope) && (
-            <Autocomplete
-              size="small"
-              options={entityOptions}
-              inputValue={entityInputValue}
-              value={entity}
-              getOptionLabel={(option) =>
-                option ? `${option.code} - ${option.name}` : ""
-              }
-              onChange={(event, newValue) => setEntity(newValue)}
-              onInputChange={(event, newInputValue, reason) => {
-                if (reason === "reset") return;
-                const filteredValue = newInputValue.replace(/[^a-zA-Z0-9 ]/g, "");
-                if (filteredValue !== entityInputValue) {
-                  setEntityInputValue(filteredValue);
-                }
-              }}
-              loading={isEntityLoading}
-              disabled={isApplying}
-              renderInput={(params) => (
-                <TextField
-                  {...params}
-                  label={`Search ${isCircleScope ? "Circle" : "Branch"}`}
-                  variant="outlined"
-                  inputProps={{
-                    ...params.inputProps,
-                    autoComplete: "off",
-                  }}
-                  InputProps={{
-                    ...params.InputProps,
-                    endAdornment: (
-                      <React.Fragment>
-                        {isEntityLoading ? (
-                          <CircularProgress color="inherit" size={20} />
-                        ) : null}
-                        {params.InputProps.endAdornment}
-                      </React.Fragment>
-                    ),
-                  }}
-                  helperText={
-                    <span style={{ display: "flex", alignItems: "center", gap: "4px" }}>
-                      <InfoIcon sx={{ fontSize: "0.625rem" }} />
-                      <em>
-                        Type at least 2 alphanumeric characters to find a {isCircleScope ? "circle" : "branch"}.
-                      </em>
-                    </span>
-                  }
-                />
-              )}
-            />
-          )}
-
-          {/* Report Date Picker */}
-          <LocalizationProvider dateAdapter={AdapterDayjs}>
-            <DatePicker
-              label="Report Date"
-              value={parsedDatePickerValue}
-              format="DD-MM-YYYY"
-              minDate={minLimit}
-              maxDate={etlDate || dayjs()}
-              views={["year", "month", "day"]}
-              disabled={!reportCode || isApplying}
-              onChange={(newValue) => {
-                if (newValue && dayjs.isDayjs(newValue) && newValue.isValid()) {
-                  let correctedValue = newValue;
-                  // Map inputs typed as 2-digit years (e.g. 26 -> 2026) safely
-                  if (correctedValue.year() < 100) {
-                    correctedValue = correctedValue.set("year", correctedValue.year() + 2000);
-                  }
-                  setReportDate(correctedValue.format("YYYY-MM-DD"));
-                } else {
-                  setReportDate("");
-                }
-              }}
-              onError={(error) => {
-                setBalanceDateError(error || null);
-              }}
-              slotProps={{
-                textField: {
-                  size: "small",
-                  fullWidth: true,
-                  placeholder: "DD-MM-YYYY",
-                  error: !!balanceDateError,
-                  sx: {
-                    bgcolor: "white",
-                    borderRadius: 1,
-                  },
-                  helperText: (
-                    <span
-                      style={{
-                        fontStyle: "italic",
-                        fontSize: "0.75rem",
-                        display: "flex",
-                        alignItems: "center",
-                        gap: "4px",
-                        marginTop: "4px",
-                        color: balanceDateError ? "#d32f2f" : "inherit",
-                        fontWeight: balanceDateError ? 600 : "normal",
-                      }}
+                <Stack
+                  direction={{ xs: "column", sm: "row" }}
+                  spacing={2}
+                  flexWrap="wrap"
+                  sx={styles.stepsStack}
+                >
+                  <CustomChip
+                    label="Select a report"
+                    icon={<LooksOne />}
+                    color="info"
+                    variant="outlined"
+                  />
+                  <CustomChip
+                    label="Select the report date"
+                    icon={<LooksTwo />}
+                    color="info"
+                    variant="outlined"
+                  />
+                  <CustomChip
+                    label="Click Fetch & Download button"
+                    icon={<Looks3 />}
+                    color="info"
+                    variant="outlined"
+                  />
+                </Stack>
+              </Box>
+              <Box sx={styles.inputOuterBox}>
+                <Box sx={styles.inputInnerBox}>
+                  {/* Dropdown Menu */}
+                  <FormControl sx={styles.formControl}>
+                    <InputLabel id="menu-select-label">
+                      Select a report *
+                    </InputLabel>
+                    <Select
+                      labelId="menu-select-label"
+                      id="menu-select"
+                      value={selectedReport || ""}
+                      label="Select a report *"
+                      onChange={(e) => handleSelect(e.target.value)}
+                      disabled={repTypes.length === 0 || disableInputs}
                     >
-                      <InfoIcon sx={{ fontSize: "0.625rem" }} />
-                      {computedHelperText}
-                    </span>
-                  ),
-                },
-                day: {
-                  sx: {
-                    fontWeight: 600,
-                    "&.MuiPickersDay-root": { color: "#111" },
-                    "&.MuiPickersDay-today": {
-                      border: "2px solid #58469f",
-                      fontWeight: 800,
-                    },
-                    "&.Mui-selected": {
-                      backgroundColor: "#58469f !important",
-                      color: "#fff !important",
-                      fontWeight: 800,
-                    },
-                    "&:hover": {
-                      backgroundColor: "rgba(88,70,159,0.08)",
-                    },
-                    "&.Mui-disabled": {
-                      color: "rgba(0,0,0,0.25) !important",
-                      backgroundColor: "rgba(0,0,0,0.04)",
-                      opacity: 0.45,
-                      textDecoration: "line-through",
-                    },
-                  },
-                },
-                monthButton: {
-                  sx: {
-                    fontWeight: 700,
-                    "&.Mui-selected": {
-                      backgroundColor: "#58469f !important",
-                      color: "#fff !important",
-                    },
-                    "&.Mui-disabled": {
-                      color: "rgba(0,0,0,0.25) !important",
-                      opacity: 0.45,
-                      textDecoration: "line-through",
-                      backgroundColor: "rgba(0,0,0,0.04)",
-                    },
-                  },
-                },
-                yearButton: {
-                  sx: {
-                    fontWeight: 700,
-                    "&.Mui-selected": {
-                      backgroundColor: "#58469f !important",
-                      color: "#fff !important",
-                    },
-                    "&.Mui-disabled": {
-                      color: "rgba(0,0,0,0.25) !important",
-                      opacity: 0.45,
-                      textDecoration: "line-through",
-                      backgroundColor: "rgba(0,0,0,0.04)",
-                    },
-                  },
-                },
-              }}
-            />
-          </LocalizationProvider>
-        </Box>
-      </DialogContent>
+                      {repTypes.map((item) => (
+                        <MenuItem key={item.fileName} value={item}>
+                          {item.reportName}
+                        </MenuItem>
+                      ))}
+                    </Select>
+                  </FormControl>
 
-      <DialogActions sx={{ p: 2, px: 3 }}>
-        <Button
-          onClick={handleReset}
-          color="inherit"
-          variant="outlined"
-          disabled={isApplying}
-        >
-          Reset Form
-        </Button>
-        <Button
-          onClick={handleApply}
-          color="primary"
-          variant="contained"
-          disabled={!isApplyEnabled || isApplying}
-        >
-          {isApplying ? "Applying..." : "Apply"}
-        </Button>
-      </DialogActions>
-    </Dialog>
+                  {/* Date Picker */}
+                  <FormControl sx={styles.formControl}>
+                    {/* Ensure adapterLocale is set to handle DD/MM logic naturally */}
+                    <LocalizationProvider
+                      dateAdapter={AdapterDayjs}
+                      adapterLocale="en-gb"
+                    >
+                      <DatePicker
+                        label="Select report date *"
+                        format="DD/MM/YYYY"
+                        views={["year", "month", "day"]}
+                        value={selectedDate}
+                        onChange={(newDate) => setDate(newDate)}
+                        // Explicitly set maxDate to Today
+                        maxDate={dayjs().endOf("day")}
+                        // Explicitly set minDate
+                        minDate={minDate}
+                        onError={(newError) => setDateError(newError)}
+                        disabled={repTypes.length === 0 || disableInputs}
+                        slotProps={{
+                          textField: {
+                            // Logic: If there is an error, show specific error msg.
+                            // If no error, show the range helper text to guide user.
+                            helperText: dateError
+                              ? getErrorMessage(dateError)
+                              : "",
+                            error: !!dateError,
+                            placeholder: "DD/MM/YYYY",
+                          },
+                          // Enhancement: Show days outside current month but verify they are disabled correctly
+                          day: {
+                            showDaysOutsideCurrentMonth: true,
+                          },
+                        }}
+                      />
+                    </LocalizationProvider>
+                  </FormControl>
+                </Box>
+              </Box>
+
+              <Box sx={styles.buttonContainer}>
+                <Button
+                  sx={styles.downloadButton}
+                  endIcon={<CloudDownloadTwoTone />}
+                  variant="contained"
+                  onClick={handleFetchReportData}
+                  disabled={
+                    disableInputs ||
+                    !selectedReport ||
+                    !selectedDate ||
+                    !!dateError
+                  }
+                >
+                  {isDownloading ? "Downloading..." : "Fetch & Download"}
+                </Button>
+
+                <Fade in={isDownloading} unmountOnExit>
+                  <Box sx={styles.progressContainer}>
+                    <Box sx={styles.progressHeader}>
+                      <Box sx={styles.progressIconWrapper}>
+                        <CloudDownloadTwoTone sx={styles.innerDownloadIcon} />
+                      </Box>
+                      <Box sx={styles.progressHeaderTextBox}>
+                        <Typography variant="body2" fontWeight={600}>
+                          Searching{" "}
+                          {selectedReport?.reportName ?? "the selected report"}{" "}
+                          for the period{" "}
+                          {selectedDate?.isValid()
+                            ? selectedDate.format("YYYY-MM-DD")
+                            : "an unknown period"}{" "}
+                          is in progress.
+                        </Typography>
+
+                        <Typography
+                          variant="caption"
+                          color="text.secondary"
+                          sx={styles.progressCaption}
+                        >
+                          {downloadedMB
+                            ? `Streaming report data… ${downloadedMB} MB received`
+                            : "Preparing your report stream…"}
+                        </Typography>
+                      </Box>
+
+                      {downloadedMB && (
+                        <CustomChip
+                          color="error"
+                          label={`${downloadedMB} MB downloaded`}
+                          variant="filled"
+                        />
+                      )}
+                    </Box>
+                    <LinearProgress
+                      variant="indeterminate"
+                      sx={styles.progressBar}
+                    />
+                  </Box>
+                </Fade>
+              </Box>
+            </Card>
+          </Stack>
+        </Box>
+      </Stack>
+    </Grow>
   );
 }
