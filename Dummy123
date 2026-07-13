@@ -1,16 +1,4 @@
-onInputChange={(event, newInputValue, reason) => {
-  // 1. ADD THIS BLOCK: If the reason is clear/reset, wipe the text state clean
-  if (reason === "clear" || reason === "reset" || !newInputValue) {
+if (reason === "clear" || (reason === "reset" && !head)) {
     setHeadInputValue("");
     return;
   }
-
-  // 2. Keep the rest of your original code exactly the same below it:
-  if (reason === "reset") return;
-
-  const filteredValue = newInputValue.replace(/[^a-zA-Z0-9 ]/g, "");
-
-  if (filteredValue !== headInputValue) {
-    setHeadInputValue(filteredValue);
-  }
-}}
