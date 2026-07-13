@@ -1,4 +1,4 @@
-const tableHeaders = Array.from(document.querySelectorAll("th")).map(th => th.innerText.trim()).filter(Boolean);
-const hierarchyHeaders = tableHeaders.slice(0, maxVisibleLevel + 1);
+const allHeaders = Array.from(document.querySelectorAll("th")).map(th => th.innerText.trim()).filter(Boolean);
+const hierarchyHeaders = allHeaders.slice(node.level, maxVisibleLevel + 1);
 const metricHeaders = activeMetrics.map((m) => m.displayName || m.logicalName);
 rows.push([...hierarchyHeaders, ...metricHeaders].join("\t"));
