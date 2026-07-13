@@ -1,1 +1,599 @@
 
+import React, { useState, useEffect, useMemo } from "react";
+import {
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
+  Button,
+  IconButton,
+  FormControl,
+  InputLabel,
+  Select,
+  MenuItem,
+  TextField,
+  Autocomplete,
+  Box,
+  Typography,
+  CircularProgress,
+  FormHelperText,
+  Grid,
+  Paper,
+  Stack,
+} from "@mui/material";
+import CloseIcon from "@mui/icons-material/Close";
+import InfoIcon from "@mui/icons-material/Info";
+import QueryStatsIcon from "@mui/icons-material/QueryStats";
+import { fetchHeads } from "../api/analyticsApi";
+import { LocalizationProvider } from "@mui/x-date-pickers/LocalizationProvider";
+import { AdapterDayjs } from "@mui/x-date-pickers/AdapterDayjs";
+import { DatePicker } from "@mui/x-date-pickers/DatePicker";
+import dayjs from "dayjs";
+
+export default function FilterDialog({
+  open,
+  onClose,
+  onApply,
+  reportsConfig = [],
+  currentFilters,
+  callApi,
+  user,
+  isApplying,
+}) {
+  const [reportCode, setReportCode] = useState("");
+  const [viewCode, setViewCode] = useState("");
+  const [head, setHead] = useState(null);
+  const [reportDate, setReportDate] = useState("");
+
+  // Entity State mapping
+  const [entity, setEntity] = useState(null);
+  const [entityInputValue, setEntityInputValue] = useState("");
+  const [entityOptions, setEntityOptions] = useState([]);
+  const [isEntityLoading, setIsEntityLoading] = useState(false);
+
+  const [headInputValue, setHeadInputValue] = useState("");
+  const [headOptions, setHeadOptions] = useState([]);
+  const [isHeadsLoading, setIsHeadsLoading] = useState(false);
+
+  const isCircleScope = viewCode.includes("CIRCLE");
+  const isBranchScope = viewCode.includes("BRANCH");
+  const minLimit = dayjs("2026-03-31");
+
+  const [etlDate, setEtlDate] = useState(null);
+  const [balanceDateError, setBalanceDateError] = useState(null);
+
+  const getDateErrorMessage = (field, error) => {
+    switch (error) {
+      case "maxDate":
+        return `${field} cannot be in future`;
+      case "minDate":
+        return `${field} cannot be before ${minLimit.format("DD/MM/YYYY")}`;
+      case "invalidDate":
+        return `Please enter a valid ${field}`;
+      default:
+        return "";
+    }
+  };
+
+  const validationMessages = useMemo(() => {
+    return [
+      balanceDateError && getDateErrorMessage("Balance Date", balanceDateError),
+    ].filter(Boolean);
+  }, [balanceDateError]);
+
+  // Sync state when dialog opens
+  useEffect(() => {
+    if (open) {
+      setReportCode(currentFilters?.reportCode || "");
+      setViewCode(currentFilters?.viewCode || "");
+      setHead(currentFilters?.head || null);
+      setReportDate(currentFilters?.reportDate || "");
+
+      // Restore Head
+      if (currentFilters?.head) {
+        setHeadInputValue(
+          `${currentFilters.head.headCode} - ${currentFilters.head.headName}`
+        );
+        setHeadOptions([currentFilters.head]);
+      } else {
+        setHeadInputValue("");
+        setHeadOptions([]);
+      }
+
+      // Restore Entity
+      if (currentFilters?.entityCode && currentFilters?.entityName) {
+        setEntity({
+          code: currentFilters.entityCode,
+          name: currentFilters.entityName,
+        });
+        setEntityInputValue(
+          `${currentFilters.entityCode} - ${currentFilters.entityName}`
+        );
+      } else {
+        setEntity(null);
+        setEntityInputValue("");
+        setEntityOptions([]);
+      }
+    }
+  }, [open, currentFilters]);
+
+  // Derived available Scopes directly from Config Views
+  const availableViews = useMemo(() => {
+    if (!reportCode) return [];
+    const report = reportsConfig.find((r) => r.reportCode === reportCode);
+    return report?.views || [];
+  }, [reportCode, reportsConfig]);
+
+  // --- ENTITY FETCHING LOGIC ---
+  useEffect(() => {
+    const delayDebounceFn = setTimeout(async () => {
+      if (entityInputValue && entityInputValue.length >= 2) {
+        setIsEntityLoading(true);
+        try {
+          let response;
+          let mappedData = [];
+
+          if (isCircleScope) {
+            response = await callApi(`/CM/common-master/circle-codes`, {}, "GET");
+            const data = response?.data || [];
+            mappedData = data.map((c) => ({
+              code: c.circleCode,
+              name: c.circleName,
+            }));
+          } else if (isBranchScope) {
+            response = await callApi(
+              `/CM/common-master/branches-code-name-only?q=${entityInputValue}&circleCode=`,
+              {},
+              "GET"
+            );
+            const data = response?.data || [];
+            mappedData = data.map((b) => ({ code: b.code, name: b.name }));
+          }
+
+          setEntityOptions(mappedData);
+        } catch (error) {
+          console.error("Error fetching entities:", error);
+          setEntityOptions([]);
+        } platform;
+        finally {
+          setIsEntityLoading(false);
+        }
+      } else {
+        setEntityOptions(entity ? [entity] : []);
+      }
+    }, 500);
+
+    return () => clearTimeout(delayDebounceFn);
+  }, [entityInputValue, isCircleScope, isBranchScope, callApi, entity]);
+
+  // --- HEAD CODE FETCHING LOGIC ---
+  useEffect(() => {
+    const delayDebounceFn = setTimeout(async () => {
+      if (headInputValue && headInputValue.length >= 2 && reportCode) {
+        setIsHeadsLoading(true);
+        const data = await fetchHeads(callApi, reportCode, headInputValue);
+        setHeadOptions(data);
+        setIsHeadsLoading(false);
+      } else {
+        setHeadOptions(head ? [head] : []);
+      }
+    }, 500);
+    return () => clearTimeout(delayDebounceFn);
+  }, [headInputValue, reportCode, callApi, head]);
+
+  // --- SYSTEM DATE FETCHING LOGIC ---
+  useEffect(() => {
+    const fetchSystemDate = async () => {
+      if (!open) return;
+      try {
+        const dateRes = await callApi("/PS/file/fincore-date", {}, "GET");
+        const etlRaw = dateRes?.data?.userDate;
+        const etl = etlRaw ? dayjs(etlRaw.split("T")[0]) : dayjs();
+        setEtlDate(etl);
+      } catch (e) {
+        console.error("Date error:", e);
+        setEtlDate(dayjs());
+      }
+    };
+    fetchSystemDate();
+  }, [open, callApi]);
+
+  const handleReset = () => {
+    setReportCode("");
+    setViewCode("");
+    setHead(null);
+    setHeadInputValue("");
+    setHeadOptions([]);
+    setEntity(null);
+    setEntityInputValue("");
+    setEntityOptions([]);
+    setReportDate("");
+    setBalanceDateError(null);
+  };
+
+  const handleApply = () => {
+    onApply({
+      reportCode,
+      viewCode,
+      head,
+      entityCode: entity?.code || "",
+      entityName: entity?.name || "",
+      reportDate,
+    });
+  };
+
+  const isApplyEnabled = useMemo(() => {
+    if (!reportCode || !viewCode || !head?.headCode || !reportDate || !!balanceDateError) {
+      return false;
+    }
+
+    const selectedDate = dayjs(reportDate);
+    const maxLimit = etlDate || dayjs();
+
+    const isValidRange =
+      selectedDate.isValid() &&
+      !selectedDate.isAfter(maxLimit, "day") &&
+      !selectedDate.isBefore(minLimit, "day");
+
+    if (!isValidRange) return false;
+    if (isCircleScope || isBranchScope) return !!entity?.code;
+    return true;
+  }, [reportCode, viewCode, head, entity, reportDate, isCircleScope, isBranchScope, etlDate, balanceDateError]);
+
+  return (
+    <Dialog open={open} onClose={onClose} maxWidth="sm" fullWidth>
+      <DialogTitle
+        sx={{
+          display: "flex",
+          justifyContent: "space-between",
+          alignItems: "center",
+          gap: 2,
+        }}
+      >
+        <Typography
+          variant="h6"
+          fontWeight="bold"
+          sx={{ display: "flex", alignItems: "center", gap: 2 }}
+        >
+          <QueryStatsIcon /> Drill Down Filters
+        </Typography>
+        <IconButton onClick={onClose} size="small" disabled={isApplying}>
+          <CloseIcon />
+        </IconButton>
+      </DialogTitle>
+
+      <DialogContent dividers>
+        <Box display="flex" flexDirection="column" gap={3} py={1}>
+          {/* Report Code Selection */}
+          <FormControl size="small" fullWidth>
+            <InputLabel id="dialog-report-label">Select Report</InputLabel>
+            <Select
+              labelId="dialog-report-label"
+              value={reportCode}
+              label="Select Report"
+              disabled={isApplying}
+              onChange={(e) => {
+                setReportCode(e.target.value);
+                setViewCode("");
+                setHead(null);
+                setHeadInputValue("");
+                setHeadOptions([]);
+                setEntity(null);
+                setEntityInputValue("");
+                setEntityOptions([]);
+              }}
+            >
+              {reportsConfig.map((report) => (
+                <MenuItem key={report.reportCode} value={report.reportCode}>
+                  {report.displayName}
+                </MenuItem>
+              ))}
+            </Select>
+            <FormHelperText
+              id="scope-helper-text"
+              sx={{
+                fontStyle: "italic",
+                fontSize: "0.75rem",
+                display: "flex",
+                alignItems: "center",
+                gap: "4px",
+                lineHeight: 1.5,
+              }}
+            >
+              <InfoIcon sx={{ fontSize: "0.625rem" }} />
+              Please select a report to initiate drill-down analysis.
+            </FormHelperText>
+          </FormControl>
+
+          {/* Head Code Autocomplete */}
+          <Autocomplete
+            size="small"
+            options={headOptions}
+            inputValue={headInputValue}
+            value={head}
+            getOptionLabel={(option) =>
+              option ? `${option.headCode} - ${option.headName}` : ""
+            }
+            onChange={(event, newValue) => setHead(newValue)}
+            onInputChange={(event, newInputValue, reason) => {
+              if (reason === "reset") return;
+              const filteredValue = newInputValue.replace(/[^a-zA-Z0-9 ]/g, "");
+              if (filteredValue !== headInputValue) {
+                setHeadInputValue(filteredValue);
+              }
+            }}
+            loading={isHeadsLoading}
+            disabled={!reportCode || isApplying}
+            renderInput={(params) => (
+              <TextField
+                {...params}
+                label="Search Head Code"
+                variant="outlined"
+                InputProps={{
+                  ...params.InputProps,
+                  endAdornment: (
+                    <React.Fragment>
+                      {isHeadsLoading ? (
+                        <CircularProgress color="inherit" size={20} />
+                      ) : null}
+                      {params.InputProps.endAdornment}
+                    </React.Fragment>
+                  ),
+                }}
+                helperText={
+                  <span style={{ display: "flex", alignItems: "center", gap: "4px" }}>
+                    <InfoIcon sx={{ fontSize: "0.625rem" }} />
+                    <em>Enter at least 2 letters or numbers to search.</em>
+                  </span>
+                }
+              />
+            )}
+          />
+
+          {/* Scope Selection */}
+          <FormControl size="small" fullWidth disabled={!reportCode || isApplying}>
+            <InputLabel id="dialog-scope-label">Scope</InputLabel>
+            <Select
+              labelId="dialog-scope-label"
+              value={viewCode}
+              label="Scope"
+              onChange={(e) => {
+                setViewCode(e.target.value);
+                setEntity(null);
+              }}
+            >
+              {availableViews.map((view) => (
+                <MenuItem key={view.viewCode} value={view.viewCode}>
+                  {view.displayName}
+                </MenuItem>
+              ))}
+            </Select>
+            <FormHelperText
+              id="scope-helper-text"
+              sx={{
+                fontStyle: "italic",
+                fontSize: "0.75rem",
+                display: "flex",
+                alignItems: "center",
+                gap: "4px",
+                lineHeight: 1.5,
+              }}
+            >
+              <InfoIcon sx={{ fontSize: "0.625rem" }} />
+              View scope is determined by your authorized access level.
+            </FormHelperText>
+          </FormControl>
+
+          {/* Conditional Autocomplete for Circle/Branch */}
+          {(isCircleScope || isBranchScope) && (
+            <Autocomplete
+              size="small"
+              options={entityOptions}
+              inputValue={entityInputValue}
+              value={entity}
+              getOptionLabel={(option) =>
+                option ? `${option.code} - ${option.name}` : ""
+              }
+              onChange={(event, newValue) => setEntity(newValue)}
+              onInputChange={(event, newInputValue, reason) => {
+                if (reason === "reset") return;
+                const filteredValue = newInputValue.replace(/[^a-zA-Z0-9 ]/g, "");
+                if (filteredValue !== entityInputValue) {
+                  setEntityInputValue(filteredValue);
+                }
+              }}
+              loading={isEntityLoading}
+              disabled={isApplying}
+              renderInput={(params) => (
+                <TextField
+                  {...params}
+                  label={`Search ${isCircleScope ? "Circle" : "Branch"}`}
+                  variant="outlined"
+                  inputProps={{
+                    ...params.inputProps,
+                    autoComplete: "off",
+                  }}
+                  InputProps={{
+                    ...params.InputProps,
+                    endAdornment: (
+                      <React.Fragment>
+                        {isEntityLoading ? (
+                          <CircularProgress color="inherit" size={20} />
+                        ) : null}
+                        {params.InputProps.endAdornment}
+                      </React.Fragment>
+                    ),
+                  }}
+                  helperText={
+                    <span style={{ display: "flex", alignItems: "center", gap: "4px" }}>
+                      <InfoIcon sx={{ fontSize: "0.625rem" }} />
+                      <em>
+                        Type at least 2 alphanumeric characters to find a {isCircleScope ? "circle" : "branch"}.
+                      </em>
+                    </span>
+                  }
+                />
+              )}
+            />
+          )}
+
+          {/* Report Date Picker */}
+          <LocalizationProvider dateAdapter={AdapterDayjs}>
+            <DatePicker
+              label="Report Date"
+              value={reportDate ? dayjs(reportDate) : null}
+              format="YYYY-MM-DD"
+              minDate={minLimit}
+              maxDate={etlDate || dayjs()}
+              views={["year", "month", "day"]}
+              disabled={!reportCode || isApplying}
+              onChange={(newValue) => {
+                if (newValue && newValue.isValid()) {
+                  let correctedValue = newValue;
+                  // Handle manual typed inputs for 2-digit years (e.g. 26 -> 2026)
+                  if (correctedValue.year() < 100) {
+                    correctedValue = correctedValue.set("year", correctedValue.year() + 2000);
+                  }
+                  setReportDate(correctedValue.format("YYYY-MM-DD"));
+                } else {
+                  setReportDate("");
+                }
+              }}
+              onError={(error) => {
+                setBalanceDateError(error || null);
+              }}
+              slotProps={{
+                textField: {
+                  size: "small",
+                  fullWidth: true,
+                  placeholder: "YYYY-MM-DD",
+                  error: !!balanceDateError,
+                  sx: {
+                    bgcolor: "white",
+                    borderRadius: 1,
+                  },
+                  helperText: (
+                    <span
+                      style={{
+                        fontStyle: "italic",
+                        fontSize: "0.75rem",
+                        display: "flex",
+                        alignItems: "center",
+                        gap: "4px",
+                        marginTop: "4px",
+                      }}
+                    >
+                      <InfoIcon sx={{ fontSize: "0.625rem" }} />
+                      Please select a date to initiate drill-down analysis.
+                    </span>
+                  ),
+                },
+                day: {
+                  sx: {
+                    fontWeight: 600,
+                    "&.MuiPickersDay-root": { color: "#111" },
+                    "&.MuiPickersDay-today": {
+                      border: "2px solid #58469f",
+                      fontWeight: 800,
+                    },
+                    "&.Mui-selected": {
+                      backgroundColor: "#58469f !important",
+                      color: "#fff !important",
+                      fontWeight: 800,
+                    },
+                    "&:hover": {
+                      backgroundColor: "rgba(88,70,159,0.08)",
+                    },
+                    "&.Mui-disabled": {
+                      color: "rgba(0,0,0,0.25) !important",
+                      backgroundColor: "rgba(0,0,0,0.04)",
+                      opacity: 0.45,
+                      textDecoration: "line-through",
+                    },
+                  },
+                },
+                monthButton: {
+                  sx: {
+                    fontWeight: 700,
+                    "&.Mui-selected": {
+                      backgroundColor: "#58469f !important",
+                      color: "#fff !important",
+                    },
+                    "&.Mui-disabled": {
+                      color: "rgba(0,0,0,0.25) !important",
+                      opacity: 0.45,
+                      textDecoration: "line-through",
+                      backgroundColor: "rgba(0,0,0,0.04)",
+                    },
+                  },
+                },
+                yearButton: {
+                  sx: {
+                    fontWeight: 700,
+                    "&.Mui-selected": {
+                      backgroundColor: "#58469f !important",
+                      color: "#fff !important",
+                    },
+                    "&.Mui-disabled": {
+                      color: "rgba(0,0,0,0.25) !important",
+                      opacity: 0.45,
+                      textDecoration: "line-through",
+                      backgroundColor: "rgba(0,0,0,0.04)",
+                    },
+                  },
+                },
+              }}
+            />
+          </LocalizationProvider>
+        </Box>
+
+        {/* Global Error Notice Segment */}
+        <Grid item xs={12}>
+          {validationMessages.length > 0 && (
+            <Paper
+              sx={{
+                mt: 2,
+                p: 1.5,
+                borderRadius: 2,
+                border: "1px solid",
+                borderColor: "#ff4d4f",
+                bgcolor: "#fff1f0",
+              }}
+            >
+              <Stack spacing={0.5}>
+                {validationMessages.map((msg, index) => (
+                  <Typography
+                    key={index}
+                    variant="body2"
+                    sx={{ color: "#d32f2f", fontWeight: 600 }}
+                  >
+                    • {msg}
+                  </Typography>
+                ))}
+              </Stack>
+            </Paper>
+          )}
+        </Grid>
+      </DialogContent>
+
+      <DialogActions sx={{ p: 2, px: 3 }}>
+        <Button
+          onClick={handleReset}
+          color="inherit"
+          variant="outlined"
+          disabled={isApplying}
+        >
+          Reset Form
+        </Button>
+        <Button
+          onClick={handleApply}
+          color="primary"
+          variant="contained"
+          disabled={!isApplyEnabled || isApplying}
+        >
+          {isApplying ? "Applying..." : "Apply"}
+        </Button>
+      </DialogActions>
+    </Dialog>
+  );
+}
