@@ -1,1 +1,4 @@
 
+const hierarchyHeaders = Array.from({ length: maxVisibleLevel + 1 }).map((_, idx) => `Level ${idx + 1}`);
+const metricHeaders = activeMetrics.map((m) => m.displayName || m.logicalName);
+rows.push([...hierarchyHeaders, ...metricHeaders].join("\t"));
