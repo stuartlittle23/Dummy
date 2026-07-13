@@ -1,15 +1,19 @@
-const [dateError, setDateError] = useState(null);
 const dateValidation = useMemo(() => {
-  // 1. If MUI flags an internal validation error (like invalidDate for 0000/0001), catch it immediately!
-  if (dateError === "invalidDate") {
-    return { error: true, text: "Please enter a valid date format (DD/MM/YYYY)." };
-  }
-
-  // 2. Your original check for an empty selection
+  // 1. CLEAR SAFETY CHECK: If reportDate is totally empty, show prompt
   if (!reportDate) {
     return { error: false, text: "Please select a date to initiate drill-down analysis." };
   }
 
+  // 2. THE PERMANENT FIX: Check the raw string representation of the date 
+  // It handles text formats like "15/03/0002" or "0002-03-15" perfectly while typing
+  const dateStr = String(reportDate); 
+  const hasInvalidYear = /(?:[\/\.-]000[0-3])|(?:^000[0-3])/.test(dateStr);
+
+  if (hasInvalidYear) {
+    return { error: true, text: "Date cannot be before 31st March 2026." };
+  }
+
+  // 3. Fall back to your original dayjs validation for standard values
   const selectedDate = dayjs(reportDate);
   const maxLimit = etlDate || dayjs();
 
@@ -26,22 +30,4 @@ const dateValidation = useMemo(() => {
   }
 
   return { error: false, text: "Report date verified and valid within authorized bounds." };
-}, [reportDate, etlDate, dateError]); // <-- Make sure to add dateError as a dependency
-
-
-
-
-
-<DatePicker
-  label="Report Date"
-  value={reportDate}
-  onChange={(newValue) => setReportDate(newValue)}
-  onError={(newError) => setDateError(newError)} // <-- This captures "invalidDate" for 0000 or 0001
-  slotProps={{
-    textField: {
-      error: dateValidation.error,
-      helperText: dateValidation.text,
-    },
-  }}
-/>
-
+}, [reportDate, etlDate]);
