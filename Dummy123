@@ -1,1 +1,165 @@
+import { createSlice } from "@reduxjs/toolkit";
+
+const uiSlice = createSlice({
+  name: "ui",
+  initialState: {
+    // Read directly from sessionStorage on load. If it doesn't exist, default to false.
+    isComponentFullscreen: sessionStorage.getItem("isComponentFullscreen") === "true",
+    isShowComponentTitle: true,
+  },
+  reducers: {
+    enterComponentFullscreen(state) {
+      state.isComponentFullscreen = true;
+      sessionStorage.setItem("isComponentFullscreen", "true");
+    },
+    exitComponentFullscreen(state) {
+      state.isComponentFullscreen = false;
+      sessionStorage.setItem("isComponentFullscreen", "false");
+    },
+    hideComponentTitle(state) {
+      state.isShowComponentTitle = false;
+    },
+    showComponentTitle(state) {
+      state.isShowComponentTitle = true;
+    },
+  },
+});
+
+export const {
+  enterComponentFullscreen,
+  exitComponentFullscreen,
+  hideComponentTitle,
+  showComponentTitle,
+} = uiSlice.actions;
+
+export default uiSlice.reducer;
+
+
+
+
+
+import React, { useMemo, useState, useCallback, useEffect } from "react";
+import { Box, Paper } from "@mui/material";
+import { Outlet } from "react-router-dom";
+import { useSelector } from "react-redux";
+
+import LayoutHeader from "../components/LayoutHeader";
+import SideBar from "../components/SideBar/SideBar";
+import { getParentMenu } from "../utils/CommonUtilities";
+import { getIconComponent } from "../utils/IconUtils";
+import useNavigateToPage from "../hooks/useNavigateToPage";
+import AppBreadcrumbs from "./AppBreadcrumbs";
+
+const drawerWidth = 270;
+
+const CommonLayout = () => {
+  const selectedMenuItem = useSelector((state) => state.menus.selectedMenuItem);
+  const menus = useSelector((state) => state.menus.menus);
+  
+  // Read persistent fullscreen state
+  const isComponentFullscreen = useSelector(
+    (state) => state.ui.isComponentFullscreen
+  );
+
+  const [mobileOpen, setMobileOpen] = useState(false);
+  const [showComponentTitle, setShowComponentTitle] = useState(true);
+  const { navigateToPage } = useNavigateToPage();
+
+  const handleDrawerToggle = useCallback(() => {
+    setMobileOpen((prev) => !prev);
+  }, []);
+
+  const title = useMemo(() => {
+    if (!selectedMenuItem) return "";
+
+    if (Object.hasOwn(selectedMenuItem, "hasChildren")) {
+      return selectedMenuItem.title;
+    }
+
+    const parentMenu = getParentMenu(selectedMenuItem, menus);
+    if (!parentMenu) return selectedMenuItem.title;
+
+    return `${parentMenu.title} > ${selectedMenuItem.title}`;
+  }, [menus, selectedMenuItem]);
+
+  // Reset title component visibility on route switch
+  useEffect(() => {
+    if (!showComponentTitle) {
+      setShowComponentTitle(true);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedMenuItem]);
+
+  const outletContextValue = useMemo(() => ({ setShowComponentTitle }), []);
+
+  return (
+    <Box
+      sx={{
+        display: "flex",
+        minHeight: "100vh",
+        backgroundColor: (theme) => theme.palette.background.default,
+      }}
+    >
+      {/* Sidebar and Header are cleanly omitted in Fullscreen Mode */}
+      {!isComponentFullscreen && (
+        <>
+          <LayoutHeader
+            drawerWidth={drawerWidth}
+            title={title}
+            navigateToPage={navigateToPage}
+            handleDrawerToggle={handleDrawerToggle}
+          />
+          <SideBar
+            drawerWidth={drawerWidth}
+            getIconComponent={getIconComponent}
+            mobileOpen={mobileOpen}
+            handleDrawerToggle={handleDrawerToggle}
+          />
+        </>
+      )}
+
+      {/* Main Content Area */}
+      <Box
+        component="main"
+        sx={{
+          flexGrow: 1,
+          // Adapts to 100% width and removes top layout padding automatically in Fullscreen
+          width: isComponentFullscreen
+            ? "100%"
+            : { xs: "100%", md: `calc(100% - ${drawerWidth}px)` },
+          p: isComponentFullscreen ? 0 : { xs: 2, sm: 3, md: 4 },
+          pt: isComponentFullscreen ? 0 : { xs: 9, sm: 10, md: 11 },
+          minHeight: isComponentFullscreen ? "100vh" : "calc(100vh - 88px)",
+          transition: "all 0.3s ease-in-out",
+          overflowX: "hidden",
+        }}
+      >
+        <Box sx={{ width: "100%", maxWidth: "100%" }}>
+          {showComponentTitle && !isComponentFullscreen && (
+            <Paper
+              elevation={2}
+              sx={{
+                p: { xs: 1.5, sm: 2 },
+                mb: { xs: 2, md: 4 },
+                borderRadius: 1,
+              }}
+            >
+              <AppBreadcrumbs />
+            </Paper>
+          )}
+
+          <Box sx={{ width: "100%", overflowX: "auto" }}>
+            <Outlet context={outletContextValue} />
+          </Box>
+        </Box>
+      </Box>
+    </Box>
+  );
+};
+
+export default React.memo(CommonLayout);
+
+
+
+
 
