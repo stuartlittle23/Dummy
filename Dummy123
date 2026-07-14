@@ -1,8 +1,3 @@
-/**
- * Dynamic Menus Route Renderer
- * 
- * @author v1018404
- */
 
 import React, { useMemo, Suspense } from "react";
 import { createBrowserRouter, RouterProvider } from "react-router-dom";
@@ -31,12 +26,6 @@ const PageLoader = () => (
     Loading...
   </div>
 );
-
-/**
- * Dynamic Menus Route Renderer
- * 
- * @author v1018404
- */
 
 
 const AppRouter = () => {
@@ -237,3 +226,240 @@ const AppRouter = () => {
 };
 
 export default AppRouter;
+
+
+
+
+
+import React, { useMemo, useState, useCallback, useEffect } from "react";
+import { Box, Paper, Typography } from "@mui/material";
+import { Outlet } from "react-router-dom";
+import { useSelector } from "react-redux";
+import LayoutHeader from "../components/LayoutHeader";
+import SideBar from "../components/SideBar/SideBar";
+import { getParentMenu } from "../utils/CommonUtilities";
+import { getIconComponent } from "../utils/IconUtils";
+import useNavigateToPage from "../hooks/useNavigateToPage";
+
+const drawerWidth = 270;
+
+const UnifiedLayout = () => {
+  const selectedMenuItem = useSelector((state) => state.menus.selectedMenuItem);
+  const menus = useSelector((state) => state.menus.menus);
+  const isComponentFullscreen = useSelector(
+    (state) => state.ui.isComponentFullscreen
+  );
+
+  const [mobileOpen, setMobileOpen] = useState(false);
+  const [showComponentTitle, setShowComponentTitle] = useState(true);
+  const { navigateToPage } = useNavigateToPage();
+
+  const handleDrawerToggle = useCallback(() => {
+    setMobileOpen((prev) => !prev);
+  }, []);
+
+  const title = useMemo(() => {
+    if (!selectedMenuItem) return "";
+
+    if (Object.hasOwn(selectedMenuItem, "hasChildren")) {
+      return selectedMenuItem.title;
+    }
+
+    const parentMenu = getParentMenu(selectedMenuItem, menus);
+    if (!parentMenu) return selectedMenuItem.title;
+
+    return `${parentMenu.title} > ${selectedMenuItem.title}`;
+  }, [menus, selectedMenuItem]);
+
+  useEffect(() => {
+    if (!showComponentTitle) {
+      setShowComponentTitle(true);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedMenuItem]);
+
+  return (
+    <Box
+      sx={{
+        display: "flex",
+        minHeight: "100vh",
+      }}
+    >
+      {!isComponentFullscreen && (
+        <>
+          <LayoutHeader
+            drawerWidth={drawerWidth}
+            title={title}
+            navigateToPage={navigateToPage}
+            handleDrawerToggle={handleDrawerToggle}
+          />
+
+          <SideBar
+            drawerWidth={drawerWidth}
+            getIconComponent={getIconComponent}
+            mobileOpen={mobileOpen}
+            handleDrawerToggle={handleDrawerToggle}
+          />
+        </>
+      )}
+
+      <Box
+        component="main"
+        sx={{
+          flexGrow: 1,
+          width: isComponentFullscreen
+            ? "100%"
+            : { xs: "100%", md: `calc(100% - ${drawerWidth}px)` },
+          p: isComponentFullscreen ? 0 : 3,
+          pt: isComponentFullscreen ? 0 : 11,
+          minHeight: isComponentFullscreen ? "100vh" : "calc(100vh - 88px)",
+          transition: "all 0.3s ease-in-out",
+        }}
+      >
+        <Box>
+          {showComponentTitle && !isComponentFullscreen && (
+            <Paper
+              elevation={2}
+              sx={{
+                p: 2,
+                mb: 4,
+                borderRadius: 1,
+              }}
+            >
+              <Typography
+                variant="h4"
+                color="textPrimary"
+                sx={{
+                  fontWeight: 700,
+                  letterSpacing: "-0.02em",
+                }}
+              >
+                {title}
+              </Typography>
+            </Paper>
+          )}
+
+          <Box>
+            <Outlet context={{ setShowComponentTitle }} />
+          </Box>
+        </Box>
+      </Box>
+    </Box>
+  );
+};
+
+export default React.memo(UnifiedLayout);
+
+
+
+import React, { useMemo, useState, useCallback } from "react";
+import { Box, Paper } from "@mui/material";
+import { Outlet } from "react-router-dom";
+import { useSelector } from "react-redux";
+
+import LayoutHeader from "../components/LayoutHeader";
+import SideBar from "../components/SideBar/SideBar";
+import { getParentMenu } from "../utils/CommonUtilities";
+import { getIconComponent } from "../utils/IconUtils";
+import useNavigateToPage from "../hooks/useNavigateToPage";
+import AppBreadcrumbs from "./AppBreadcrumbs";
+
+const drawerWidth = 270;
+
+const CommonLayout = () => {
+  const selectedMenuItem = useSelector((state) => state.menus.selectedMenuItem);
+  const menus = useSelector((state) => state.menus.menus);
+
+  const [mobileOpen, setMobileOpen] = useState(false);
+  const [showComponentTitle, setShowComponentTitle] = useState(true);
+  const { navigateToPage } = useNavigateToPage();
+
+  const handleDrawerToggle = useCallback(() => {
+    setMobileOpen((prev) => !prev);
+  }, []);
+
+  const title = useMemo(() => {
+    if (!selectedMenuItem) return "";
+
+    if (Object.hasOwn(selectedMenuItem, "hasChildren")) {
+      // Top-level menu
+      return selectedMenuItem.title;
+    }
+
+    const parentMenu = getParentMenu(selectedMenuItem, menus);
+
+    if (!parentMenu) return selectedMenuItem.title;
+
+    return `${parentMenu.title} > ${selectedMenuItem.title}`;
+  }, [menus, selectedMenuItem]);
+
+  const outletContextValue = useMemo(() => ({ setShowComponentTitle }), []);
+
+  return (
+    <Box
+      sx={{
+        display: "flex",
+        minHeight: "100vh",
+        // Optional: Adds a subtle background contrast behind your paper components
+        backgroundColor: (theme) => theme.palette.background.default,
+      }}
+    >
+      {/* Header */}
+      <LayoutHeader
+        drawerWidth={drawerWidth}
+        title={title}
+        navigateToPage={navigateToPage}
+        handleDrawerToggle={handleDrawerToggle}
+      />
+
+      {/* Sidebar */}
+      <SideBar
+        drawerWidth={drawerWidth}
+        getIconComponent={getIconComponent}
+        mobileOpen={mobileOpen}
+        handleDrawerToggle={handleDrawerToggle}
+      />
+
+      {/* Main Content */}
+      <Box
+        component="main"
+        sx={{
+          flexGrow: 1,
+          // Width: Full width on mobile/tablet portrait (xs, sm), minus sidebar on laptop/desktop (md and up)
+          width: { xs: "100%", md: `calc(100% - ${drawerWidth}px)` },
+          // Padding: smaller on mobile (16px), medium on tablets (24px), larger on desktop (32px)
+          p: { xs: 2, sm: 3, md: 4 },
+          // Padding Top: Accounts for variable height of the AppBar across devices
+          pt: { xs: 9, sm: 10, md: 11 },
+          minHeight: "calc(100vh - 88px)",
+          // Prevents horizontal scrolling issues if a child element is too wide on mobile
+          overflowX: "hidden",
+        }}
+      >
+        <Box sx={{ width: "100%", maxWidth: "100%" }}>
+          {showComponentTitle && (
+            <Paper
+              elevation={2}
+              sx={{
+                // Responsive padding and margin for the breadcrumbs container
+                p: { xs: 1.5, sm: 2 },
+                mb: { xs: 2, md: 4 },
+                borderRadius: 1,
+              }}
+            >
+              {/* Breadcrumbs */}
+              <AppBreadcrumbs />
+            </Paper>
+          )}
+
+          {/* Inner box with overflow-x to allow data tables/grids to scroll horizontally on small screens */}
+          <Box sx={{ width: "100%", overflowX: "auto" }}>
+            <Outlet context={outletContextValue} />
+          </Box>
+        </Box>
+      </Box>
+    </Box>
+  );
+};
+
+export default CommonLayout;
