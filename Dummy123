@@ -1,132 +1,239 @@
-import React, { useMemo, useState, useCallback, useEffect } from "react";
-import { Box, Paper } from "@mui/material";
-import { Outlet } from "react-router-dom";
-import { useSelector } from "react-redux";
-
-import LayoutHeader from "../components/LayoutHeader";
-import SideBar from "../components/SideBar/SideBar";
-import { getParentMenu } from "../utils/CommonUtilities";
-import { getIconComponent } from "../utils/IconUtils";
-import useNavigateToPage from "../hooks/useNavigateToPage";
-import AppBreadcrumbs from "./AppBreadcrumbs"; // Preserving your breadcrumbs!
-
-const drawerWidth = 270;
-
 /**
- * Common Layout used across App
+ * Dynamic Menus Route Renderer
  * 
  * @author v1018404
  */
-const CommonLayout = () => {
-  const selectedMenuItem = useSelector((state) => state.menus.selectedMenuItem);
+
+import React, { useMemo, Suspense } from "react";
+import { createBrowserRouter, RouterProvider } from "react-router-dom";
+import { useSelector } from "react-redux";
+import PrivateRouter from "./PrivateRouter";
+
+// Page Components
+import Home from "../pages/Home";
+import NotFound from "../pages/NotFound";
+import ServerError from "../pages/ServerError";
+import UnifiedLayout from "../layout/UnifiedLayout"; // <-- Assumed path based on standard structures
+import SubmenuSelectionPage from "../pages/SubmenuSelectionPage";
+import { generateRouteObjects } from "./RouteGenerator";
+import Help from "../features/help/Help";
+import LaunchScreen from "../components/live-countdown/components/LaunchScreen";
+
+const PageLoader = () => (
+  <div
+    style={{
+      display: "flex",
+      height: "100vh",
+      justifyContent: "center",
+      alignItems: "center",
+    }}
+  >
+    Loading...
+  </div>
+);
+
+/**
+ * Dynamic Menus Route Renderer
+ * 
+ * @author v1018404
+ */
+
+
+const AppRouter = () => {
   const menus = useSelector((state) => state.menus.menus);
-  
-  // 1. ADDED: Fullscreen state from Redux
+
+  const router = useMemo(() => {
+    const dynamicRoutes = generateRouteObjects(menus || []);
+
+    const routeConfig = [
+      {
+        path: "/",
+        element: <LaunchScreen />,
+        errorElement: <ServerError />,
+      },
+      {
+        path: "/server-error",
+        element: <ServerError />,
+      },
+      // Protected Routes
+      {
+        element: <PrivateRouter />,
+        children: [
+          {
+            element: <UnifiedLayout />, 
+            children: [
+              { path: "/home", element: <Home /> },
+              { path: "/help", element: <Help /> },
+              {
+                path: "/choose-option/:mainMenuTitle",
+                element: <SubmenuSelectionPage />,
+              },
+              ...dynamicRoutes,
+            ],
+          },
+        ].filter(Boolean),
+      },
+      {
+        path: "*",
+        element: <NotFound />,
+      },
+    ];
+
+    return createBrowserRouter(routeConfig);
+  }, [menus]);
+
+  return (
+    <Suspense fallback={<PageLoader />}>
+      <RouterProvider router={router} />
+    </Suspense>
+  );
+};
+
+export default AppRouter;
+
+
+
+
+
+
+import React, { useMemo, Suspense } from "react";
+import { createBrowserRouter, RouterProvider, Outlet } from "react-router-dom";
+import { useSelector } from "react-redux";
+import { Box, CircularProgress, Typography } from "@mui/material";
+import PrivateRouter from "./PrivateRouter";
+
+// Page Components
+import Home from "../pages/Home";
+import NotFound from "../pages/NotFound";
+import ServerError from "../pages/ServerError";
+import CommonLayout from "../layout/CommonLayout";
+import FullscreenLayout from "../layout/FullscreenLayout";
+import SubmenuSelectionPage from "../pages/SubmenuSelectionPage";
+
+import { generateRouteObjects } from "./RouteGenerator";
+import Help from "../features/help/Help";
+import LaunchScreen from "../components/live-countdown/components/LaunchScreen";
+import UnifiedLayout from "../layout/UnifiedLayout";
+
+// PREMIUM GLASSMORPHISM PAGE LOADER
+const PageLoader = () => (
+  <Box
+    sx={{
+      position: "fixed",
+      inset: 0,
+      display: "flex",
+      flexDirection: "column",
+      justifyContent: "center",
+      alignItems: "center",
+      background:
+        "linear-gradient(to bottom right, rgba(20, 20, 30, 0.95), rgba(10, 10, 15, 0.98))",
+      zIndex: 9999,
+      gap: 3,
+    }}
+  >
+    {/* Concentric Glow Container */}
+    <Box sx={{ position: "relative", display: "inline-flex" }}>
+      <CircularProgress
+        size={64}
+        thickness={4.5}
+        sx={{
+          color: "primary.main",
+          filter: "drop-shadow(0px 0px 12px rgba(25, 118, 210, 0.5))",
+        }}
+      />
+    </Box>
+    <Typography
+      variant="body2"
+      sx={{
+        color: "rgba(255, 255, 255, 0.7)",
+        fontWeight: 500,
+        letterSpacing: "1px",
+        textTransform: "uppercase",
+        fontSize: "0.75rem",
+        animation: "pulse 1.5s ease-in-out infinite",
+        "@keyframes pulse": {
+          "0%, 100%": { opacity: 0.6 },
+          "50%": { opacity: 1 },
+        },
+      }}
+    >
+      Loading FinCore Portal...
+    </Typography>
+  </Box>
+);
+
+console.log("window.location.href >", window.location.href);
+
+const DynamicLayout = () => {
   const isComponentFullscreen = useSelector(
     (state) => state.ui.isComponentFullscreen
   );
 
-  const [mobileOpen, setMobileOpen] = useState(false);
-  const [showComponentTitle, setShowComponentTitle] = useState(true);
-  const { navigateToPage } = useNavigateToPage();
-
-  const handleDrawerToggle = useCallback(() => {
-    setMobileOpen((prev) => !prev);
-  }, []);
-
-  const title = useMemo(() => {
-    if (!selectedMenuItem) return "";
-
-    if (Object.hasOwn(selectedMenuItem, "hasChildren")) {
-      // Top-level menu
-      return selectedMenuItem.title;
-    }
-
-    const parentMenu = getParentMenu(selectedMenuItem, menus);
-
-    if (!parentMenu) return selectedMenuItem.title;
-
-    return `${parentMenu.title} > ${selectedMenuItem.title}`;
-  }, [menus, selectedMenuItem]);
-
-  // 2. ADDED: Reset showComponentTitle whenever active menu changes
-  useEffect(() => {
-    if (!showComponentTitle) {
-      setShowComponentTitle(true);
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectedMenuItem]);
-
-  // 3. PRESERVED: Memoized context value to prevent unnecessary downstream re-renders
-  const outletContextValue = useMemo(() => ({ setShowComponentTitle }), []);
-
   return (
-    <Box
-      sx={{
-        display: "flex",
-        minHeight: "100vh",
-      }}
-    >
-      {/* 4. MODIFIED: Only render Header and Sidebar if NOT in fullscreen */}
-      {!isComponentFullscreen && (
-        <>
-          {/* Header */}
-          <LayoutHeader
-            drawerWidth={drawerWidth}
-            title={title}
-            navigateToPage={navigateToPage}
-            handleDrawerToggle={handleDrawerToggle}
-          />
-
-          {/* Sidebar */}
-          <SideBar
-            drawerWidth={drawerWidth}
-            getIconComponent={getIconComponent}
-            mobileOpen={mobileOpen}
-            handleDrawerToggle={handleDrawerToggle}
-          />
-        </>
-      )}
-
-      {/* Main Content */}
-      <Box
-        component="main"
-        sx={{
-          flexGrow: 1,
-          // 5. MODIFIED: Apply dynamic sizing & paddings based on fullscreen state
-          width: isComponentFullscreen
-            ? "100%"
-            : { xs: "100%", md: `calc(100% - ${drawerWidth}px)` },
-          p: isComponentFullscreen ? 0 : 3,
-          pt: isComponentFullscreen ? 0 : 11,
-          minHeight: isComponentFullscreen ? "100vh" : "calc(100vh - 88px)",
-          transition: "all 0.3s ease-in-out",
-        }}
-      >
-        <Box>
-          {/* 6. MODIFIED: Hide Breadcrumbs container if in fullscreen */}
-          {showComponentTitle && !isComponentFullscreen && (
-            <Paper
-              elevation={2}
-              sx={{
-                p: 2,
-                mb: 4,
-                borderRadius: 1,
-              }}
-            >
-              {/* Preserving Breadcrumbs wrapper instead of standard Typography string */}
-              <AppBreadcrumbs />
-            </Paper>
-          )}
-
-          <Box>
-            <Outlet context={outletContextValue} />
-          </Box>
-        </Box>
-      </Box>
-    </Box>
+    <>
+      {/* 
+        CRITICAL FIX: Wrapping the layout outlet with Suspense ensures 
+        that dynamic/lazy subroutes don't unmount your global headers/sidebars 
+        during load navigation changes.
+      */}
+      <Suspense fallback={<PageLoader />}>
+        {!isComponentFullscreen ? <CommonLayout /> : <FullscreenLayout />}
+      </Suspense>
+    </>
   );
 };
 
-// 7. OPTIMIZED: Wrap export in React.memo
-export default React.memo(CommonLayout);
+const AppRouter = () => {
+  const menus = useSelector((state) => state.menus.menus);
+
+  const router = useMemo(() => {
+    // Defensively handle empty array fallback safely
+    const dynamicRoutes = generateRouteObjects(menus || []);
+
+    const routeConfig = [
+      {
+        path: "/",
+        element: <LaunchScreen />,
+        errorElement: <ServerError />, // Root level bubble-up error boundary
+      },
+      {
+        path: "/server-error",
+        element: <ServerError />,
+      },
+      // Protected Routes Layout Group
+      {
+        element: <PrivateRouter />,
+        errorElement: <ServerError />, // Automatically handles any crash inside authentication checks
+        children: [
+          {
+            element: <DynamicLayout />,
+            children: [
+              { path: "/home", element: <Home /> },
+              { path: "/help", element: <Help /> },
+              {
+                path: "/choose-option/:mainMenuTitle",
+                element: <SubmenuSelectionPage />,
+              },
+              // Safe spreading: if array is null/undefined, layout logic won't break
+              ...(dynamicRoutes || []),
+            ].filter(Boolean), // Fixed placement inside the actual target child layout array
+          },
+        ],
+      },
+      {
+        path: "*",
+        element: <NotFound />,
+      },
+    ];
+
+    return createBrowserRouter(routeConfig);
+  }, [menus]);
+
+  return (
+    <Suspense fallback={<PageLoader />}>
+      <RouterProvider router={router} />
+    </Suspense>
+  );
+};
+
+export default AppRouter;
