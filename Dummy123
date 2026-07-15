@@ -1,1 +1,31 @@
-
+Sr	Login	Type	Sub Type	Report	Test Description	Expected Result	Actual Result	Result
+1	F1/BOG	Login	GLCC Transaction Enquiry	View	Verify authorized F1/BOG user can access the GLCC Transaction Enquiry screen.	Transaction Enquiry screen should load successfully.	As Expected	Pass
+2	F1/BOG	Client Validation	Branch	View	Verify default mapped Branch is populated on screen load.	Default mapped Branch should be displayed.	As Expected	Pass
+3	F1/BOG	Client Validation	Branch	View	Verify Branch search supports search by Branch Code and Branch Name.	User should be able to search and select a valid Branch.	As Expected	Pass
+4	F1/BOG	Client Validation	Currency	View	Verify Currency dropdown displays configured currencies.	Currency list should be loaded successfully.	As Expected	Pass
+5	F1/BOG	Client Validation	CGL	View	Verify GLCC/CGL field accepts valid input and rejects invalid values.	Only valid GLCC values should be accepted.	As Expected	Pass
+6	F1/BOG	Client Validation	Transaction Type	View	Verify Transaction Type defaults to 'All'.	Default value should be 'All'.	As Expected	Pass
+7	F1/BOG	Client Validation	Transaction Type	View	Verify user can select an individual Transaction Type.	Selected Transaction Type should be applied to search criteria.	As Expected	Pass
+8	F1/BOG	Client Validation	Amount Range	View	Verify From Amount and To Amount accept only valid numeric values.	Only numeric values should be accepted.	As Expected	Pass
+9	F1/BOG	Client Validation	Amount Range	View	Verify From Amount cannot be greater than To Amount.	Appropriate validation message should be displayed.	As Expected	Pass
+10	F1/BOG	Client Validation	Date	View	Verify From Date cannot be greater than To Date.	System should display validation message.	As Expected	Pass
+11	F1/BOG	Client Validation	Search	View	Verify Search button is enabled only after mandatory fields are entered.	Search button should remain disabled until mandatory fields are valid.	As Expected	Pass
+12	F1/BOG	Functional	Search	View	Verify transaction search using valid Branch, Currency, GLCC and Date Range.	Matching transaction records should be displayed.	As Expected	Pass
+13	F1/BOG	Functional	Transaction Type	View	Verify search returns records based on selected Transaction Type.	Only matching transaction records should be displayed.	As Expected	Pass
+14	F1/BOG	Functional	Amount Filter	View	Verify search using Amount Range filter.	Only transactions within the specified amount range should be displayed.	As Expected	Pass
+15	F1/BOG	Functional	No Records	View	Verify search with criteria returning no data.	System should display 'No Transactions Available' message.	As Expected	Pass
+16	F1/BOG	Functional	Balance Summary	View	Verify Opening Balance is displayed correctly.	Opening Balance should match backend data.	As Expected	Pass
+17	F1/BOG	Functional	Balance Summary	View	Verify Closing Balance is displayed correctly.	Closing Balance should match backend data.	As Expected	Pass
+18	F1/BOG	Functional	Grid	View	Verify Transaction Ledger displays all required columns.	All configured columns should be displayed correctly.	As Expected	Pass
+19	F1/BOG	Functional	Grid	View	Verify Debit and Credit amounts are displayed with correct precision.	Displayed values should match backend data.	As Expected	Pass
+20	F1/BOG	Functional	Grid	View	Verify Narration, Journal Number, Batch ID and Transaction ID are displayed correctly.	All transaction details should be displayed accurately.	As Expected	Pass
+21	F1/BOG	Functional	Grid	View	Verify Posted Date is displayed in the configured date-time format.	Date and time should follow application format.	As Expected	Pass
+22	F1/BOG	Functional	Grid	View	Verify sorting functionality on Transaction Ledger columns.	Records should be sorted correctly.	As Expected	Pass
+23	F1/BOG	Functional	Grid	View	Verify table filtering functionality.	Grid should display filtered transaction records.	As Expected	Pass
+24	F1/BOG	Functional	Reset	View	Verify Reset clears all entered values and resets Transaction Type to 'All'.	All filters should be reset to default values.	As Expected	Pass
+25	F1/BOG	Functional	Edit Search	View	Verify Edit Search retains previously selected search criteria.	Previously entered values should be available for modification.	As Expected	Pass
+26	F1/BOG	Functional	Export	View	Verify Export downloads transaction data successfully.	Excel file should be generated successfully.	As Expected	Pass
+27	F1/BOG	Functional	Export	View	Verify exported Excel contains Opening Balance, Closing Balance and Transaction Ledger data.	Exported data should match the UI.	As Expected	Pass
+28	F1/BOG	Server Validation	API	View	Verify server validates mandatory request parameters before processing search.	Appropriate validation response should be returned for invalid requests.	As Expected	Pass
+29	F1/BOG	Server Validation	Security	View	Verify unauthorized users cannot access Transaction Enquiry API.	System should deny access with authorization error.	As Expected	Pass
+30	F1/BOG	End-to-End	GLCC Transaction Enquiry	View	Verify complete Transaction Enquiry workflow including search, filtering and export.	User should successfully search, review and export transaction details without errors.	As Expected	Pass
