@@ -1,31 +1,5 @@
-const [cglSearch, setCglSearch] = useState("");
-
-
-
-
-inputValue={cglSearch}
-
-
-
-
-onInputChange={(event, newInputValue) => {
-  if (newInputValue.length > 30) return;
-
-  setCglSearch(newInputValue);
-
-  if (newInputValue.length >= 3) {
-    fetchSearchData("cgl", newInputValue);
-  } else {
-    setCgls([]);
-  }
-}}
-
-
-
-
-
-
-onChange={(_, v) => {
-  handleCglChange(v);
-  setCglSearch("");
-}}
+options={
+  cglSearch.length >= 3
+    ? ["All CGLs", ...cgls.filter(c => c !== "All CGLs")]
+    : ["All CGLs"]
+}
