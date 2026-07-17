@@ -1,31 +1,29 @@
-4. Test Scope:
+InputProps={{
+  ...params.InputProps,
+  maxLength: 30,
 
-General Ledger Enquiry Module to be developed as part of FinCore Phase 3.
+  startAdornment: null,
 
-The module will support enquiry of General Ledger information through multiple enquiry screens. Users can retrieve balance details, transaction details and account-wise ledger information by providing the required search criteria. The module also supports data filtering, sorting, pagination and Excel export functionalities. Following functionalities will be part of this module.
+  endAdornment: (
+    <>
+      <CustomChip
+        label={params.inputProps.value}
+        color="default"
+      />
 
-1. GLCC Balance Enquiry – Allows user to retrieve GLCC balance details by selecting Branch Code, Currency, GLCC and Date Range. The system fetches the corresponding balance records including Balance Date, Branch, Currency, GLCC, Balance Amount and Balance Type based on the selected search criteria. The screen supports Search, Reset, table filtering and Excel export.
+      <IconButton
+        size="small"
+        onClick={() =>
+          handleCircleChange({
+            value: CIRCLE_GROUPS.ALL,
+            label: "All Circles",
+          })
+        }
+      >
+        <CloseIcon fontSize="small" />
+      </IconButton>
 
-2. GLCC Transaction Enquiry – Allows user to retrieve GLCC transaction details by selecting Branch Code, Currency, GLCC, Transaction Type, Amount Range and Date Range. The system fetches Opening Balance, Closing Balance and Transaction Ledger details including Transaction Date, Batch ID, Journal Number, Narration, Debit Amount, Credit Amount, Transaction Type and Posted Date. The screen supports Search, Reset, sorting, filtering, pagination and Excel export.
-
-3. GL Account Enquiry – Allows user to retrieve account-wise General Ledger transactions by selecting Circle, Branch, CGL, Currency, Transaction Type and Date Range. The system fetches ledger transaction details including Date, Circle, Branch, Narration, Debit Amount, Credit Amount, Currency and Source. The screen supports hierarchy-based search, multi-selection, Search, Reset, sorting, filtering, pagination and Excel export.
-
-4. GL Balance Enquiry – Allows user to retrieve General Ledger balance information by selecting Enquiry Type (Collation/Consolidation), Circle, Branch, CGL, Currency and Balance Date. The system fetches balance details including Branch, Circle, CGL, Currency, Balance and INR Balance. For Consolidation enquiry, Branch selection is disabled and consolidated balance details are retrieved. The screen supports Search, Reset, sorting, filtering, pagination and Excel export.
-
-5. Validation Engine – The enquiry module validates mandatory fields, search criteria, input data, business rules and server-side request validations before processing the enquiry request. Appropriate validation messages are displayed for invalid or incomplete inputs.
-
-6. Data Presentation – The enquiry results are displayed in tabular format with sorting, filtering, pagination and Excel export functionalities for efficient analysis and reporting.
-
-Summary of Testing: Details are mentioned in the Solution Document of this CR.
-
-1. GLCC Balance Enquiry
-2. GLCC Transaction Enquiry
-3. GL Account Enquiry
-4. GL Balance Enquiry
-5. Client-side Validation
-6. Server-side Validation
-7. Business Rule Validation
-8. Search and Reset Functionality
-9. Sorting, Filtering and Pagination
-10. Excel Export
-11. Data Integrity Validation
+      {params.InputProps.endAdornment}
+    </>
+  ),
+}}
