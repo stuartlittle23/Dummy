@@ -1,5 +1,6 @@
 onInputChange={(event, newInputValue, reason) => {
-  if (reason === "reset") return;
+  // CRITICAL FIX: Stops the dropdown from closing and collapsing on option select/clicks
+  if (reason === "reset" || reason === "blur") return;
 
   if (newInputValue.length > 30) return;
 
@@ -7,7 +8,8 @@ onInputChange={(event, newInputValue, reason) => {
 
   if (newInputValue.length >= 3) {
     fetchSearchData("branch", newInputValue);
-  } else {
+  } else if (newInputValue.length === 0) {
+    // Only wipe out the data options if the user manually cleared/backspaced the text out
     setBranches([]);
   }
 }}
@@ -15,9 +17,9 @@ onInputChange={(event, newInputValue, reason) => {
 
 
 
-
 onInputChange={(event, newInputValue, reason) => {
-  if (reason === "reset") return;
+  // CRITICAL FIX: Stops the dropdown from closing and collapsing on option select/clicks
+  if (reason === "reset" || reason === "blur") return;
 
   if (newInputValue.length > 30) return;
 
@@ -27,7 +29,8 @@ onInputChange={(event, newInputValue, reason) => {
     fetchSearchData("cgl", newInputValue);
   }
 
-  if (newInputValue.length < 3) {
+  if (newInputValue.length === 0) {
+    // Only wipe out the data options if the user manually cleared/backspaced the text out
     setCgls(["All CGLs"]);
   }
 }}
