@@ -1,22 +1,24 @@
 onInputChange={(event, newInputValue, reason) => {
-  // 1. STOPS THE CRASH & DROPDOWN CLOSING: Ignore all internal MUI state resets
+  // 1. Safe fallback: if newInputValue is null/undefined, treat it as an empty string
+  const value = newInputValue || "";
+
+  // 2. STOP ALL DROPDOWN CLOSES: Ignore internal Material-UI state refreshes completely
   if (reason === "reset" || reason === "blur") {
     return;
   }
 
-  if (newInputValue && newInputValue.length > 30) return;
+  if (value.length > 30) return;
 
-  setBranchSearch(newInputValue);
+  setBranchSearch(value);
 
-  if (newInputValue && newInputValue.length >= 3) {
-    fetchSearchData("branch", newInputValue);
-  } else if (newInputValue === "") {
-    // 2. Clear data ONLY when the input field is physically 100% empty
+  if (value.length >= 3) {
+    fetchSearchData("branch", value);
+  } else if (value === "") {
+    // 3. Wipes the data array ONLY when the text field is completely blank
     setBranches([]);
   }
 }}
 onChange={(_, val) => {
   handleBranchChange(val);
-  // 3. Keep this removed to prevent immediate dropdown closure
+  // Kept clean so selecting an item doesn't force close the dropdown panel
 }}
-
