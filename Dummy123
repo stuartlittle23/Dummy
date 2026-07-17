@@ -1,1 +1,38 @@
+if (item === "All Currencies") {
+  return;
+}
 
+const updated = filters.currencies.filter((c) => c !== item);
+
+if (updated.length === 0) {
+  onFilterChange("currencies", ["All Currencies"]);
+  setViewList(null);
+} else {
+  onFilterChange("currencies", updated);
+}
+
+
+
+
+
+const updated = val.filter(v => v !== "All Currencies");
+
+const actualCurrencies = currencyOptions.filter(
+  c => c !== "All Currencies"
+);
+
+if (
+  updated.length === actualCurrencies.length &&
+  actualCurrencies.every(c => updated.includes(c))
+) {
+  onFilterChange(
+    "currencies",
+    ["All Currencies", ...actualCurrencies]
+  );
+  return;
+}
+
+onFilterChange("currencies", updated);
+
+
+setCurrencyOptions(["All Currencies", ...opts]);
