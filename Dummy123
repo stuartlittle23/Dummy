@@ -1,5 +1,28 @@
-options={
-  cglSearch.length >= 3
-    ? ["All CGLs", ...cgls.filter(c => c !== "All CGLs")]
-    : ["All CGLs"]
-}
+onInputChange={(event, newInputValue, reason) => {
+  if (newInputValue.length > 30) return;
+
+  setBranchSearch(newInputValue);
+
+  if (reason === "input" && newInputValue.length >= 3) {
+    fetchSearchData("branch", newInputValue);
+  }
+
+  if (reason === "clear" || reason === "blur") {
+    setBranches([]);
+  }
+}}
+
+
+
+
+onInputChange={(event, newInputValue, reason) => {
+  if (newInputValue.length > 30) return;
+
+  if (reason === "input" && newInputValue.length >= 3) {
+    fetchSearchData("cgl", newInputValue);
+  }
+
+  if (reason === "clear" || reason === "blur") {
+    setCgls([]);
+  }
+}}
