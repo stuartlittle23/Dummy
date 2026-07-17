@@ -1,1 +1,42 @@
 
+                          onInputChange={(event, newInputValue, reason) => {
+                            // STOPS IMMEDIATE CLOSING: Ignores internal selection resets
+                            if (reason === "reset") return;
+
+                            if (newInputValue.length > 30) return;
+
+                            setBranchSearch(newInputValue);
+
+                            if (newInputValue.length >= 3) {
+                              fetchSearchData("branch", newInputValue);
+                            } 
+                            
+                            // CLEARING GUARANTEE: Wipes list immediately if the input is completely empty
+                            if (!newInputValue || newInputValue.trim() === "") {
+                              setBranches([]);
+                            }
+                          }}
+
+
+
+
+
+
+                      onInputChange={(event, newInputValue, reason) => {
+                        // STOPS IMMEDIATE CLOSING: Ignores internal selection resets
+                        if (reason === "reset") return;
+
+                        if (newInputValue.length > 30) return;
+
+                        // Maintain input state tracking
+                        setCglSearch?.(newInputValue);
+
+                        if (newInputValue.length >= 3) {
+                          fetchSearchData("cgl", newInputValue);
+                        }
+
+                        // CLEARING GUARANTEE: Wipes list immediately if the input is completely empty
+                        if (!newInputValue || newInputValue.trim() === "") {
+                          setCgls(["All CGLs"]);
+                        }
+                      }}
