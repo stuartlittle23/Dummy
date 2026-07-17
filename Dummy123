@@ -1,26 +1,15 @@
 onInputChange={(event, newInputValue) => {
   if (newInputValue.length > 30) return;
 
-  setBranchSearch(newInputValue);
-
-  if (newInputValue.length >= 3) {
-    fetchSearchData("branch", newInputValue);
-  } else {
-    setBranches([]);
+  if (newInputValue.length === 0) {
+    setCgls([]);
+    return;
   }
-}}
 
-
-
-
-
-
-onInputChange={(event, newInputValue) => {
-  if (newInputValue.length > 30) return;
-
-  if (newInputValue.length >= 3) {
-    fetchSearchData("cgl", newInputValue);
-  } else {
-    setCgls(["All CGLs"]);
+  if (newInputValue.length < 3) {
+    setCgls([]);
+    return;
   }
+
+  fetchSearchData("cgl", newInputValue);
 }}
