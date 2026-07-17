@@ -1,11 +1,19 @@
-// User clicked the clear (X)
-if (val.length === 0) {
-  const allCurrencies = [
-    "All Currencies",
-    ...currencies.filter(c => c !== "All Currencies"),
-  ];
 
-  onFilterChange("currencies", allCurrencies);
-  setViewList(null);
+const updated = val.filter(v => v !== "All Currencies");
+
+const actualCurrencies = currencyOptions.filter(
+  c => c !== "All Currencies"
+);
+
+if (
+  updated.length === actualCurrencies.length &&
+  actualCurrencies.every(c => updated.includes(c))
+) {
+  onFilterChange(
+    "currencies",
+    ["All Currencies", ...actualCurrencies]
+  );
   return;
 }
+
+onFilterChange("currencies", updated);
