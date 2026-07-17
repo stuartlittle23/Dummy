@@ -1,1 +1,22 @@
+onInputChange={(event, newInputValue, reason) => {
+  // 1. STOPS THE CRASH & DROPDOWN CLOSING: Ignore all internal MUI state resets
+  if (reason === "reset" || reason === "blur") {
+    return;
+  }
+
+  if (newInputValue && newInputValue.length > 30) return;
+
+  setBranchSearch(newInputValue);
+
+  if (newInputValue && newInputValue.length >= 3) {
+    fetchSearchData("branch", newInputValue);
+  } else if (newInputValue === "") {
+    // 2. Clear data ONLY when the input field is physically 100% empty
+    setBranches([]);
+  }
+}}
+onChange={(_, val) => {
+  handleBranchChange(val);
+  // 3. Keep this removed to prevent immediate dropdown closure
+}}
 
