@@ -11,17 +11,19 @@ InputProps={{
         color="default"
       />
 
-      <IconButton
-        size="small"
-        onClick={() =>
-          handleCircleChange({
-            value: CIRCLE_GROUPS.ALL,
-            label: "All Circles",
-          })
-        }
-      >
-        <CloseIcon fontSize="small" />
-      </IconButton>
+      {filters.circle !== CIRCLE_GROUPS.ALL && (
+        <IconButton
+          size="small"
+          onClick={() =>
+            handleCircleChange({
+              value: CIRCLE_GROUPS.ALL,
+              label: "All Circles",
+            })
+          }
+        >
+          <CloseIcon fontSize="small" />
+        </IconButton>
+      )}
 
       {params.InputProps.endAdornment}
     </>
