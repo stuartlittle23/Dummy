@@ -1,5 +1,24 @@
-if (hadAll && !hasAll && val.length === 0) {
-    onFilterChange("currencies", ["All Currencies"]);
-    setViewList(null);
-    return;
-}
+onInputChange={(event, newInputValue, reason) => {
+  if (newInputValue.length > 30) return;
+
+  setBranchSearch(newInputValue);
+
+  if (reason === "input") {
+    if (newInputValue.length >= 3) {
+      fetchSearchData("branch", newInputValue);
+    } else {
+      setBranches([]);
+    }
+  }
+}}
+
+
+
+
+onInputChange={(e, v) => {
+  if (v.length >= 3) {
+    fetchSearchData("cgl", v);
+  } else {
+    setCgls(["All CGLs"]);
+  }
+}}
