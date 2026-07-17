@@ -1,7 +1,5 @@
 onInputChange={(event, newInputValue, reason) => {
-  // CRITICAL FIX: Stops the dropdown from closing and collapsing on option select/clicks
-  if (reason === "reset" || reason === "blur") return;
-
+  if (reason === "reset") return; // Prevents internal MUI resets from wiping data
   if (newInputValue.length > 30) return;
 
   setBranchSearch(newInputValue);
@@ -9,28 +7,10 @@ onInputChange={(event, newInputValue, reason) => {
   if (newInputValue.length >= 3) {
     fetchSearchData("branch", newInputValue);
   } else if (newInputValue.length === 0) {
-    // Only wipe out the data options if the user manually cleared/backspaced the text out
-    setBranches([]);
+    setBranches([]); // Only clear options if the user manually deletes everything
   }
 }}
-
-
-
-
-onInputChange={(event, newInputValue, reason) => {
-  // CRITICAL FIX: Stops the dropdown from closing and collapsing on option select/clicks
-  if (reason === "reset" || reason === "blur") return;
-
-  if (newInputValue.length > 30) return;
-
-  setCglSearch(newInputValue);
-
-  if (reason === "input" && newInputValue.length >= 3) {
-    fetchSearchData("cgl", newInputValue);
-  }
-
-  if (newInputValue.length === 0) {
-    // Only wipe out the data options if the user manually cleared/backspaced the text out
-    setCgls(["All CGLs"]);
-  }
+onChange={(_, val) => {
+  handleBranchChange(val);
+  // REMOVED setBranchSearch("") from here so it doesn't clear your results on select!
 }}
