@@ -1,40 +1,19 @@
-onInputChange={(event, newInputValue) => {
+onInputChange={(event, newInputValue, reason) => {
   if (newInputValue.length > 30) return;
 
-  // CRITICAL: If the user didn't type anything (e.g., clicking an option sends an empty string),
-  // do NOT wipe the branches array. Only set the text state.
+  // 1. If it's an internal MUI reset from selecting an option, DO NOT clear the data
+  if (reason === "reset") return;
+
   setBranchSearch(newInputValue);
 
   if (newInputValue.length >= 3) {
     fetchSearchData("branch", newInputValue);
   } else if (newInputValue === "") {
-    // Only wipe out the data options if the input is explicitly, physically empty
+    // 2. Clear data ONLY when the input field is physically 100% empty
     setBranches([]);
   }
 }}
 onChange={(_, val) => {
   handleBranchChange(val);
-  // Keep this empty so selecting an item doesn't force a re-trigger of empty strings
-}}
-
-
-
-
-
-
-onInputChange={(event, newInputValue) => {
-  if (newInputValue.length > 30) return;
-
-  // Maintain input state tracking safely
-  setCglSearch(newInputValue);
-
-  if (newInputValue.length >= 3) {
-    fetchSearchData("cgl", newInputValue);
-  } else if (newInputValue === "") {
-    // Only reset back to default if the input is completely empty
-    setCgls(["All CGLs"]);
-  }
-}}
-onChange={(_, v) => {
-  handleCglChange(v);
+  // 3. REMOVED setBranchSearch("") from here so it doesn't force a wipeout on click!
 }}
