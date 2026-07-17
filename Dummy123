@@ -1,42 +1,40 @@
+onInputChange={(event, newInputValue) => {
+  if (newInputValue.length > 30) return;
 
-                          onInputChange={(event, newInputValue, reason) => {
-                            // STOPS IMMEDIATE CLOSING: Ignores internal selection resets
-                            if (reason === "reset") return;
+  // CRITICAL: If the user didn't type anything (e.g., clicking an option sends an empty string),
+  // do NOT wipe the branches array. Only set the text state.
+  setBranchSearch(newInputValue);
 
-                            if (newInputValue.length > 30) return;
-
-                            setBranchSearch(newInputValue);
-
-                            if (newInputValue.length >= 3) {
-                              fetchSearchData("branch", newInputValue);
-                            } 
-                            
-                            // CLEARING GUARANTEE: Wipes list immediately if the input is completely empty
-                            if (!newInputValue || newInputValue.trim() === "") {
-                              setBranches([]);
-                            }
-                          }}
-
-
+  if (newInputValue.length >= 3) {
+    fetchSearchData("branch", newInputValue);
+  } else if (newInputValue === "") {
+    // Only wipe out the data options if the input is explicitly, physically empty
+    setBranches([]);
+  }
+}}
+onChange={(_, val) => {
+  handleBranchChange(val);
+  // Keep this empty so selecting an item doesn't force a re-trigger of empty strings
+}}
 
 
 
 
-                      onInputChange={(event, newInputValue, reason) => {
-                        // STOPS IMMEDIATE CLOSING: Ignores internal selection resets
-                        if (reason === "reset") return;
 
-                        if (newInputValue.length > 30) return;
 
-                        // Maintain input state tracking
-                        setCglSearch?.(newInputValue);
+onInputChange={(event, newInputValue) => {
+  if (newInputValue.length > 30) return;
 
-                        if (newInputValue.length >= 3) {
-                          fetchSearchData("cgl", newInputValue);
-                        }
+  // Maintain input state tracking safely
+  setCglSearch(newInputValue);
 
-                        // CLEARING GUARANTEE: Wipes list immediately if the input is completely empty
-                        if (!newInputValue || newInputValue.trim() === "") {
-                          setCgls(["All CGLs"]);
-                        }
-                      }}
+  if (newInputValue.length >= 3) {
+    fetchSearchData("cgl", newInputValue);
+  } else if (newInputValue === "") {
+    // Only reset back to default if the input is completely empty
+    setCgls(["All CGLs"]);
+  }
+}}
+onChange={(_, v) => {
+  handleCglChange(v);
+}}
