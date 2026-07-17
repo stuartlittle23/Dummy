@@ -1,427 +1,3 @@
-  )}
-                    {isBranchVisible && (
-                      <Grid size={{ xs: 12, sm: isCircleVisible ? 6 : 12 }}>
-                        <Autocomplete
-                          multiple
-                          size="small"
-                          disableCloseOnSelect
-                          options={["All Branches", ...branches]}
-                          loading={loading.branch}
-                          value={filters.branches}
-                          inputValue={branchSearch}
-                          onInputChange={(event, newInputValue, reason) => {
-  if (newInputValue.length > 30) return;
-
-  setBranchSearch(newInputValue);
-
-  if (reason === "input" && newInputValue.length >= 3) {
-    fetchSearchData("branch", newInputValue);
-  }
-
-  if (reason === "clear" || reason === "blur") {
-    setBranches([]);
-  }
-}}
-                          onChange={(_, val) => {
-                            handleBranchChange(val);
-                            setBranchSearch("");
-                          }}
-                          renderTags={() => null}
-                          renderOption={(props, option, { selected }) => (
-                            <li {...props} key={option}>
-                              <Checkbox
-                                size="small"
-                                style={{ marginRight: 8 }}
-                                checked={selected}
-                              />
-                              <Typography variant="body2">{option}</Typography>
-                            </li>
-                          )}
-                          renderInput={(p) => (
-                            <TextField
-                              {...p}
-                              label="Select Branches"
-                              variant="standard"
-                              required
-                              placeholder={"Enter atleast 3 digits..."}
-                              InputProps={{
-                                ...p.InputProps,
-                                maxLength: 30,
-                                endAdornment: (
-                                  <InputAdornment
-                                    position="end"
-                                    sx={{ mb: 0.5 }}
-                                  >
-                                    <Stack
-                                      direction="row"
-                                      alignItems="center"
-                                      spacing={1}
-                                    >
-                                      <CustomChip
-                                        label={
-                                          filters.branches.includes("All Branches")
-                                            ? "All Branches"
-                                            : `${filters.branches.length} Selected`
-                                        }
-                                        color={
-                                          filters.branches.includes("All Branches")
-                                            ? "default"
-                                            : "primary"
-                                        }
-                                        sx={{
-                                          fontWeight: 700,
-                                          fontSize: "0.7rem",
-                                        }}
-                                      />
-                                      {!filters.branches.includes("All Branches") &&
-                                        filters.branches.length > 0 && (
-                                          <IconButton
-                                            size="small"
-                                            onClick={() =>
-                                              setViewList(
-                                                viewList === "branches"
-                                                  ? null
-                                                  : "branches",
-                                              )
-                                            }
-                                            color={
-                                              viewList === "branches"
-                                                ? "primary"
-                                                : "default"
-                                            }
-                                            sx={{
-                                              transition: "0.2s",
-                                              bgcolor: viewList
-                                                ? "rgba(25, 118, 210, 0.08)"
-                                                : "transparent",
-                                            }}
-                                          >
-                                            {viewList === "branches" ? (
-                                              <VisibilityOffIcon fontSize="small" />
-                                            ) : (
-                                              <VisibilityIcon fontSize="small" />
-                                            )}
-                                          </IconButton>
-                                        )}
-                                    </Stack>
-                                    {p.InputProps.endAdornment}
-                                  </InputAdornment>
-                                ),
-                              }}
-                            />
-                          )}
-                        />
-                      </Grid>
-                    )}
-                  </Grid>
-                </Paper>
-              </Grid>
-            )}
-
-            {/* 2. ACCOUNT ZONE */}
-            <Grid
-              size={{ xs: 12, md: !isBranchUser && !(isCircleUser && filters.enquiryType ==="CONSOLIDATED")?6:12,}}
-            >
-              <Paper
-                variant="outlined"
-                sx={{
-                  p: 3,
-                  borderRadius: "20px",
-                  bgcolor: "rgba(0,0,0,0.01)",
-                  borderStyle: "dashed",
-                }}
-              >
-                <SectionHeader
-                  icon={<SearchIcon fontSize="small" />}
-                  title="Account Details"
-                />
-                <Grid container spacing={2}>
-                  <Grid size={{ xs: 12, sm: 7 }}>
-                    <Autocomplete
-                      multiple
-                      autoHighlight
-                      disableCloseOnSelect
-                      renderTags={() => null}
-                      limitTags={0}
-                      value={filters.cgl}
-                      options={[
-                        "All CGLs",
-                        ...cgls.filter((c) => c !== "All CGLs"),
-                      ]}
-                      clearIcon={filters.cgl ? undefined : null}
-                      noOptionsText={
-                        filters.enquiryType !== "CONSOLIDATED" &&
-                        (!filters.cgl || filters.cgl.length < 3)
-                          ? "Please enter at least 3 characters"
-                          : "No Options"
-                      }
-                     onInputChange={(event, newInputValue, reason) => {
-                    if (newInputValue.length > 30) return;
-
-                    setBranchSearch(newInputValue);
-
-                    if (reason === "input") {
-                      if (newInputValue.length >= 3) {
-                        fetchSearchData("branch", newInputValue);
-                      } else {
-                        setBranches([]);
-                      }
-                    }
-
-                    if (reason === "clear" || reason === "blur") {
-                      setBranches([]);
-                    }
-                  }}
-
-                      onChange={(_, v) => handleCglChange(v)}
-                      renderOption={(props, option, { selected }) => (
-                        <li {...props}>
-                          <Checkbox checked={selected} />
-                          {option}
-                        </li>
-                      )}
-                      renderInput={(params) => (
-                        <TextField
-                          {...params}
-                          variant="standard"
-                          label="CGL *"
-                          placeholder={"Enter atleast 3 characters..."}
-                          InputProps={{
-                            ...params.InputProps,
-                            startAdornment: null,
-                            endAdornment: (
-                              <>
-                                {filters.cgl.length > 0 && (
-                                  <>
-                                    <CustomChip
-                                      label={
-                                        filters.cgl.includes("All CGLs")
-                                          ? "All CGLs"
-                                          : `${filters.cgl.length} Selected`
-                                      }
-                                      color={
-                                        filters.cgl.includes("All CGLs")
-                                          ? "default"
-                                          : "primary"
-                                      }
-                                    />
-                                    {!filters.cgl.includes("All CGLs") &&
-                                      filters.cgl.length > 0 && (
-                                        <IconButton
-                                          size="small"
-                                          onClick={() =>
-                                            setViewList(
-                                              viewList === "cgl" ? null : "cgl",
-                                            )
-                                          }
-                                        >
-                                          {viewList === "cgl" ? (
-                                            <VisibilityOffIcon fontSize="small" />
-                                          ) : (
-                                            <VisibilityIcon fontSize="small" />
-                                          )}
-                                        </IconButton>
-                                      )}
-                                  </>
-                                )}
-                                {params.InputProps.endAdornment}
-                              </>
-                            ),
-                          }}
-                        />
-                      )}
-                      loadingText="Searching Cgls..."
-                    />
-                  </Grid>
-                  <Grid size={{ xs: 12, sm: 5 }}>
-                    <Autocomplete
-                      multiple
-                      size="small"
-                      options={[...currencyOptions]}
-                      autoHighlight
-                      value={filters.currencies}
-                      disableCloseOnSelect
-                      renderTags={() => null}
-                      limitTags={0}
-                      onChange={(_, v) => handleCurrencyChange(v)}
-                      renderOption={(props, option, { selected }) => (
-                        <li {...props} key={option}>
-                          <Checkbox
-                            size="small"
-                            style={{ marginRight: 8 }}
-                            checked={selected}
-                          />
-                          <Typography variant="body2">{option}</Typography>
-                        </li>
-                      )}
-                      renderInput={(p) => (
-                        <TextField
-                          {...p}
-                          label="Currency"
-                          required
-                          variant="standard"
-                          disableCloseOnSelect
-                          InputProps={{
-                            ...p.InputProps,
-                            startAdornment: null,
-                            endAdornment: (
-                              <>
-                                <CustomChip
-                                  label={
-                                    filters.currencies.includes(
-                                      "All Currencies",
-                                    )
-                                      ? "All currencies"
-                                      : `${filters.currencies.length} Selected`
-                                  }
-                                  color={
-                                    filters.currencies.includes(
-                                      "All Currencies",
-                                    )
-                                      ? "default"
-                                      : "primary"
-                                  }
-                                />
-                                {!filters.currencies.includes(
-                                  "All Currencies",
-                                ) &&
-                                  filters.currencies.length > 0 && (
-                                    <IconButton
-                                      size="small"
-                                      onClick={() =>
-                                        setViewList(
-                                          viewList === "currency"
-                                            ? null
-                                            : "currency",
-                                        )
-                                      }
-                                    >
-                                      {viewList === "currency" ? (
-                                        <VisibilityOffIcon fontSize="small" />
-                                      ) : (
-                                        <VisibilityIcon fontSize="small" />
-                                      )}
-                                    </IconButton>
-                                  )}
-                                {p.InputProps.endAdornment}
-                              </>
-                            ),
-                          }}
-                        />
-                      )}
-                    />
-                  </Grid>
-                </Grid>
-              </Paper>
-            </Grid>
-
-            {/* ROW 2: INDIVIDUAL BRANCH TRAY */}
-            {viewList === "branches" && hasSelectedBranches && (
-              <Grid size={{ xs: 12 }}>
-                <Collapse in={viewList && hasSelectedBranches}>
-                  <Paper
-                    variant="outlined"
-                    sx={{
-                      borderRadius: "20px",
-                      bgcolor: "#fff",
-                      border: "1px solid #e0e6ed",
-                      overflow: "hidden",
-                      mb: 1.5,
-                      boxShadow: "0 4px 20px rgba(0,0,0,0.05)",
-                    }}
-                  >
-                    <Stack
-                      direction="row"
-                      justifyContent="space-between"
-                      alignItems="center"
-                      sx={{
-                        p: 2,
-                        borderBottom: "1px solid #f0f0f0",
-                        bgcolor: "rgba(25, 118, 210, 0.02)",
-                      }}
-                    >
-                      <Stack direction="row" spacing={1} alignItems="center">
-                        <Typography
-                          variant="caption"
-                          sx={{
-                            fontWeight: 800,
-                            color: "primary.main",
-                            letterSpacing: 1,
-                          }}
-                        >
-                          SELECTED BRANCHES
-                        </Typography>
-                        <CustomChip
-                          label={filters.branches.length}
-                          color="primary"
-                          sx={{ height: 20 }}
-                        />
-                      </Stack>
-                      <Button
-                        size="small"
-                        color="error"
-                        variant="text"
-                        startIcon={<DeleteSweepIcon />}
-                        onClick={() => {
-                          onFilterChange("branches", ["All Branches"]);
-                          setViewList(null);
-                        }}
-                        sx={{
-                          p: 1,
-                          fontWeight: 700,
-                          "&:hover": { color: "white", background: "#9f0400" },
-                        }}
-                      >
-                        Clear All
-                      </Button>
-                    </Stack>
-                    <Box
-                      sx={{
-                        p: 2,
-                        maxHeight: "250px",
-                        overflowY: "auto",
-                        display: "flex",
-                        flexWrap: "wrap",
-                        gap: 1,
-                        "&::-webkit-scrollbar": { width: "6px" },
-                        "&::-webkit-scrollbar-track": { background: "#f1f1f1" },
-                        "&::-webkit-scrollbar-thumb": {
-                          background: "#ccc",
-                          borderRadius: "10px",
-                        },
-                      }}
-                    >
-                      {filters.branches.map((b) => (
-                        <Chip
-                          key={b}
-                          label={b}
-                          color="primary"
-                          variant="outlined"
-                          onDelete={() => removeBranch(b)}
-                          sx={{
-                            borderRadius: "8px",
-                            bgcolor: "white",
-                            fontWeight: 500,
-                            "& .MuiChip-deleteIcon": {
-                              color: "inherit",
-                              transition: "0.2s",
-                              "&:hover": {
-                                color: "inherit",
-                                transform: "scale(1.2)",
-                              },
-                            },
-                            "&:hover": {
-                              bgcolor: "#f5f9ff",
-                              borderColor: "primary.main",
-                            },
-                          }}
-                        />
-                      ))}
-                    </Box>
-                  </Paper>
-                </Collapse>
-              </Grid>
-            )}
 
             {/* ROW 2: INDIVIDUAL CGL TRAY */}
             {viewList === "cgl" && hasSelectedCgls && (
@@ -543,3 +119,303 @@
                       border: "1px solid #e0e6ed",
                       overflow: "hidden",
                       mb: 1.5,
+                      boxShadow: "0 4px 20px rgba(0,0,0,0.05)",
+                    }}
+                  >
+                    <Stack
+                      direction="row"
+                      justifyContent="space-between"
+                      alignItems="center"
+                      sx={{
+                        p: 2,
+                        borderBottom: "1px solid #f0f0f0",
+                        bgcolor: "rgba(25, 118, 210, 0.02)",
+                      }}
+                    >
+                      <Stack direction="row" spacing={1} alignItems="center">
+                        <Typography
+                          variant="caption"
+                          sx={{
+                            fontWeight: 800,
+                            color: "primary.main",
+                            letterSpacing: 1,
+                          }}
+                        >
+                          SELECTED CURRENCIES
+                        </Typography>
+                        <CustomChip
+                          label={filters.currencies.length}
+                          color="primary"
+                          sx={{ height: 20 }}
+                        />
+                      </Stack>
+                      <Button
+                        size="small"
+                        color="error"
+                        variant="text"
+                        startIcon={<DeleteSweepIcon />}
+                        onClick={() => {
+                          onFilterChange("currencies", ["All Currencies"]);
+                          setViewList(null);
+                        }}
+                        sx={{
+                          p: 1,
+                          fontWeight: 700,
+                          "&:hover": { color: "white", background: "#9f0400" },
+                        }}
+                      >
+                        Clear All
+                      </Button>
+                    </Stack>
+                    <Box
+                      sx={{
+                        p: 2,
+                        maxHeight: "250px",
+                        overflowY: "auto",
+                        display: "flex",
+                        flexWrap: "wrap",
+                        gap: 1,
+                        "&::-webkit-scrollbar": { width: "6px" },
+                        "&::-webkit-scrollbar-track": { background: "#f1f1f1" },
+                        "&::-webkit-scrollbar-thumb": {
+                          background: "#ccc",
+                          borderRadius: "10px",
+                        },
+                      }}
+                    >
+                      {filters.currencies.map((b) => (
+                        <Chip
+                          key={b}
+                          label={b}
+                          color="primary"
+                          variant="outlined"
+                          onDelete={() => removeCurrency(b)}
+                          sx={{
+                            borderRadius: "8px",
+                            bgcolor: "white",
+                            fontWeight: 500,
+                            "& .MuiChip-deleteIcon": {
+                              color: "error.main",
+                              transition: "0.2s",
+                              "&:hover": {
+                                color: "#d32f2f",
+                                transform: "scale(1.2)",
+                              },
+                            },
+                            "&:hover": {
+                              bgcolor: "#f5f9ff",
+                              borderColor: "primary.main",
+                            },
+                          }}
+                        />
+                      ))}
+                    </Box>
+                  </Paper>
+                </Collapse>
+              </Grid>
+            )}
+
+            {/* 3. TIMELINE & FLAGS ZONE */}
+            <Grid
+              size={{ xs: 12 }}
+              sx={{ display: "flex", justifyContent: "center" }}
+            >
+              {/* UPDATED TIMELINE CONTAINER: Removed fixed 50% width so it adapts to mobile */}
+              <Paper
+                sx={{
+                  p: 2.5,
+                  width: { xs: "100%", md: "fit-content" },
+                  borderRadius: "20px",
+                  background: "#58469ff3",
+                  color: "white",
+                  display: "inline-block",
+                  boxSizing: "border-box",
+                }}
+              >
+                <Stack
+                  direction={{ xs: "column", sm: "row" }}
+                  spacing={{ xs: 2, sm: 4 }}
+                  alignItems={{ xs: "flex-start", sm: "center" }}
+                  sx={{ width: "100%" }}
+                >
+                  <Stack
+                    direction="row"
+                    spacing={2}
+                    alignItems="center"
+                    sx={{ minWidth: 100 }}
+                  >
+                    <DateRangeIcon />
+                    <Typography sx={{ fontWeight: 700 }}>
+                      Balance Date *
+                    </Typography>
+                  </Stack>
+                  {/* UPDATED DATE PICKER CONTAINER: Swapped static width for responsive breakpoints */}
+                  <Box sx={{ width: { xs: "100%", sm: 300, md: 400 } }}>
+                    <DatePicker
+                      value={filters.balanceDate}
+                      format="DD/MM/YYYY"
+                      minDate={minLimit}
+                      maxDate={maxLimit}
+                      views={["year", "month", "day"]}
+                      onChange={(value) => {
+                        onFilterChange("balanceDate", value);
+                      }}
+                      onError={(error) => {
+                        setBalanceDateError(error || null);
+                      }}
+                      slotProps={{
+                        textField: {
+                          size: "small",
+                          fullWidth: true,
+                          placeholder: "DD/MM/YYYY",
+                          error: !!balanceDateError,
+                          sx: {
+                            bgcolor: "white",
+                            borderRadius: 1,
+                            flex: 1,
+                            required: true,
+                          },
+                        },
+                        day: {
+                          sx: {
+                            fontWeight: 600,
+                            "&.MuiPickersDay-root": { color: "#111" },
+                            "&.MuiPickersDay-today": {
+                              border: "2px solid #58469f",
+                              fontWeight: 800,
+                            },
+                            "&.Mui-selected": {
+                              backgroundColor: "#58469f !important",
+                              color: "#fff !important",
+                              fontWeight: 800,
+                            },
+                            "&:hover": {
+                              backgroundColor: "rgba(88,70,159,0.08)",
+                            },
+                            "&.Mui-disabled": {
+                              color: "rgba(0,0,0,0.25) !important",
+                              backgroundColor: "rgba(0,0,0,0.04)",
+                              opacity: 0.45,
+                              textDecoration: "line-through",
+                            },
+                          },
+                        },
+                        monthButton: {
+                          sx: {
+                            fontWeight: 700,
+                            "&.Mui-selected": {
+                              backgroundColor: "#58469f !important",
+                              color: "#fff !important",
+                            },
+                            "&.Mui-disabled": {
+                              color: "rgba(0,0,0,0.25) !important",
+                              opacity: 0.45,
+                              textDecoration: "line-through",
+                              backgroundColor: "rgba(0,0,0,0.04)",
+                            },
+                          },
+                        },
+                        yearButton: {
+                          sx: {
+                            fontWeight: 700,
+                            "&.Mui-selected": {
+                              backgroundColor: "#58469f !important",
+                              color: "#fff !important",
+                            },
+                            "&.Mui-disabled": {
+                              color: "rgba(0,0,0,0.25) !important",
+                              opacity: 0.45,
+                              textDecoration: "line-through",
+                              backgroundColor: "rgba(0,0,0,0.04)",
+                            },
+                          },
+                        },
+                      }}
+                    />
+                  </Box>
+                </Stack>
+              </Paper>
+            </Grid>
+          </Grid>
+
+          <Grid size={{ xs: 12 }}>
+            {validationMessages.length > 0 && (
+              <Paper
+                sx={{
+                  mt: 1,
+                  p: 1.5,
+                  borderRadius: 2,
+                  border: "1px solid",
+                  borderColor: "#ff4d4f",
+                  bgcolor: "#fff1f0",
+                }}
+              >
+                <Stack spacing={0.5}>
+                  {validationMessages.map((msg, index) => (
+                    <Typography
+                      key={index}
+                      variant="body2"
+                      sx={{ color: "#d32f2f", fontWeight: 600 }}
+                    >
+                      • {msg}
+                    </Typography>
+                  ))}
+                </Stack>
+              </Paper>
+            )}
+          </Grid>
+
+          {/* UPDATED ACTION BUTTONS: Flex adjustments so buttons span full width on tiny screens */}
+          <Box
+            sx={{
+              mt: 3,
+              position: "sticky",
+              bottom: 12,
+              zIndex: 20,
+              display: "flex",
+              flexDirection: { xs: "column-reverse", sm: "row" },
+              justifyContent: "flex-end",
+              gap: 2,
+            }}
+          >
+            <Button
+              variant="outlined"
+              startIcon={<RestartAltIcon />}
+              onClick={onReset}
+              sx={{
+                borderRadius: 2,
+                textTransform: "none",
+                fontWeight: 700,
+                width: { xs: "100%", sm: "auto" },
+              }}
+            >
+              Reset
+            </Button>
+            <Button
+              variant="contained"
+              startIcon={<SearchIcon />}
+              onClick={onFetch}
+              disabled={
+                filters.cgl.length === 0 ||
+                !filters.balanceDate ||
+                balanceDateError
+              }
+              loading={fetchLoading}
+              sx={{
+                borderRadius: 2,
+                px: { xs: 2, sm: 4 },
+                textTransform: "none",
+                fontWeight: 800,
+                width: { xs: "100%", sm: "auto" },
+              }}
+            >
+              Search
+            </Button>
+          </Box>
+        </CardContent>
+      </Card>
+    </Box>
+  );
+};
+
+export default BalanceLedgerForm;
