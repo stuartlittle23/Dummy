@@ -1,15 +1,13 @@
 onInputChange={(event, newInputValue, reason) => {
-  if (newInputValue.length > 30) return;
-  
-  // 1. STOPS DROPDOWN CLOSING: Ignore internal value selections
   if (reason === "reset") return;
+
+  if (newInputValue.length > 30) return;
 
   setBranchSearch(newInputValue);
 
-  // 2. FIXES PERSISTENCE: Wipes out old results instantly on backspace/clear
-  if (reason === "input" && newInputValue.length >= 3) {
+  if (newInputValue.length >= 3) {
     fetchSearchData("branch", newInputValue);
-  } else if (newInputValue.length < 3) {
+  } else {
     setBranches([]);
   }
 }}
@@ -18,22 +16,18 @@ onInputChange={(event, newInputValue, reason) => {
 
 
 
-
-
 onInputChange={(event, newInputValue, reason) => {
-  if (newInputValue.length > 30) return;
-
-  // 1. STOPS DROPDOWN CLOSING: Ignore internal value selections
   if (reason === "reset") return;
+
+  if (newInputValue.length > 30) return;
 
   setCglSearch(newInputValue);
 
-  // 2. FIXES PERSISTENCE: Wipes stale results immediately on backspace
   if (reason === "input" && newInputValue.length >= 3) {
     fetchSearchData("cgl", newInputValue);
-  } else if (newInputValue.length < 3) {
+  }
+
+  if (newInputValue.length < 3) {
     setCgls(["All CGLs"]);
   }
 }}
-
-
