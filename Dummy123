@@ -1,1 +1,51 @@
+const SPECIAL_CHAR_MSG = "Special characters are not allowed.";
+
+
+
+
+if (!GLCC_ALLOWED_REGEX.test(value)) {
+  showSnackBar(SPECIAL_CHAR_MSG);
+  return;
+}
+
+
+
+
+onInputChange={(e, value, reason) => {
+  if (reason === "input" && !BRANCH_ALLOWED_REGEX.test(value)) {
+    showSnackBar(SPECIAL_CHAR_MSG);
+    return;
+  }
+
+  setBranchInput(value);
+  handleSearchChange(value, reason, "branch");
+}}
+
+
+
+
+
+onInputChange={(e, value, reason) => {
+  if (reason === "input" && !CGL_ALLOWED_REGEX.test(value)) {
+    showSnackBar(SPECIAL_CHAR_MSG);
+    return;
+  }
+
+  setCglInput(value);
+  handleSearchChange(value, reason, "cgl");
+}}
+
+
+
+
+onInputChange={(e, value, reason) => {
+  if (reason === "input" && !CURRENCY_ALLOWED_REGEX.test(value)) {
+    showSnackBar(SPECIAL_CHAR_MSG);
+    return;
+  }
+
+  setCurrencyInput(value);
+}}
+
+
 
