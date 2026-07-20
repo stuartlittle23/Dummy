@@ -1,7 +1,18 @@
+const [branchInput, setBranchInput] = useState("");
+
+
+
+inputValue={branchInput}
+
+
+
+const BRANCH_REGEX = /^[A-Za-z0-9 ]*$/;
+
 onInputChange={(e, value, reason) => {
   if (reason === "input" && !BRANCH_REGEX.test(value)) {
     return;
   }
 
+  setBranchInput(value);
   handleSearchChange(value, reason, "branch");
 }}
