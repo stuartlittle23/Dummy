@@ -1,15 +1,3 @@
-import {
-  Box,
-  MenuItem,
-  TextField,
-  Button,
-  Autocomplete,
-  Checkbox,
-  Chip,
-  Typography,
-  Grid,
-  Stack, // Make sure Stack is imported for the error messages
-} from "@mui/material";
 import { DatePicker, LocalizationProvider } from "@mui/x-date-pickers";
 import { AdapterDayjs } from "@mui/x-date-pickers/AdapterDayjs";
 
@@ -455,3 +443,16 @@ const TransactionFilters = ({
                   />
                 )}
               />
+            </Box>
+          </Grid>
+
+          {/* 4. DATE RANGE */}
+          <Grid size={{ xs: 12, sm: 6, md: fieldGridSize }}>
+            <Box sx={{ height: "100%" }}>
+              <TextField
+                select
+                label="Date Range"
+                value={quickFilter}
+                onChange={handleQuickFilter}
+                InputLabelProps={{ shrink: true }}
+                fullWidth
