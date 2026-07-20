@@ -1,18 +1,74 @@
-const [branchInput, setBranchInput] = useState("");
+const [cglInput, setCglInput] = useState("");
 
 
 
-inputValue={branchInput}
+const CGL_ALLOWED_REGEX = /^[A-Za-z0-9 ]*$/;
 
 
 
-const BRANCH_REGEX = /^[A-Za-z0-9 ]*$/;
+
+inputValue={cglInput}
 
 onInputChange={(e, value, reason) => {
-  if (reason === "input" && !BRANCH_REGEX.test(value)) {
+  if (reason === "input" && !CGL_ALLOWED_REGEX.test(value)) {
     return;
   }
 
-  setBranchInput(value);
-  handleSearchChange(value, reason, "branch");
+  setCglInput(value);
+  handleSearchChange(value, reason, "cgl");
 }}
+
+
+
+onChange={(e, value) => {
+  update("cgl", value);
+  setCglInput(value || "");
+}}
+
+
+
+
+
+currency 
+
+
+const [currencyInput, setCurrencyInput] = useState("");
+const CURRENCY_ALLOWED_REGEX = /^[A-Za-z0-9 ]*$/;
+inputValue={currencyInput}
+
+
+
+onInputChange={(e, value, reason) => {
+  if (reason === "input" && !CURRENCY_ALLOWED_REGEX.test(value)) {
+    return;
+  }
+
+  setCurrencyInput(value);
+}}
+
+
+
+
+
+
+onChange={(event, newValue) => {
+  update("currency", newValue);
+  setCurrencyInput(newValue || "");
+}}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
