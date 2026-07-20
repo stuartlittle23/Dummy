@@ -1,1 +1,9 @@
 
+const BRANCH_REGEX = /^[A-Za-z0-9 ]*$/;
+
+
+
+if (type === "branch" && !BRANCH_REGEX.test(val)) {
+  showSnackBar("Invalid branch code or branch name");
+  return;
+}
