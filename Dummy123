@@ -1,22 +1,725 @@
-const GLCC_ALLOWED_REGEX = /^[A-Z0-9]*$/;
-const GLCC_REGEX = /^\d{5}[A-Z]{3}\d{10}$/;
+const TransactionFilters = ({
+  userInputs,
+  setUserInputs,
+  currencies,
+  fetchCurrencies,
+  onSubmit,
+  resetState,
+  user,
+  sourceOptions,
+  etlDate,
+  glcc,
+  setGlcc,
+  glccValidated,
+  setGlccValidated,
+  validateGlcc,
+}) => {
+  const { callApi } = useApi();
+  const showSnackBar = useCustomSnackbar();
+  const selectedMenu = useSelector((state) => state.menus.selectedMenuItem);
+  const permissions = getPermissions(selectedMenu);
+
+  const [fromDateError, setFromDateError] = useState(null);
+  const [toDateError, setToDateError] = useState(null);
+  const [quickFilter, setQuickFilter] = useState("custom");
+
+  const MIN_ALLOWED_DATE = dayjs("2026-03-31");
+  const baseDate = etlDate?.isValid?.() ? etlDate : dayjs();
+
+  const update = (key, value) =>
+    setUserInputs((prev) => ({ ...prev, [key]: value }));
+
+  // ================= STATE =================
+  const [branches, setBranches] = useState([]);
+  const [cgls, setCgls] = useState([]);
+
+  const [loading, setLoading] = useState({
+    branch: false,
+    cgl: false,
+  });
+
+  const [req, setReq] = useState({
+    branch: true,
+    cgl: true,
+  });
+
+  // ================= DYNAMIC DATE FILTERS =================
+  const availableFilters = useMemo(() => {
+    return getAvailableFilters(baseDate, MIN_ALLOWED_DATE);
+  }, [MIN_ALLOWED_DATE, baseDate]);
+
+  const handleQuickFilter = (e) => {
+    const option = e.target.value;
+    setQuickFilter(option);
+
+    if (option === "custom") return;
+
+    const { newStart, newEnd } = calculateQuickFilterDates(
+      option,
+      baseDate,
+      MIN_ALLOWED_DATE,
+    );
+
+    update("fromDate", newStart);
+    update("toDate", newEnd);
+    validateDateRange(newStart, newEnd);
+  };
+
+  // ================= SEARCH OPTIONS =================
+  const setSearchOptions = (type, data) => {
+    if (type === "branch") setBranches(data);
+    if (type === "cgl") setCgls(data);
+  };
+
+  // ================= API CALL =================
+  const fetchSearchData = useCallback(
+    async (type, term) => {
+      try {
+        setLoading((p) => ({ ...p, [type]: true }));
+
+        let circleValue =
+          permissions?.wholebank === true
+            ? "null"
+            : user?.isCircle === true || permissions?.circle
+              ? user?.circleCode
+              : "";
+
+        const url =
+          type === "branch"
+            ? `/CM/common-master/branches-code-name-only?q=${encodeURIComponent(term)}&circleCode=${circleValue || ""}`
+            : `/CM/common-master/cgl-code-description-only?q=${encodeURIComponent(term)}`;
+
+        const result = await callApi(url, null, "GET");
+        let options = [];
+
+        if (result?.data?.length > 0) {
+          result.data.forEach((item) => {
+            options.unshift(
+              type === "branch"
+                ? `${item.code}-${item.name}`
+                : `${item.cglNumber} - ${item.description}`,
+            );
+          });
+          setSearchOptions(type, options);
+        } else {
+          showSnackBar("Data is not available");
+        }
+      } catch (e) {
+        console.error(e);
+      } finally {
+        setLoading((p) => ({ ...p, [type]: false }));
+      }
+    },
+    [callApi, permissions, user, showSnackBar],
+  );
+
+  // ================= INPUT HANDLER =================
+  const handleSearchChange = (value = null, reason, type) => {
+    if (reason === "input") {
+      const val = value || "";
+      if (val.length >= 3) {
+        setReq((prev) => ({ ...prev, [type]: false }));
+        fetchSearchData(type, val);
+      } else {
+        setReq((prev) => ({ ...prev, [type]: true }));
+      }
+    } else if (reason === "clear") {
+      setReq((prev) => ({ ...prev, [type]: true }));
+    }
+  };
+
+  const isNumeric = (value) => {
+    if (value) {
+      const regex = /^\d+$/;
+      return regex.test(value);
+    }
+    return false;
+  };
+
+  // ================= EFFECTS =================
+  useEffect(() => {
+    if (req.branch) setBranches([]);
+  }, [req.branch]);
+
+  useEffect(() => {
+    fetchCurrencies();
+  }, [fetchCurrencies]);
+
+  useEffect(() => {
+    if (req.cgl) setCgls([]);
+  }, [req.cgl]);
+
+  const getDateErrorMessage = (field, error) => {
+    switch (error) {
+      case "invalidDate":
+        return `Please enter a valid ${field}`;
+      case "minDate":
+        return `${field} cannot be before ${MIN_ALLOWED_DATE.format("DD-MM-YYYY")}`;
+      case "maxDate":
+        return `${field} cannot exceed ETL Date`;
+      case "fromGreaterThanTo":
+        return "From Date must be ≤ To Date";
+      case "toLessThanFrom":
+        return "To Date must be ≥ From Date";
+      case "rangeExceeds12Months":
+        return "Range cannot exceed 12 months";
+      case "afterEtlDate":
+        return `Cannot exceed ETL Date (${etlDate?.format("DD-MM-YYYY")})`;
+      default:
+        return "";
+    }
+  };
+
+  const validateDateRange = (fromDate, toDate) => {
+    setFromDateError(null);
+    setToDateError(null);
+
+    if (!fromDate?.isValid?.() || !toDate?.isValid?.()) return;
+    if (fromDate.isAfter(toDate, "day")) {
+      setFromDateError("fromGreaterThanTo");
+      setToDateError("toLessThanFrom");
+      return;
+    }
+    if (toDate.isAfter(fromDate.add(1, "year"), "day")) {
+      setToDateError("rangeExceeds12Months");
+      return;
+    }
+    if (etlDate?.isValid?.() && toDate.isAfter(etlDate, "day")) {
+      setToDateError("afterEtlDate");
+    }
+  };
+
+  // ================= HANDLERS =================
+  const handleReset = () => {
+    setQuickFilter("custom");
+    setFromDateError(null);
+    setToDateError(null);
+    resetState();
+  };
+
+  const validationMessages = [
+    fromDateError && getDateErrorMessage("From Date", fromDateError),
+    toDateError && getDateErrorMessage("To Date", toDateError),
+  ].filter(Boolean);
+
+  const fieldGridSize = permissions?.wholebank || user?.isCircle ? 3 : 4;
 
 
+  // ================= UI =================
+  return (
+    <Box sx={{ width: "100%" }}>
+      <LocalizationProvider dateAdapter={AdapterDayjs}>
+        <Grid container spacing={2}>
+          {/* GLCC (Only Wholebank) */}
+          {(permissions?.wholebank || user?.isCircle) && (
+            <Grid size={{ xs: 12, sm: 6, md: 3 }}>
+              <TextField
+                fullWidth
+                label="GLCC(optional)"
+                value={glcc}
+                placeholder="18 Digit GLCC"
+                InputLabelProps={{ shrink: true }}
+                inputProps={{ maxLength: 18 }}
+                onChange={(e) => {
+                  const value = e.target.value.toUpperCase();
+                  setGlcc(value);
+                  setGlccValidated(false);
+                  setUserInputs((prev) => ({
+                    ...prev,
+                    branch: "",
+                    currency: null,
+                    cgl: "",
+                  }));
+                  if (value.length === 18) validateGlcc(value);
+                }}
+              />
+            </Grid>
+          )}
 
+          {/* 1. BRANCH */}
+          <Grid size={{ xs: 12, sm: 6, md: fieldGridSize }}>
+            <Box sx={{ height: "100%" }}>
+              <Autocomplete
+                disabled={
+                  glccValidated ||
+                  (!permissions?.wholebank &&
+                    (user?.isCircle === false || permissions?.branch))
+                }
+                forcePopupIcon={false}
+                autoHighlight
+                value={userInputs?.branch || ""}
+                loading={!req.branch && loading.branch}
+                options={branches}
+                noOptionsText={
+                  req.branch
+                    ? "Please enter at least 3 characters"
+                    : "No Options"
+                }
+                onInputChange={(e, value, reason) =>
+                  handleSearchChange(value, reason, "branch")
+                }
+                onChange={(e, value) => update("branch", value)}
+                renderInput={(params) => (
+                  <TextField
+                    {...params}
+                    fullWidth
+                    label="Branch Code or Branch Name*"
+                    placeholder="eg. 12365 or ABC"
+                    InputLabelProps={{ shrink: true }}
+                    slotProps={{
+                      htmlInput: {
+                        ...params.inputProps,
+                        maxLength: isNumeric(params.inputProps.value) ? 5 : 15,
+                      },
+                    }}
+                    sx={{
+                      "& .MuiInputLabel-root": {
+                        fontWeight: 500,
+                        color: "text.primary",
+                      },
+                      "& .MuiOutlinedInput-root": {
+                        backgroundColor: "transparent",
+                      },
+                    }}
+                  />
+                )}
+              />
+            </Box>
+          </Grid>
 
+          {/* 2. CURRENCY */}
+          <Grid size={{ xs: 12, sm: 6, md: fieldGridSize }}>
+            <Box sx={{ height: "100%" }}>
+              <Autocomplete
+                autoHighlight
+                disabled={glccValidated}
+                options={currencies || []}
+                value={userInputs?.currency || null}
+                onOpen={fetchCurrencies}
+                onChange={(event, newValue) => update("currency", newValue)}
+                renderInput={(params) => (
+                  <TextField
+                    {...params}
+                    fullWidth
+                    label="Currency*"
+                    InputLabelProps={{ shrink: true }}
+                    placeholder="Select Currency"
+                    sx={{
+                      "& .MuiInputLabel-root": {
+                        fontWeight: 500,
+                        color: "text.primary",
+                      },
+                      "& .MuiOutlinedInput-root": {
+                        backgroundColor: "transparent",
+                      },
+                    }}
+                  />
+                )}
+              />
+            </Box>
+          </Grid>
 
-onChange={(e) => {
-  const value = e.target.value.toUpperCase();
+          {/* 3. CGL */}
+          <Grid size={{ xs: 12, sm: 6, md: fieldGridSize }}>
+            <Box sx={{ height: "100%" }}>
+              <Autocomplete
+                disabled={glccValidated}
+                forcePopupIcon={false}
+                autoHighlight
+                value={userInputs?.cgl || ""}
+                loading={!req.cgl && loading.cgl}
+                options={cgls}
+                noOptionsText={
+                  req.cgl ? "Please enter at least 3 characters" : "No Options"
+                }
+                onInputChange={(e, value, reason) =>
+                  handleSearchChange(value, reason, "cgl")
+                }
+                onChange={(e, value) => update("cgl", value)}
+                renderInput={(params) => (
+                  <TextField
+                    {...params}
+                    fullWidth
+                    label="CGL*"
+                    InputLabelProps={{ shrink: true }}
+                    placeholder="eg. 9999999999"
+                    sx={{
+                      "& .MuiInputLabel-root": {
+                        fontWeight: 500,
+                        color: "text.primary",
+                      },
+                      "& .MuiOutlinedInput-root": {
+                        backgroundColor: "transparent",
+                      },
+                    }}
+                    slotProps={{
+                      htmlInput: {
+                        ...params.inputProps,
+                        maxLength: isNumeric(params.inputProps.value) ? 10 : 30,
+                      },
+                    }}
+                  />
+                )}
+              />
+            </Box>
+          </Grid>
 
-  if (!GLCC_ALLOWED_REGEX.test(value)) return;
+          {/* 4. DATE RANGE */}
+          <Grid size={{ xs: 12, sm: 6, md: fieldGridSize }}>
+            <Box sx={{ height: "100%" }}>
+              <TextField
+                select
+                label="Date Range"
+                value={quickFilter}
+                onChange={handleQuickFilter}
+                InputLabelProps={{ shrink: true }}
+                fullWidth
+                sx={{
+                  "& .MuiInputLabel-root": {
+                    fontWeight: 500,
+                    color: "text.primary",
+                  },
+                }}
+              >
+                {availableFilters.map((opt) => (
+                  <MenuItem key={opt.value} value={opt.value}>
+                    {opt.label}
+                  </MenuItem>
+                ))}
+              </TextField>
+            </Box>
+          </Grid>
 
-  setGlcc(value);
-  setGlccValidated(false);
-  setBranch("");
-  setCurrency("");
-  setCgl("");
+          {/* 5. START DATE */}
+          <Grid size={{ xs: 12, sm: 6, md: fieldGridSize }}>
+            <Box sx={{ height: "100%" }}>
+              <DatePicker
+                disableHighlightToday
+                value={userInputs?.fromDate || null}
+                format="DD-MM-YYYY"
+                minDate={MIN_ALLOWED_DATE}
+                maxDate={etlDate}
+                onChange={(value) => {
+                  update("fromDate", value);
+                  setQuickFilter("custom");
+                  validateDateRange(value, userInputs?.toDate);
+                }}
+                onError={(error) => setFromDateError(error ? error : null)}
+                slotProps={{
+                  textField: {
+                    label: "From Date*",
+                    fullWidth: true,
+                    InputLabelProps: { shrink: true },
+                    error: !!fromDateError,
+                    // Helper text removed
+                    sx: { "& .MuiInputLabel-root": { fontWeight: 500 } },
+                  },
+                }}
+              />
+            </Box>
+          </Grid>
 
-  if (GLCC_REGEX.test(value)) {
-    validateGlcc(value);
-  }
-}}
+          {/* 6. TO DATE */}
+          <Grid size={{ xs: 12, sm: 6, md: fieldGridSize }}>
+            <Box sx={{ height: "100%" }}>
+              <DatePicker
+                disableHighlightToday
+                value={userInputs?.toDate || null}
+                format="DD-MM-YYYY"
+                disabled={!userInputs?.fromDate}
+                minDate={userInputs?.fromDate || MIN_ALLOWED_DATE}
+                maxDate={etlDate}
+                onChange={(value) => {
+                  update("toDate", value);
+                  setQuickFilter("custom");
+                  validateDateRange(userInputs?.fromDate, value);
+                }}
+                onError={(error) => setToDateError(error ? error : null)}
+                slotProps={{
+                  textField: {
+                    label: "To Date*",
+                    fullWidth: true,
+                    InputLabelProps: { shrink: true },
+                    error: !!toDateError,
+                    // Helper text removed
+                    sx: { "& .MuiInputLabel-root": { fontWeight: 500 } },
+                  },
+                }}
+              />
+            </Box>
+          </Grid>
+
+          {/* 7. TRANSACTION TYPE */}
+          <Grid size={{ xs: 12, sm: 6, md: fieldGridSize }}>
+            <Box sx={{ height: "100%" }}>
+              <Autocomplete
+                multiple
+                disableCloseOnSelect
+                forcePopupIcon={true}
+                openOnFocus
+                options={sourceOptions}
+                value={userInputs?.sourceFlags || []}
+                isOptionEqualToValue={(opt, val) => opt.flagId === val.flagId}
+                getOptionLabel={(opt) => opt.flagName || ""}
+                renderTags={(value, getTagProps) => {
+                  const allSelected = value.length === sourceOptions.length;
+                  if (allSelected) {
+                    return (
+                      <Typography
+                        variant="body2"
+                        sx={{
+                          fontWeight: 500,
+                          color: "text.secondary",
+                          ml: 0.5,
+                        }}
+                      >
+                        Select All
+                      </Typography>
+                    );
+                  }
+                  if (value.length === 0) return null;
+                  const moreCount = value.length - 1;
+                  const { onDelete: _onDelete, ...tagProps } = getTagProps({
+                    index: 0,
+                  });
+
+                  return (
+                    <Box
+                      sx={{ display: "flex", alignItems: "center", gap: 0.5 }}
+                    >
+                      <Chip
+                        {...tagProps}
+                        key={value[0].flagId}
+                        label={value[0].flagName}
+                        size="small"
+                        sx={{
+                          borderRadius: "6px",
+                          pointerEvents: "none",
+                          height: "24px",
+                        }}
+                      />
+                      {moreCount > 0 && (
+                        <Typography
+                          variant="caption"
+                          sx={{
+                            fontWeight: 600,
+                            color: "text.secondary",
+                            whiteSpace: "nowrap",
+                          }}
+                        >
+                          +{moreCount} more
+                        </Typography>
+                      )}
+                    </Box>
+                  );
+                }}
+                onChange={(e, newValue) => {
+                  if (newValue.find((option) => option.flagId === "all")) {
+                    const isAllSelected =
+                      userInputs?.sourceFlags?.length === sourceOptions.length;
+                    update("sourceFlags", isAllSelected ? [] : sourceOptions);
+                  } else {
+                    update("sourceFlags", newValue);
+                  }
+                }}
+                filterOptions={(options) => [
+                  { flagId: "all", flagName: "Select All" },
+                  ...options,
+                ]}
+                renderOption={(props, option, { selected }) => {
+                  const { key, ...optionProps } = props;
+                  const isSelectAll = option.flagId === "all";
+                  const allSelected =
+                    userInputs?.sourceFlags?.length === sourceOptions.length;
+                  return (
+                    <li
+                      key={key}
+                      {...optionProps}
+                      style={{ fontSize: "0.875rem" }}
+                    >
+                      <Checkbox
+                        size="small"
+                        style={{ marginRight: 8 }}
+                        checked={isSelectAll ? allSelected : selected}
+                      />
+                      <Typography
+                        variant="body2"
+                        sx={{ fontWeight: isSelectAll ? 600 : 400 }}
+                      >
+                        {option.flagName}
+                      </Typography>
+                    </li>
+                  );
+                }}
+                renderInput={(params) => (
+                  <TextField
+                    {...params}
+                    fullWidth
+                    label="Transaction Type*"
+                    placeholder={
+                      userInputs?.sourceFlags?.length > 0
+                        ? ""
+                        : "Select Options"
+                    }
+                    InputLabelProps={{ shrink: true }}
+                    sx={{
+                      "& .MuiInputLabel-root": {
+                        fontWeight: 500,
+                        color: "text.primary",
+                      },
+                      "& .MuiOutlinedInput-root": {
+                        backgroundColor: "transparent",
+                        minHeight: "56px !important",
+                        height: "56px !important",
+                        display: "flex",
+                        alignItems: "center",
+                        flexWrap: "nowrap !important",
+                        overflow: "hidden",
+                        cursor: "pointer",
+                        paddingRight: "65px !important",
+                        "& .MuiAutocomplete-input": {
+                          padding: "0px !important",
+                          minWidth: "0px !important",
+                        },
+                        "& .MuiAutocomplete-endAdornment": {
+                          top: "50%",
+                          transform: "translateY(-50%)",
+                          display: "flex",
+                          alignItems: "center",
+                          right: "8px",
+                        },
+                      },
+                    }}
+                  />
+                )}
+              />
+            </Box>
+          </Grid>
+
+          {/* 8. FROM AMOUNT */}
+          <Grid size={{ xs: 12, sm: 6, md: fieldGridSize }}>
+            <Box sx={{ height: "100%" }}>
+              <TextField
+                label="From Amount"
+                InputLabelProps={{ shrink: true }}
+                fullWidth
+                placeholder="eg. 0.00"
+                value={userInputs?.minAmount || ""}
+                onPaste={(e) => e.preventDefault()}
+                onChange={(e) => {
+                  const val = e.target.value;
+                  if (val === "" || /^\d*\.?\d*$/.test(val))
+                    update("minAmount", val);
+                }}
+                inputProps={{ maxLength: 20, inputMode: "decimal" }}
+                sx={{
+                  "& .MuiInputLabel-root": {
+                    fontWeight: 500,
+                    color: "text.primary",
+                  },
+                  "& .MuiOutlinedInput-root": {
+                    backgroundColor: "transparent",
+                  },
+                }}
+              />
+            </Box>
+          </Grid>
+
+          {/* 9. TO AMOUNT */}
+          <Grid size={{ xs: 12, sm: 6, md: fieldGridSize }}>
+            <Box sx={{ height: "100%" }}>
+              <TextField
+                label="To Amount"
+                InputLabelProps={{ shrink: true }}
+                fullWidth
+                placeholder="eg. 999999999..."
+                value={userInputs?.maxAmount || ""}
+                onPaste={(e) => e.preventDefault()}
+                onChange={(e) => {
+                  const val = e.target.value;
+                  if (val === "" || /^\d*\.?\d*$/.test(val))
+                    update("maxAmount", val);
+                }}
+                inputProps={{ maxLength: 20, inputMode: "decimal" }}
+                sx={{
+                  "& .MuiInputLabel-root": {
+                    fontWeight: 500,
+                    color: "text.primary",
+                  },
+                  "& .MuiOutlinedInput-root": {
+                    backgroundColor: "transparent",
+                  },
+                }}
+              />
+            </Box>
+          </Grid>
+
+          {/* BUTTONS */}
+          <Grid size={{ xs: 12, md: permissions?.wholebank ? 6 : 12 }}>
+            <Box
+              sx={{
+                display: "flex",
+                justifyContent: "flex-end",
+                alignItems: "flex-start",
+                gap: 2,
+              }}
+            >
+              <Button
+                variant="contained"
+                onClick={handleReset}
+                startIcon={<RestartAltIcon />}
+              >
+                Reset
+              </Button>
+              <Button
+                variant="contained"
+                startIcon={<SearchIcon />}
+                disabled={
+                  !(
+                    userInputs?.branch &&
+                    userInputs?.currency &&
+                    userInputs?.cgl &&
+                    userInputs?.fromDate?.isValid?.() &&
+                    userInputs?.toDate?.isValid?.() &&
+                    !userInputs.toDate.isBefore(userInputs.fromDate) &&
+                    userInputs?.sourceFlags?.length > 0
+                  )
+                }
+                onClick={onSubmit}
+              >
+                Search
+              </Button>
+            </Box>
+          </Grid>
+        </Grid>
+
+        {/* BOTTOM ERROR MESSAGE BOX */}
+        {validationMessages.length > 0 && (
+          <Box
+            sx={{
+              mt: 2,
+              p: 1.5,
+              borderRadius: 2,
+              border: "1px solid #ff4d4f",
+              bgcolor: "#fff1f0",
+            }}
+          >
+            <Stack spacing={0.5}>
+              {validationMessages.map((msg, index) => (
+                <Typography
+                  key={index}
+                  variant="body2"
+                  sx={{ color: "#d32f2f", fontWeight: 600 }}
+                >
+                  • {msg}
+                </Typography>
+              ))}
+            </Stack>
+          </Box>
+        )}
+      </LocalizationProvider>
+    </Box>
+  );
+};
+
+export default TransactionFilters;
