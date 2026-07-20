@@ -1,1 +1,22 @@
+const GLCC_ALLOWED_REGEX = /^[A-Z0-9]*$/;
+const GLCC_REGEX = /^\d{5}[A-Z]{3}\d{10}$/;
 
+
+
+
+
+onChange={(e) => {
+  const value = e.target.value.toUpperCase();
+
+  if (!GLCC_ALLOWED_REGEX.test(value)) return;
+
+  setGlcc(value);
+  setGlccValidated(false);
+  setBranch("");
+  setCurrency("");
+  setCgl("");
+
+  if (GLCC_REGEX.test(value)) {
+    validateGlcc(value);
+  }
+}}
