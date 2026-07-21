@@ -1,55 +1,10 @@
-const INVALID_GLCC_MSG =
-  "Invalid GLCC format. Only letters and numbers are allowed.";
+import { createFilterOptions } from "@mui/material/Autocomplete";
 
-const INVALID_GLCC_PATTERN_MSG =
-  "Invalid GLCC format. Enter 5 digits, followed by 3 letters, and then 10 digits.";
+const filter = createFilterOptions();
 
 
 
-onChange={(e) => {
-  const value = e.target.value.toUpperCase();
-
-  // Block special characters
-  if (!GLCC_ALLOWED_REGEX.test(value)) {
-    showSnackBar(INVALID_GLCC_MSG, "warning");
-    return;
-  }
-
-  // First 5 characters must be digits
-  if (value.length <= 5 && !/^\d*$/.test(value)) {
-    showSnackBar(INVALID_GLCC_PATTERN_MSG, "warning");
-    return;
-  }
-
-  // Characters 6-8 must be letters
-  if (
-    value.length > 5 &&
-    value.length <= 8 &&
-    !/^\d{5}[A-Z]*$/.test(value)
-  ) {
-    showSnackBar(INVALID_GLCC_PATTERN_MSG, "warning");
-    return;
-  }
-
-  // Characters 9-18 must be digits
-  if (
-    value.length > 8 &&
-    !/^\d{5}[A-Z]{3}\d*$/.test(value)
-  ) {
-    showSnackBar(INVALID_GLCC_PATTERN_MSG, "warning");
-    return;
-  }
-
-  setGlcc(value);
-  setGlccValidated(false);
-  setUserInputs((prev) => ({
-    ...prev,
-    branch: "",
-    currency: null,
-    cgl: "",
-  }));
-
-  if (value.length === 18) {
-    validateGlcc(value);
-  }
-}}
+filterOptions={(options, params) => [
+  { flagId: "all", flagName: "Select All" },
+  ...filter(options, params),
+]}
