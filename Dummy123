@@ -1,1 +1,7 @@
 
+const INVALID_BRANCH_MSG =
+  "Invalid Branch Code/Branch Name format. Only letters, numbers, spaces, '/', '&', '(', ')', '-', and ',' are allowed.";
+
+
+
+
