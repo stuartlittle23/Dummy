@@ -1,9 +1,17 @@
 onInputChange={(e, value, reason) => {
-  if (reason === "input" && !BRANCH_ALLOWED_REGEX.test(value)) {
-    showSnackBar(INVALID_BRANCH_MSG, "warning");
+  if (reason === "input" && !CURRENCY_ALLOWED_REGEX.test(value)) {
+    showSnackBar(INVALID_CURRENCY_MSG, "warning");
     return;
   }
 
-  setBranchInput(value);
-  handleSearchChange(value, reason, "branch");
+  setCurrencyInput(value);
+}}
+
+onChange={(event, newValue) => {
+  setCurrency(newValue ? newValue.currencyCode : "");
+  setCurrencyInput(
+    newValue
+      ? `${newValue.currencyCode} - ${newValue.currencyName}`
+      : ""
+  );
 }}
