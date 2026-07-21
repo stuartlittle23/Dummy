@@ -1,18 +1,9 @@
-onChange={(e) => {
-  const value = e.target.value.toUpperCase();
-
-  if (!GLCC_ALLOWED_REGEX.test(value)) {
-    showSnackBar(INVALID_GLCC_MSG, "warning");
+onInputChange={(e, value, reason) => {
+  if (reason === "input" && !BRANCH_ALLOWED_REGEX.test(value)) {
+    showSnackBar(INVALID_BRANCH_MSG, "warning");
     return;
   }
 
-  setGlcc(value);
-  setGlccValidated(false);
-  setBranch("");
-  setCurrency("");
-  setCgl("");
-
-  if (GLCC_REGEX.test(value) || value.length === 18) {
-    validateGlcc(value);
-  }
+  setBranchInput(value);
+  handleSearchChange(value, reason, "branch");
 }}
