@@ -1,9 +1,96 @@
-filterOptions={(options, params) => {
-  const filtered = filter(options, params);
-
-  if (params.inputValue) {
-    return filtered;
-  }
-
-  return [{ flagId: "all", flagName: "Select All" }, ...filtered];
-}}
+{/* Transaction Type */}
+                  <Grid size={{ xs: 12, sm: 6, md: 3 }}>
+                    <Stack spacing={1}>
+                      <Stack direction="row" spacing={1} alignItems="center">
+                        <ReceiptLongIcon fontSize="small" />
+                        <Typography sx={{ fontWeight: 700 }}>
+                          Transaction Type *
+                        </Typography>
+                      </Stack>
+                      <Autocomplete
+                        multiple
+                        size="small"
+                        disableCloseOnSelect
+                        options={sourceOptions}
+                        value={filters.sourceFlags}
+                        getOptionLabel={(o) => o.flagName || ""}
+                        isOptionEqualToValue={(option, value) =>
+                          option.flagId === value.flagId
+                        }
+                        onChange={(_, selectedOptions) => {
+                          const isSelectAllClicked = selectedOptions.some(
+                            (option) => option.flagId === "select-all",
+                          );
+                          if (isSelectAllClicked) {
+                            if (
+                              filters.sourceFlags.length ===
+                              sourceOptions.length
+                            ) {
+                              onFilterChange("sourceFlags", []);
+                            } else {
+                              onFilterChange("sourceFlags", sourceOptions);
+                            }
+                          } else {
+                            onFilterChange("sourceFlags", selectedOptions);
+                          }
+                        }}
+                        filterOptions={(options) => [
+                          { flagId: "select-all", flagName: "Select All" },
+                          ...options,
+                        ]}
+                        renderTags={(v) => (
+                          <CustomChip
+                            label={
+                              v.length === sourceOptions.length
+                                ? "All Types"
+                                : `${v.length} Types`
+                            }
+                            color="default"
+                            sx={{ bgcolor: "white" }}
+                          />
+                        )}
+                        renderOption={(props, option, { selected }) => {
+                          const isAllSelected =
+                            filters.sourceFlags.length === sourceOptions.length;
+                          const isChecked =
+                            option.flagId === "select-all"
+                              ? isAllSelected
+                              : selected;
+                          return (
+                            <li {...props} key={option.flagId}>
+                              <Checkbox
+                                size="small"
+                                style={{ marginRight: 8 }}
+                                checked={isChecked}
+                              />
+                              <Typography
+                                variant="body2"
+                                sx={{
+                                  fontWeight:
+                                    option.flagId === "select-all" ? 700 : 400,
+                                }}
+                              >
+                                {option.flagName}
+                              </Typography>
+                            </li>
+                          );
+                        }}
+                        renderInput={(p) => (
+                          <TextField
+                            {...p}
+                            placeholder="Transaction Types"
+                            sx={{
+                              bgcolor: "white",
+                              borderRadius: 1,
+                              "& .MuiOutlinedInput-root": { borderRadius: 1 },
+                            }}
+                            inputProps={{ ...p.inputProps, maxLength: 30 }}
+                          />
+                        )}
+                      />
+                    </Stack>
+                  </Grid>
+                </Grid>
+              </Paper>
+            </Grid>
+          </Grid>
