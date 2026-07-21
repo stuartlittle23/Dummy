@@ -5,3 +5,20 @@ const INVALID_BRANCH_MSG =
 
 
 
+
+const INVALID_CURRENCY_MSG =
+  "Invalid Currency format. Only letters, numbers, spaces, and '-' are allowed.";
+
+
+
+
+
+const INVALID_CGL_MSG =
+  "Invalid CGL format. Only letters, numbers, spaces, '_', '-', ''', '<', '>', '/', '&', '(', ')', and '~' are allowed.";
+
+
+
+
+
+const INVALID_GLCC_MSG =
+  "Invalid GLCC format. Only letters and numbers are allowed.";
