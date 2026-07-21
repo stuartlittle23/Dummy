@@ -1,24 +1,34 @@
+    <Box sx={{ width: "100%" }}>
+      <LocalizationProvider dateAdapter={AdapterDayjs}>
+        <Grid container spacing={2}>
+          {/* GLCC (Only Wholebank) */}
+          {(permissions?.wholebank || user?.isCircle) && (
+            <Grid size={{ xs: 12, sm: 6, md: 3 }}>
+              <TextField
+                fullWidth
+                label="GLCC(optional)"
+                value={glcc}
+                placeholder="18 Digit GLCC"
+                InputLabelProps={{ shrink: true }}
+                inputProps={{ maxLength: 18 }}
+                onChange={(e) => {
+                  const value = e.target.value.toUpperCase();
 
-const INVALID_BRANCH_MSG =
-  "Invalid Branch Code/Branch Name format. Only letters, numbers, spaces, '/', '&', '(', ')', '-', and ',' are allowed.";
+                  if (!GLCC_ALLOWED_REGEX.test(value)) {
+                    showSnackBar(INVALID_GLCC_MSG, "warning");
+                    return;
+                  }
 
+                  setGlcc(value);
+                  setGlccValidated(false);
+                  setUserInputs((prev) => ({
+                    ...prev,
+                    branch: "",
+                    currency: null,
+                    cgl: "",
+                  }));
 
-
-
-
-const INVALID_CURRENCY_MSG =
-  "Invalid Currency format. Only letters, numbers, spaces, and '-' are allowed.";
-
-
-
-
-
-const INVALID_CGL_MSG =
-  "Invalid CGL format. Only letters, numbers, spaces, '_', '-', ''', '<', '>', '/', '&', '(', ')', and '~' are allowed.";
-
-
-
-
-
-const INVALID_GLCC_MSG =
-  "Invalid GLCC format. Only letters and numbers are allowed.";
+                  if (GLCC_REGEX.test(value) || value.length === 18) {
+                    validateGlcc(value);
+                  }
+                }}
