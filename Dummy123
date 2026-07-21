@@ -1,6 +1,8 @@
+const INVALID_GLCC_MSG =
+  "Invalid GLCC format. Only letters and numbers are allowed.";
+
 const INVALID_GLCC_PATTERN_MSG =
   "Invalid GLCC format. Enter 5 digits, followed by 3 letters, and then 10 digits.";
-
 
 
 
@@ -20,22 +22,32 @@ onChange={(e) => {
   }
 
   // Characters 6-8 must be letters
-  if (value.length > 5 && value.length <= 8 && !/^\d{5}[A-Z]*$/.test(value)) {
+  if (
+    value.length > 5 &&
+    value.length <= 8 &&
+    !/^\d{5}[A-Z]*$/.test(value)
+  ) {
     showSnackBar(INVALID_GLCC_PATTERN_MSG, "warning");
     return;
   }
 
   // Characters 9-18 must be digits
-  if (value.length > 8 && !/^\d{5}[A-Z]{3}\d*$/.test(value)) {
+  if (
+    value.length > 8 &&
+    !/^\d{5}[A-Z]{3}\d*$/.test(value)
+  ) {
     showSnackBar(INVALID_GLCC_PATTERN_MSG, "warning");
     return;
   }
 
   setGlcc(value);
   setGlccValidated(false);
-  setBranch("");
-  setCurrency("");
-  setCgl("");
+  setUserInputs((prev) => ({
+    ...prev,
+    branch: "",
+    currency: null,
+    cgl: "",
+  }));
 
   if (value.length === 18) {
     validateGlcc(value);
