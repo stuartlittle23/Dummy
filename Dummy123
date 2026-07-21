@@ -1,34 +1,18 @@
-    <Box sx={{ width: "100%" }}>
-      <LocalizationProvider dateAdapter={AdapterDayjs}>
-        <Grid container spacing={2}>
-          {/* GLCC (Only Wholebank) */}
-          {(permissions?.wholebank || user?.isCircle) && (
-            <Grid size={{ xs: 12, sm: 6, md: 3 }}>
-              <TextField
-                fullWidth
-                label="GLCC(optional)"
-                value={glcc}
-                placeholder="18 Digit GLCC"
-                InputLabelProps={{ shrink: true }}
-                inputProps={{ maxLength: 18 }}
-                onChange={(e) => {
-                  const value = e.target.value.toUpperCase();
+onChange={(e) => {
+  const value = e.target.value.toUpperCase();
 
-                  if (!GLCC_ALLOWED_REGEX.test(value)) {
-                    showSnackBar(INVALID_GLCC_MSG, "warning");
-                    return;
-                  }
+  if (!GLCC_ALLOWED_REGEX.test(value)) {
+    showSnackBar(INVALID_GLCC_MSG, "warning");
+    return;
+  }
 
-                  setGlcc(value);
-                  setGlccValidated(false);
-                  setUserInputs((prev) => ({
-                    ...prev,
-                    branch: "",
-                    currency: null,
-                    cgl: "",
-                  }));
+  setGlcc(value);
+  setGlccValidated(false);
+  setBranch("");
+  setCurrency("");
+  setCgl("");
 
-                  if (GLCC_REGEX.test(value) || value.length === 18) {
-                    validateGlcc(value);
-                  }
-                }}
+  if (GLCC_REGEX.test(value) || value.length === 18) {
+    validateGlcc(value);
+  }
+}}
