@@ -1,17 +1,16 @@
+inputValue={cglInput}
+
 onInputChange={(e, value, reason) => {
-  if (reason === "input" && !CURRENCY_ALLOWED_REGEX.test(value)) {
-    showSnackBar(INVALID_CURRENCY_MSG, "warning");
+  if (reason === "input" && !CGL_ALLOWED_REGEX.test(value)) {
+    showSnackBar(INVALID_CGL_MSG, "warning");
     return;
   }
 
-  setCurrencyInput(value);
+  setCglInput(value);
+  handleSearchChange(value, reason, "cgl");
 }}
 
-onChange={(event, newValue) => {
-  setCurrency(newValue ? newValue.currencyCode : "");
-  setCurrencyInput(
-    newValue
-      ? `${newValue.currencyCode} - ${newValue.currencyName}`
-      : ""
-  );
+onChange={(e, value) => {
+  setCgl(value);
+  setCglInput(value || "");
 }}
