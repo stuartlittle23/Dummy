@@ -1,10 +1,9 @@
-import { createFilterOptions } from "@mui/material/Autocomplete";
+filterOptions={(options, params) => {
+  const filtered = filter(options, params);
 
-const filter = createFilterOptions();
+  if (params.inputValue) {
+    return filtered;
+  }
 
-
-
-filterOptions={(options, params) => [
-  { flagId: "all", flagName: "Select All" },
-  ...filter(options, params),
-]}
+  return [{ flagId: "all", flagName: "Select All" }, ...filtered];
+}}
