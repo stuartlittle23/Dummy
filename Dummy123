@@ -1,1 +1,8 @@
 
+const isAllSelected =
+  sourceOptions.length > 0 &&
+  sourceOptions.every((option) =>
+    filters.sourceFlags.some(
+      (selected) => selected.flagId === option.flagId
+    )
+  );
