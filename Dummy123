@@ -1,191 +1,110 @@
-import React from "react";
-import { DataGrid } from "@mui/x-data-grid";
-import FileDownloadIcon from "@mui/icons-material/FileDownload";
-import { balanceColumns } from "./BalanceColumns";
-import { StyledButton, ButtonBox, OverlayBox } from "./BalanceStyles";
-import LoadingOverlay from "../../../utils/LoadingOverlay";
-import { StyledDataBox } from "./BalanceStyles";
-import {
-  Button,
-  Typography,
-  Stack,
-  Box,
-  Chip,
-  CircularProgress,
-} from "@mui/material";
-import ErrorOutlineIcon from "@mui/icons-material/ErrorOutline";
+ {/* Transaction Type */}
+                  <Grid size={{ xs: 12, sm: 6, md: 3 }}>
+                    <Stack spacing={1}>
+                      <Stack direction="row" spacing={1} alignItems="center">
+                        <ReceiptLongIcon fontSize="small" />
+                        <Typography sx={{ fontWeight: 700 }}>
+                          Transaction Type *
+                        </Typography>
+                      </Stack>
+                      <Autocomplete
+                        multiple
+                        size="small"
+                        autoHighlight
+                        autoSelect
+                        disableCloseOnSelect
+                        options={sourceOptions}
+                        value={filters.sourceFlags}
+                        getOptionLabel={(o) => o.flagName || ""}
+                        isOptionEqualToValue={(option, value) =>
+                          option.flagId === value.flagId
+                        }
+                        onChange={(_, selectedOptions) => {
+                          const isSelectAllClicked = selectedOptions.some(
+                            (option) => option.flagId === "select-all",
+                          );
+                          if (isSelectAllClicked) {
+                            if (
+                              filters.sourceFlags.length ===
+                              sourceOptions.length
+                            ) {
+                              onFilterChange("sourceFlags", []);
+                            } else {
+                              onFilterChange("sourceFlags", sourceOptions);
+                            }
+                          } else {
+                            onFilterChange("sourceFlags", selectedOptions);
+                          }
+                        }}
+                        // filterOptions={(options) => [
+                        //   { flagId: "select-all", flagName: "Select All" },
+                        //   ...options,
+                        // ]}
+                        filterOptions={(options, params) => {
+                          const filtered = filter(options, params);
 
-const CustomNoRowsOverlay = () => (
-  <OverlayBox>
-    <ErrorOutlineIcon fontSize="large" color="action" />
-    <Typography variant="h5" fontSize="1.2rem" color="text.secondary">
-      No balance records available for the selected criteria
-    </Typography>
-  </OverlayBox>
-);
-export default function BalanceTable({
-  data,
-  loading,
-  rowCount,
-  fetchConf,
-  setFetchConf,
-  handleDownloadExcel,
-  exportLoading,
-}) {
-  return (
-    <Box sx={{ width: "100%", height: "100%" }}>
-      <Box
-        sx={{
-          p: 2,
-          // mb: 3,
-          borderRadius: "20px",
-          background: "rgba(255, 255, 255, 0.4)",
-          backdropFilter: "blur(12px)",
-          border: "1px solid rgba(255, 255, 255, 0.3)",
-          boxShadow: "0 8px 32px rgba(0,0,0,0.05)",
-          display: "flex",
-          flexDirection: "column",
-          gap: 2.5,
-        }}
-      >
-        <Stack
-          direction={{ xs: "column", sm: "row" }}
-          spacing={2}
-          justifyContent="space-between"
-          alignItems={{ xs: "stretch", sm: "center" }}
-        >
-          <Box
-            sx={{
-              display: "flex",
-              flexDirection: {
-                xs: "column",
-                sm: "row",
-              },
-              alignItems: {
-                xs: "flex-start",
-                sm: "baseline",
-              },
-              gap: {
-                xs: 1,
-                sm: 1.5,
-              },
-            }}
-          >
-            <Typography
-              variant="h6"
-              fontWeight={800}
-              sx={{
-                color: "#1a1a1a",
-                letterSpacing: "-0.5px",
-              }}
-            >
-              Balance Ledger
-            </Typography>
+                          if (params.inputValue) {
+                            return filtered;
+                          }
 
-            <Chip
-              label={
-                rowCount > 0
-                  ? `${rowCount.toLocaleString("en-IN")} Records Found`
-                  : "No Records"
-              }
-              size="small"
-              sx={{
-                fontWeight: 700,
-                color: "#58469f",
-                bgcolor: "rgba(88, 70, 159, 0.1)",
-                borderRadius: "8px",
-                width: {
-                  xs: "fit-content",
-                  sm: "auto",
-                },
-              }}
-            />
-          </Box>
-          <Button
-            variant="contained"
-            size="small"
-            startIcon={
-              exportLoading ? (
-                <CircularProgress size={16} color="inherit" />
-              ) : (
-                <FileDownloadIcon />
-              )
-            }
-            onClick={handleDownloadExcel}
-            disabled={!rowCount || loading || exportLoading}
-            sx={{
-              textTransform: "none",
-              bgcolor: "#58469f",
-              fontWeight: 700,
-              borderRadius: "8px",
-              px: 3,
-              "&:hover": { bgcolor: "#45357a" },
-            }}
-          >
-            {exportLoading ? "Preparing..." : "Export"}
-          </Button>
-        </Stack>
-
-        <Box
-          sx={{
-            width: "100%",
-            overflowX: "auto",
-            height: {
-              xs: "55vh",
-              sm: "60vh",
-              md: 470,
-            },
-          }}
-        >
-          <DataGrid
-            rows={data}
-            columns={balanceColumns}
-            loading={loading}
-            rowCount={rowCount}
-            paginationMode="server"
-            pageSizeOptions={[25, 50, 75, 100]}
-            paginationModel={fetchConf}
-            slots={{
-              noRowsOverlay: CustomNoRowsOverlay,
-            }}
-            onPaginationModelChange={(model) =>
-              setFetchConf((prev) => ({ ...prev, ...model }))
-            }
-            sortingMode="server"
-            sortingOrder={["asc", "desc"]}
-            sortModel={[
-              {
-                field: "date",
-                sort: fetchConf.sortIn?.toLowerCase(),
-              },
-            ]}
-            onSortModelChange={(model) => {
-              console.log("Sort model:", model);
-
-              if (model.length === 0) return;
-
-              setFetchConf((prev) => ({
-                ...prev,
-                sortIn: model[0].sort.toUpperCase(),
-                page: 0,
-              }));
-            }}
-            rowHeight={45}
-            disableRowSelectionOnClick
-            sx={{
-              borderRadius: "20px",
-              backgroundColor: "rgba(255,255,255,0.4)",
-              border: "1px solid rgba(255,255,255,0.3)",
-              "& .MuiDataGrid-columnHeaders": {
-                bgcolor: "#f8f9fa",
-                fontWeight: 700,
-              },
-            }}
-          />
-        </Box>
-      </Box>
-
-      <LoadingOverlay loading={loading.balance}></LoadingOverlay>
-    </Box>
-  );
-}
+                          return [
+                            { flagId: "select-all", flagName: "Select All" },
+                            ...filtered,
+                          ];
+                        }}
+                        renderTags={(v) => (
+                          <CustomChip
+                            label={
+                              v.length === sourceOptions.length
+                                ? "All Types"
+                                : `${v.length} Types`
+                            }
+                            color="default"
+                            sx={{ bgcolor: "white" }}
+                          />
+                        )}
+                        renderOption={(props, option, { selected }) => {
+                          const isAllSelected =
+                            filters.sourceFlags.length === sourceOptions.length;
+                          const isChecked =
+                            option.flagId === "select-all"
+                              ? isAllSelected
+                              : selected;
+                          return (
+                            <li {...props} key={option.flagId}>
+                              <Checkbox
+                                size="small"
+                                style={{ marginRight: 8 }}
+                                checked={isChecked}
+                              />
+                              <Typography
+                                variant="body2"
+                                sx={{
+                                  fontWeight:
+                                    option.flagId === "select-all" ? 700 : 400,
+                                }}
+                              >
+                                {option.flagName}
+                              </Typography>
+                            </li>
+                          );
+                        }}
+                        renderInput={(p) => (
+                          <TextField
+                            {...p}
+                            placeholder="Transaction Types"
+                            sx={{
+                              bgcolor: "white",
+                              borderRadius: 1,
+                              "& .MuiOutlinedInput-root": { borderRadius: 1 },
+                            }}
+                            inputProps={{ ...p.inputProps, maxLength: 30 }}
+                          />
+                        )}
+                      />
+                    </Stack>
+                  </Grid>
+                </Grid>
+              </Paper>
+            </Grid>
+          </Grid>
