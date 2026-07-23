@@ -1,54 +1,38 @@
-// ❌ REMOVE debounce wrapper around the function
-// ✅ NEW: Direct async function with useCallback
-const fetchBalance = useCallback(
-  async (configOverride) => {
-    try {
-      setLoading((prev) => ({ ...prev, balance: true }));
-
-      const matched = branch?.match(/^(\d{5})-/);
-      if (!matched) return;
-
-      // Ensure we explicitly fall back to fetchConf if no override passed
-      const effectiveConfig = configOverride || fetchConf;
-
-      const payload = {
-        currency,
-        cgl: cgl?.split(" - ")[0],
-        branch: matched[1],
-        startDate: start ? start.format("DD-MM-YYYY") : "",
-        endDate: end ? end.format("DD-MM-YYYY") : "",
-        page: effectiveConfig.page,
-        size: effectiveConfig.pageSize,
-        sortIn: effectiveConfig.sortIn,
-      };
-
-      const result = await callApi("/ES/balance/enquires", payload, "POST");
-
-      if (result?.data?.data?.length > 0) {
-        setData(result.data.data);
-        setRowCount(result.data.totalElements);
-        setFiltersExpanded(false);
-      } else {
-        setData([]);
-        setRowCount(0);
-      }
-    } catch (e) {
-      setData([]);
-      setRowCount(0);
-      showSnackBar("No records found");
-    } finally {
-      setLoading((prev) => ({ ...prev, balance: false }));
-      setSearchLoading(false);
+onPaginationModelChange={(model) => {
+  // Ignore if MUI DataGrid tries to reset page to 0 while we already hold new data
+  setFetchConf((prev) => {
+    if (prev.page === model.page && prev.pageSize === model.pageSize) {
+      return prev;
     }
-  },
-  [callApi, branch, currency, cgl, start, end, fetchConf]
-);
+    return {
+      ...prev,
+      page: model.page,
+      pageSize: model.pageSize,
+    };
+  });
+}}
 
 
-useEffect(() => {
-  if (data) {
-    fetchBalance(fetchConf);
-  }
-}, [fetchConf.page, fetchConf.pageSize, fetchConf.sortIn]);
 
-
+<DataGrid
+  rows={data || []}
+  columns={balanceColumns}
+  loading={isDataLoading}
+  rowCount={rowCount}
+  pagination
+  paginationMode="server"
+  pageSizeOptions={[25, 50, 75, 100]}
+  paginationModel={{
+    page: fetchConf.page,
+    pageSize: fetchConf.pageSize,
+  }}
+  onPaginationModelChange={(model) => {
+    setFetchConf((prev) => {
+      if (prev.page === model.page && prev.pageSize === model.pageSize) {
+        return prev;
+      }
+      return { ...prev, page: model.page, pageSize: model.pageSize };
+    });
+  }}
+  // ... rest of your props
+/>
