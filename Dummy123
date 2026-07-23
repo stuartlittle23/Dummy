@@ -1,1 +1,137 @@
 
+// ❌ OLD: [callApi, branch, currency, cgl, start, end, fetchConf]
+// ✅ NEW: Replace with this:
+const fetchBalance = useCallback(
+  debounce(async (configOverride) => {
+    try {
+      setLoading((prev) => ({ ...prev, balance: true }));
+
+      const matched = branch?.match(/^(\d{5})-/);
+      if (!matched) return;
+
+      // Use the override passed from useEffect or fall back to state
+      const effectiveConfig = configOverride || fetchConf;
+
+      const payload = {
+        currency,
+        cgl: cgl?.split(" - ")[0],
+        branch: matched[1],
+        startDate: start ? start.format("DD-MM-YYYY") : "",
+        endDate: end ? end.format("DD-MM-YYYY") : "",
+        page: effectiveConfig.page,
+        size: effectiveConfig.pageSize,
+        sortIn: effectiveConfig.sortIn,
+      };
+
+      const result = await callApi("/ES/balance/enquires", payload, "POST");
+
+      if (result?.data?.data?.length > 0) {
+        setData(result.data.data);
+        setRowCount(result.data.totalElements);
+        setFiltersExpanded(false);
+      } else {
+        setData([]);
+        setRowCount(0);
+      }
+    } catch (e) {
+      setData([]);
+      setRowCount(0);
+      showSnackBar("No records found");
+    } finally {
+      setLoading((prev) => ({ ...prev, balance: false }));
+      setSearchLoading(false);
+    }
+  }, 300),
+  [callApi, branch, currency, cgl, start, end] // <-- fetchConf REMOVED from dependencies
+);
+
+// ❌ OLD:
+// useEffect(() => {
+//   if (data) {
+//     fetchBalance();
+//   }
+// }, [fetchConf.page, fetchConf.pageSize, fetchConf.sortIn]);
+
+// ✅ NEW: Replace with this:
+useEffect(() => {
+  if (data && data.length > 0) {
+    fetchBalance(fetchConf);
+  }
+}, [fetchConf.page, fetchConf.pageSize, fetchConf.sortIn]);
+
+
+
+
+
+// ❌ OLD:
+// onPaginationModelChange={(model) => {
+//   console.log("pagination model:", model);
+//   setFetchConf((prev) => ({ ...prev, ...model }));
+// }}
+
+// ✅ NEW: Replace with this:
+<DataGrid
+  rows={data || []}
+  columns={balanceColumns}
+  loading={loading}
+  rowCount={rowCount}
+  pagination
+  paginationMode="server"
+  pageSizeOptions={[25, 50, 75, 100]}
+  paginationModel={{
+    page: fetchConf.page,
+    pageSize: fetchConf.pageSize,
+  }}
+  slots={{
+    noRowsOverlay: CustomNoRowsOverlay,
+  }}
+  onPaginationModelChange={(model) => {
+    // PREVENT DUPLICATE CALLS: Ignore if pagination values didn't actually change
+    if (
+      model.page === fetchConf.page &&
+      model.pageSize === fetchConf.pageSize
+    ) {
+      return;
+    }
+
+    setFetchConf((prev) => ({
+      ...prev,
+      page: model.page,
+      pageSize: model.pageSize,
+    }));
+  }}
+  sortingMode="server"
+  sortingOrder={["asc", "desc"]}
+  sortModel={[
+    {
+      field: "date",
+      sort: fetchConf.sortIn?.toLowerCase() || "desc",
+    },
+  ]}
+  onSortModelChange={(model) => {
+    if (!model || model.length === 0) return;
+
+    setFetchConf((prev) => ({
+      ...prev,
+      sortIn: model[0].sort.toUpperCase(),
+      page: 0,
+    }));
+  }}
+  rowHeight={45}
+  disableRowSelectionOnClick
+  sx={{
+    borderRadius: "20px",
+    backgroundColor: "rgba(255,255,255,0.4)",
+    border: "1px solid rgba(255,255,255,0.3)",
+    "& .MuiDataGrid-columnHeaders": {
+      bgcolor: "#f8f9fa",
+      fontWeight: 700,
+    },
+  }}
+/>
+
+
+
+
+
+
