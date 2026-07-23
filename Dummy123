@@ -1,28 +1,25 @@
 <DataGrid
   rows={data || []}
   columns={balanceColumns}
-  loading={isDataLoading}
+  loading={typeof loading === "object" ? loading?.balance : loading}
   rowCount={rowCount}
   pagination
   paginationMode="server"
   pageSizeOptions={[25, 50, 75, 100]}
-  // Control pagination state explicitly
   paginationModel={{
     page: fetchConf.page,
     pageSize: fetchConf.pageSize,
   }}
-  // Guard against MUI's internal auto-resets when rows change
   onPaginationModelChange={(model) => {
-    setFetchConf((prev) => {
-      if (prev.page === model.page && prev.pageSize === model.pageSize) {
-        return prev; // Ignore if page hasn't actually changed
-      }
-      return {
-        ...prev,
-        page: model.page,
-        pageSize: model.pageSize,
-      };
-    });
+    // Prevent MUI DataGrid internal re-renders from dispatching duplicate/reset state updates
+    if (fetchConf.page === model.page && fetchConf.pageSize === model.pageSize) {
+      return;
+    }
+    setFetchConf((prev) => ({
+      ...prev,
+      page: model.page,
+      pageSize: model.pageSize,
+    }));
   }}
   sortingMode="server"
   sortingOrder={["asc", "desc"]}
@@ -32,15 +29,15 @@
       sort: fetchConf.sortIn?.toLowerCase() || "desc",
     },
   ]}
-  // Guard against automatic sort triggers resetting pagination
   onSortModelChange={(model) => {
     if (!model || model.length === 0) return;
 
     const newSortIn = model[0].sort ? model[0].sort.toUpperCase() : "DESC";
 
     setFetchConf((prev) => {
+      // Prevent DataGrid row re-hydration from resetting page to 0 unless user clicked a new sort
       if (prev.sortIn === newSortIn) {
-        return prev; // STOPS DataGrid re-render from resetting page to 0
+        return prev;
       }
       return {
         ...prev,
@@ -49,7 +46,9 @@
       };
     });
   }}
-  slots={{ noRowsOverlay: CustomNoRowsOverlay }}
+  slots={{
+    noRowsOverlay: CustomNoRowsOverlay,
+  }}
   rowHeight={45}
   disableRowSelectionOnClick
   sx={{
