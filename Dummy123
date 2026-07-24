@@ -1,6 +1,7 @@
 package com.tcs.fincore.CommonRequestService.config;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.json.JsonMapper;
 import com.fasterxml.jackson.databind.jsontype.BasicPolymorphicTypeValidator;
 import org.springframework.cache.CacheManager;
 import org.springframework.cache.annotation.EnableCaching;
@@ -15,7 +16,6 @@ import org.springframework.data.redis.serializer.GenericJacksonJsonRedisSerializ
 import org.springframework.data.redis.serializer.JacksonJsonRedisSerializer;
 import org.springframework.data.redis.serializer.RedisSerializationContext;
 import org.springframework.data.redis.serializer.StringRedisSerializer;
-import org.springframework.http.converter.json.JacksonObjectMapperBuilder;
 
 import java.time.Duration;
 
@@ -45,9 +45,9 @@ public class RedisConfig {
      * @return A configured RedisCacheManager instance.
      */
     @Bean
-    public CacheManager cacheManager(RedisConnectionFactory connectionFactory, JacksonObjectMapperBuilder builder) {
-        // Use the same builder to ensure Redis JSON matches App JSON
-        ObjectMapper redisObjectMapper = builder.createXmlMapper(false).build();
+    public CacheManager cacheManager(RedisConnectionFactory connectionFactory, ObjectMapper objectMapper) {
+        ObjectMapper redisObjectMapper = objectMapper.copy();
+        
         // Enable Polymorphic Typing for Redis (so we can cache generic Objects)
         redisObjectMapper.activateDefaultTyping(
                 BasicPolymorphicTypeValidator.builder()
@@ -55,12 +55,15 @@ public class RedisConfig {
                         .build(),
                 ObjectMapper.DefaultTyping.NON_FINAL
         );
+        
         GenericJacksonJsonRedisSerializer serializer = new GenericJacksonJsonRedisSerializer(redisObjectMapper);
+        
         RedisCacheConfiguration cacheConfig = RedisCacheConfiguration.defaultCacheConfig()
                 .entryTtl(Duration.ofHours(12))
                 .disableCachingNullValues()
                 .serializeKeysWith(RedisSerializationContext.SerializationPair.fromSerializer(new StringRedisSerializer()))
                 .serializeValuesWith(RedisSerializationContext.SerializationPair.fromSerializer(serializer));
+        
         return RedisCacheManager.builder(connectionFactory)
                 .cacheDefaults(cacheConfig)
                 .build();
@@ -68,7 +71,6 @@ public class RedisConfig {
 
     /**
      * Primary ObjectMapper for the Application (Controllers).
-     * We use the builder so it picks up 'spring.jackson.time-zone' from properties.
      *
      * Ensures proper handling of Java 8 Date/Time types (like `LocalDate`, `Instant`)
      * in standard JSON marshalling operations elsewhere in the application (e.g., REST controllers).
@@ -77,8 +79,8 @@ public class RedisConfig {
      */
     @Bean
     @Primary
-    public ObjectMapper objectMapper(JacksonObjectMapperBuilder builder) {
-        return builder.createXmlMapper(false).build();
+    public ObjectMapper objectMapper() {
+        return JsonMapper.builder().findAndAddModules().build();
     }
 
     /**
@@ -100,7 +102,7 @@ public class RedisConfig {
 
         // Reuse the configured ObjectMapper
         JacksonJsonRedisSerializer<Object> serializer = 
-                new JacksonJsonRedisSerializer<>(objectMapper, Object.class);
+                new JacksonJsonRedisSerializer<Object>(objectMapper, Object.class);
 
         template.setValueSerializer(serializer);
         template.setKeySerializer(new StringRedisSerializer()); // Ensure keys are always strings
