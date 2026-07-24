@@ -1,8 +1,6 @@
 package com.tcs.fincore.CommonRequestService.config;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.json.JsonMapper;
-import com.fasterxml.jackson.databind.jsontype.BasicPolymorphicTypeValidator;
 import org.springframework.cache.CacheManager;
 import org.springframework.cache.annotation.EnableCaching;
 import org.springframework.context.annotation.Bean;
@@ -16,6 +14,7 @@ import org.springframework.data.redis.serializer.GenericJacksonJsonRedisSerializ
 import org.springframework.data.redis.serializer.JacksonJsonRedisSerializer;
 import org.springframework.data.redis.serializer.RedisSerializationContext;
 import org.springframework.data.redis.serializer.StringRedisSerializer;
+import org.springframework.http.converter.json.Jackson2ObjectMapperBuilder;
 
 import java.time.Duration;
 
@@ -45,25 +44,17 @@ public class RedisConfig {
      * @return A configured RedisCacheManager instance.
      */
     @Bean
-    public CacheManager cacheManager(RedisConnectionFactory connectionFactory, ObjectMapper objectMapper) {
-        ObjectMapper redisObjectMapper = objectMapper.copy();
-        
-        // Enable Polymorphic Typing for Redis (so we can cache generic Objects)
-        redisObjectMapper.activateDefaultTyping(
-                BasicPolymorphicTypeValidator.builder()
-                        .allowIfBaseType(Object.class)
-                        .build(),
-                ObjectMapper.DefaultTyping.NON_FINAL
-        );
-        
-        GenericJacksonJsonRedisSerializer serializer = new GenericJacksonJsonRedisSerializer(redisObjectMapper);
-        
+    public CacheManager cacheManager(RedisConnectionFactory connectionFactory) {
+        GenericJacksonJsonRedisSerializer serializer = GenericJacksonJsonRedisSerializer.builder()
+                .enableSpringCacheNullValueSupport()
+                .build();
+
         RedisCacheConfiguration cacheConfig = RedisCacheConfiguration.defaultCacheConfig()
                 .entryTtl(Duration.ofHours(12))
                 .disableCachingNullValues()
                 .serializeKeysWith(RedisSerializationContext.SerializationPair.fromSerializer(new StringRedisSerializer()))
                 .serializeValuesWith(RedisSerializationContext.SerializationPair.fromSerializer(serializer));
-        
+
         return RedisCacheManager.builder(connectionFactory)
                 .cacheDefaults(cacheConfig)
                 .build();
@@ -71,6 +62,7 @@ public class RedisConfig {
 
     /**
      * Primary ObjectMapper for the Application (Controllers).
+     * We use the builder so it picks up 'spring.jackson.time-zone' from properties.
      *
      * Ensures proper handling of Java 8 Date/Time types (like `LocalDate`, `Instant`)
      * in standard JSON marshalling operations elsewhere in the application (e.g., REST controllers).
@@ -79,8 +71,8 @@ public class RedisConfig {
      */
     @Bean
     @Primary
-    public ObjectMapper objectMapper() {
-        return JsonMapper.builder().findAndAddModules().build();
+    public ObjectMapper objectMapper(Jackson2ObjectMapperBuilder builder) {
+        return builder.createXmlMapper(false).build();
     }
 
     /**
@@ -96,13 +88,11 @@ public class RedisConfig {
      * @return A configured RedisTemplate instance for String keys and Object values.
      */
     @Bean
-    public RedisTemplate<String, Object> redisTemplate(RedisConnectionFactory connectionFactory, ObjectMapper objectMapper) {
+    public RedisTemplate<String, Object> redisTemplate(RedisConnectionFactory connectionFactory) {
         RedisTemplate<String, Object> template = new RedisTemplate<>();
         template.setConnectionFactory(connectionFactory);
 
-        // Reuse the configured ObjectMapper
-        JacksonJsonRedisSerializer<Object> serializer = 
-                new JacksonJsonRedisSerializer<Object>(objectMapper, Object.class);
+        JacksonJsonRedisSerializer<Object> serializer = new JacksonJsonRedisSerializer<>(Object.class);
 
         template.setValueSerializer(serializer);
         template.setKeySerializer(new StringRedisSerializer()); // Ensure keys are always strings
