@@ -15,11 +15,16 @@ import org.springframework.data.redis.serializer.GenericJacksonJsonRedisSerializ
 import org.springframework.data.redis.serializer.JacksonJsonRedisSerializer;
 import org.springframework.data.redis.serializer.RedisSerializationContext;
 import org.springframework.data.redis.serializer.StringRedisSerializer;
+import org.springframework.http.converter.json.JacksonObjectMapperBuilder;
 
 import java.time.Duration;
 
 /**
  * Configuration class for setting up Redis integration within the Spring Boot application.
+ *
+ * This class enables Spring's caching mechanism via `@EnableCaching` and customizes
+ * how data is serialized and deserialized when stored in Redis, primarily using JSON
+ * and ensuring correct handling of Java 8 Date/Time API types.
  */
 @Configuration
 @EnableCaching
@@ -29,8 +34,9 @@ public class RedisConfig {
      * Configures and provides a custom 'CacheManager' bean for Redis caching operations.
      */
     @Bean
-    public CacheManager cacheManager(RedisConnectionFactory connectionFactory, ObjectMapper objectMapper) {
-        ObjectMapper redisObjectMapper = objectMapper.copy();
+    public CacheManager cacheManager(RedisConnectionFactory connectionFactory, JacksonObjectMapperBuilder builder) {
+        // Use the same builder to ensure Redis JSON matches App JSON
+        ObjectMapper redisObjectMapper = builder.createXmlMapper(false).build();
 
         // Enable Polymorphic Typing for Redis (so we can cache generic Objects)
         redisObjectMapper.activateDefaultTyping(
@@ -55,11 +61,12 @@ public class RedisConfig {
 
     /**
      * Primary ObjectMapper for the Application (Controllers).
+     * We use the builder so it picks up 'spring.jackson.time-zone' from properties.
      */
     @Bean
     @Primary
-    public ObjectMapper objectMapper() {
-        return new ObjectMapper();
+    public ObjectMapper objectMapper(JacksonObjectMapperBuilder builder) {
+        return builder.createXmlMapper(false).build();
     }
 
     /**
@@ -70,14 +77,12 @@ public class RedisConfig {
         RedisTemplate<String, Object> template = new RedisTemplate<>();
         template.setConnectionFactory(connectionFactory);
 
-        // Uses updated non-deprecated JacksonJsonRedisSerializer
-        JacksonJsonRedisSerializer<Object> serializer = 
-            new JacksonJsonRedisSerializer<>(objectMapper, Object.class);
+        // Reuse the configured ObjectMapper
+        JacksonJsonRedisSerializer<Object> serializer = new JacksonJsonRedisSerializer<>(objectMapper, Object.class);
 
         template.setValueSerializer(serializer);
-        template.setKeySerializer(new StringRedisSerializer());
+        template.setKeySerializer(new StringRedisSerializer()); // Ensure keys are always strings
 
         return template;
     }
 }
-
