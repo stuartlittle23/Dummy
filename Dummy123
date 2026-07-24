@@ -1,4 +1,7 @@
-<dependency>
-    <groupId>org.springframework.boot</groupId>
-    <artifactId>spring-boot-starter-kafka</artifactId>
-</dependency>
+spring.jackson.datatype.datetime.WRITE_DATES_AS_TIMESTAMPS=false
+
+
+
+
+
+spring.jackson.use-jackson2-defaults=true
