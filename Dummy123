@@ -1,63 +1,149 @@
-<DataGrid
-  rows={data || []}
-  columns={balanceColumns}
-  loading={typeof loading === "object" ? loading?.balance : loading}
-  rowCount={rowCount}
-  pagination
-  paginationMode="server"
-  pageSizeOptions={[25, 50, 75, 100]}
-  paginationModel={{
-    page: fetchConf.page,
-    pageSize: fetchConf.pageSize,
-  }}
-  onPaginationModelChange={(model) => {
-    // Prevent MUI DataGrid internal re-renders from dispatching duplicate/reset state updates
-    if (fetchConf.page === model.page && fetchConf.pageSize === model.pageSize) {
-      return;
-    }
-    setFetchConf((prev) => ({
-      ...prev,
-      page: model.page,
-      pageSize: model.pageSize,
-    }));
-  }}
-  sortingMode="server"
-  sortingOrder={["asc", "desc"]}
-  sortModel={[
-    {
-      field: "date",
-      sort: fetchConf.sortIn?.toLowerCase() || "desc",
-    },
-  ]}
-  onSortModelChange={(model) => {
-    if (!model || model.length === 0) return;
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xmlns="http://maven.apache.org/POM/4.0.0"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+    <parent>
+        <groupId>org.springframework.boot</groupId>
+        <artifactId>spring-boot-starter-parent</artifactId>
+        <version>3.3.0</version>
+        <relativePath/> <!-- lookup parent from repository -->
+    </parent>
+    <groupId>com.tcs.fincore</groupId>
+    <artifactId>CommonRequestService</artifactId>
+    <version>0.0.1</version>
+    <name>common-request-service</name>
+    <description>Service to handle all type of common requests</description>
+    <packaging>jar</packaging>
+    <properties>
+        <java.version>21</java.version>
+    </properties>
+    <dependencies>
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-actuator</artifactId>
+        </dependency>
 
-    const newSortIn = model[0].sort ? model[0].sort.toUpperCase() : "DESC";
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-web</artifactId>
+        </dependency>
 
-    setFetchConf((prev) => {
-      // Prevent DataGrid row re-hydration from resetting page to 0 unless user clicked a new sort
-      if (prev.sortIn === newSortIn) {
-        return prev;
-      }
-      return {
-        ...prev,
-        sortIn: newSortIn,
-        page: 0,
-      };
-    });
-  }}
-  slots={{
-    noRowsOverlay: CustomNoRowsOverlay,
-  }}
-  rowHeight={45}
-  disableRowSelectionOnClick
-  sx={{
-    borderRadius: "20px",
-    backgroundColor: "rgba(255,255,255,0.4)",
-    border: "1px solid rgba(255,255,255,0.3)",
-    "& .MuiDataGrid-columnHeaders": {
-      bgcolor: "#f8f9fa",
-      fontWeight: 700,
-    },
-  }}
-/>
+        <dependency>
+            <groupId>org.projectlombok</groupId>
+            <artifactId>lombok</artifactId>
+            <optional>true</optional>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-tomcat</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-data-jpa</artifactId>
+        </dependency>
+
+         <!-- health metrics -->
+        <dependency>
+            <groupId>io.micrometer</groupId>
+            <artifactId>micrometer-registry-prometheus</artifactId>
+        </dependency>
+
+
+        <dependency>
+            <groupId>com.oracle.database.jdbc</groupId>
+            <artifactId>ojdbc11</artifactId>
+            <scope>runtime</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.json</groupId>
+            <artifactId>json</artifactId>
+            <version>20240303</version>
+        </dependency>
+
+        <dependency>
+            <groupId>io.jsonwebtoken</groupId>
+            <artifactId>jjwt-api</artifactId>
+            <version>0.12.6</version>
+        </dependency>
+        <dependency>
+            <groupId>io.jsonwebtoken</groupId>
+            <artifactId>jjwt-impl</artifactId>
+            <version>0.12.6</version>
+        </dependency>
+
+        <dependency>
+            <groupId>io.jsonwebtoken</groupId>
+            <artifactId>jjwt-jackson</artifactId>
+            <version>0.12.6</version>
+        </dependency>
+        <dependency>
+            <groupId>org.jetbrains</groupId>
+            <artifactId>annotations</artifactId>
+            <version>25.0.0</version>
+            <scope>compile</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-validation</artifactId>
+        </dependency>
+
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-devtools</artifactId>
+            <scope>runtime</scope>
+            <optional>true</optional>
+        </dependency>
+        <dependency>
+            <groupId>com.fincore</groupId>
+            <artifactId>common-utilities</artifactId>
+            <version>0.0.1-SNAPSHOT</version>
+        </dependency>
+
+        <dependency>
+            <groupId>org.springframework.data</groupId>
+            <artifactId>spring-data-redis</artifactId>
+        </dependency>
+
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-data-redis</artifactId>
+        </dependency>
+
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-cache</artifactId>
+        </dependency>
+
+        <dependency>
+            <groupId>net.logstash.logback</groupId>
+            <artifactId>logstash-logback-encoder</artifactId>
+            <version>7.4</version>
+        </dependency>
+
+        <dependency>
+            <groupId>org.springdoc</groupId>
+            <artifactId>springdoc-openapi-starter-webmvc-ui</artifactId>
+            <version>2.3.0</version>
+        </dependency>
+        <dependency>
+            <groupId>org.apache.kafka</groupId>
+            <artifactId>kafka-clients</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework.kafka</groupId>
+            <artifactId>spring-kafka</artifactId>
+        </dependency>
+    </dependencies>
+
+    <build>
+        <finalName>${project.artifactId}</finalName>
+        <plugins>
+            <plugin>
+                <groupId>org.springframework.boot</groupId>
+                <artifactId>spring-boot-maven-plugin</artifactId>
+            </plugin>
+        </plugins>
+    </build>
+
+</project>
