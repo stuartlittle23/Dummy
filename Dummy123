@@ -1,1 +1,99 @@
+package com.tcs.fincore.CommonRequestService.config;
 
+import org.springframework.cache.CacheManager;
+import org.springframework.cache.annotation.EnableCaching;
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Configuration;
+import org.springframework.data.redis.cache.RedisCacheConfiguration;
+import org.springframework.data.redis.cache.RedisCacheManager;
+import org.springframework.data.redis.connection.RedisConnectionFactory;
+import org.springframework.data.redis.core.RedisTemplate;
+import org.springframework.data.redis.serializer.GenericJacksonJsonRedisSerializer;
+import org.springframework.data.redis.serializer.RedisSerializationContext;
+import org.springframework.data.redis.serializer.StringRedisSerializer;
+
+import tools.jackson.databind.json.JsonMapper;
+import tools.jackson.databind.jsontype.BasicPolymorphicTypeValidator;
+import tools.jackson.databind.jsontype.PolymorphicTypeValidator;
+
+import java.time.Duration;
+
+/**
+ * Configuration class for setting up Redis integration within the Spring Boot application.
+ *
+ * This class enables Spring's caching mechanism via `@EnableCaching` and customizes
+ * how data is serialized and deserialized when stored in Redis, primarily using JSON
+ * and ensuring correct handling of Java 8 Date/Time API types.
+ */
+@Configuration
+@EnableCaching
+public class RedisConfig {
+
+    /**
+     * Configures and provides a custom `CacheManager` bean for Redis caching operations.
+     *
+     * This manager sets up default cache behavior, including a 24-hour Time-To-Live (TTL)
+     * for entries, prevention of caching `null` values, and specialized JSON serialization.
+     *
+     * The serialization is configured with `GenericJacksonJsonRedisSerializer` and includes
+     * polymorphic type handling (`enableDefaultTyping`) to ensure that cached objects
+     * retain their original class information during deserialization, which is crucial
+     * for generic object caching.
+     *
+     * @param connectionFactory The auto-configured RedisConnectionFactory provided by Spring.
+     * @return A configured RedisCacheManager instance.
+     */
+    @Bean
+    public CacheManager cacheManager(RedisConnectionFactory connectionFactory) {
+        // Enable Polymorphic Typing for Redis (so we can cache generic Objects)
+        PolymorphicTypeValidator typeValidator = BasicPolymorphicTypeValidator.builder()
+                .allowIfBaseType(Object.class)
+                .build();
+
+        GenericJacksonJsonRedisSerializer serializer = GenericJacksonJsonRedisSerializer.builder(JsonMapper::builder)
+                .enableDefaultTyping(typeValidator)
+                .build();
+
+        RedisCacheConfiguration cacheConfig = RedisCacheConfiguration.defaultCacheConfig()
+                .entryTtl(Duration.ofHours(12))
+                .disableCachingNullValues()
+                .serializeKeysWith(RedisSerializationContext.SerializationPair.fromSerializer(new StringRedisSerializer()))
+                .serializeValuesWith(RedisSerializationContext.SerializationPair.fromSerializer(serializer));
+        return RedisCacheManager.builder(connectionFactory)
+                .cacheDefaults(cacheConfig)
+                .build();
+    }
+
+
+    /**
+     * Configures and provides a custom `RedisTemplate` bean.
+     *
+     * This bean is used for direct, programmatic interaction with Redis (e.g., using `redisTemplate.opsForValue().set(...)`)
+     * rather than using the `@Cacheable` annotations. It uses its own Jackson 3 JsonMapper-based
+     * serializer, which is suitable for specific key-value operations where polymorphic typing
+     * might not be necessary or is handled explicitly.
+     *
+     * @param connectionFactory The auto-configured RedisConnectionFactory.
+     * @return A configured RedisTemplate instance for String keys and Object values.
+     */
+    @Bean
+    public RedisTemplate<String, Object> redisTemplate(RedisConnectionFactory connectionFactory) {
+        RedisTemplate<String, Object> template = new RedisTemplate<>();
+        template.setConnectionFactory(connectionFactory);
+
+        // Enable Polymorphic Typing so cached objects retain their class information
+        PolymorphicTypeValidator typeValidator = BasicPolymorphicTypeValidator.builder()
+                .allowIfBaseType(Object.class)
+                .build();
+
+        GenericJacksonJsonRedisSerializer serializer = GenericJacksonJsonRedisSerializer.builder(JsonMapper::builder)
+                .enableDefaultTyping(typeValidator)
+                .build();
+
+        template.setValueSerializer(serializer);
+        template.setKeySerializer(new StringRedisSerializer()); // Ensure keys are always strings
+
+        return template;
+    }
+
+}
