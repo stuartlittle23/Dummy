@@ -1,1 +1,288 @@
 
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Configuration;
+import org.springframework.data.redis.connection.RedisConnectionFactory;
+import org.springframework.data.redis.core.RedisTemplate;
+import org.springframework.data.redis.serializer.StringRedisSerializer;
+
+@Configuration
+public class RedisConfig {
+
+    @Bean
+    public RedisTemplate<String, String> redisTemplate(
+            RedisConnectionFactory factory) {
+
+        RedisTemplate<String, String> template = new RedisTemplate<>();
+
+        template.setConnectionFactory(factory);
+
+        template.setKeySerializer(new StringRedisSerializer());
+        template.setValueSerializer(new StringRedisSerializer());
+
+        return template;
+    }
+}
+
+
+
+package com.tcs.fincore.CommonMasterService.config;
+
+import com.fincore.commonutilities.config.CommonSecurityConfig;
+import com.fincore.commonutilities.config.RedisConfig;
+import com.fincore.commonutilities.config.ResilienceConfig;
+import com.fincore.commonutilities.jwt.JwtUtil;
+import com.fincore.commonutilities.logging.MdcLoggingFilter;
+import com.fincore.commonutilities.security.ContextRbacFilter;
+import com.fincore.commonutilities.security.DecryptRequestBodyAdvice;
+import com.fincore.commonutilities.util.AesEncryptionUtil;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.web.servlet.FilterRegistrationBean;
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Configuration;
+import org.springframework.context.annotation.Import;
+import org.springframework.data.redis.core.StringRedisTemplate;
+import org.springframework.security.config.annotation.web.builders.HttpSecurity;
+import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
+import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
+import org.springframework.security.config.http.SessionCreationPolicy;
+import org.springframework.security.web.SecurityFilterChain;
+import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
+
+/**
+ * Common Security Configuration.
+ * * Aligned with the "Distributed Gateway" architecture.
+ * It uses the ContextRbacFilter from Common Utilities to enforce:
+ * 1. Token Validity
+ * 2. Single Session (Redis check)
+ * 3. RBAC Permissions
+ * Enforces Centralised Mdc Logging Filter, RESILIENCE4J Retry and Circuit Breaker
+ */
+@Configuration
+@EnableWebSecurity
+@Import({
+        RedisConfig.class,
+        JwtUtil.class,
+        CommonSecurityConfig.class,
+        ResilienceConfig.class,
+        AesEncryptionUtil.class,
+        DecryptRequestBodyAdvice.class
+})
+public class SecurityConfig {
+
+    @Autowired
+    private StringRedisTemplate redisTemplate;
+
+    @Autowired
+    private JwtUtil jwtUtil;
+
+    @Autowired
+    private CommonSecurityConfig commonSecurityConfig;
+
+    // --- 1. Define Filters as Beans (Explicitly) ---
+
+    @Bean
+    public MdcLoggingFilter mdcLoggingFilter() {
+        return new MdcLoggingFilter(jwtUtil);
+    }
+
+    @Bean
+    public ContextRbacFilter contextRbacFilter() {
+        return new ContextRbacFilter(redisTemplate, jwtUtil);
+    }
+
+    // --- 2. Prevent Global Registration ---
+    // This stops "The Filter class ... does not have a registered order" error
+
+    @Bean
+    public FilterRegistrationBean<MdcLoggingFilter> mdcFilterRegistration(MdcLoggingFilter filter) {
+        FilterRegistrationBean<MdcLoggingFilter> registration = new FilterRegistrationBean<>(filter);
+        registration.setEnabled(false); // Disable global chain
+        return registration;
+    }
+
+    @Bean
+    public FilterRegistrationBean<ContextRbacFilter> rbacFilterRegistration(ContextRbacFilter filter) {
+        FilterRegistrationBean<ContextRbacFilter> registration = new FilterRegistrationBean<>(filter);
+        registration.setEnabled(false); // Disable global chain
+        return registration;
+    }
+
+    @Bean
+    public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
+        http
+                .csrf(AbstractHttpConfigurer::disable)
+                .cors(cors -> cors.configurationSource(commonSecurityConfig.corsConfigurationSource()))
+                .sessionManagement(s -> s.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
+                .authorizeHttpRequests(authz -> authz
+                        .requestMatchers("/actuator/**", "/api/auth/**", "/error", "/swagger-ui.html", "/v3/api-docs/**").permitAll()
+                        .anyRequest().authenticated()
+                )
+                // Add Filters using the BEAN references (methods above)
+                .addFilterBefore(mdcLoggingFilter(), UsernamePasswordAuthenticationFilter.class)
+                .addFilterAfter(contextRbacFilter(), MdcLoggingFilter.class);
+
+        return http.build();
+    }
+}
+
+package com.tcs.fincore.CommonMasterService.dto;
+
+import com.fasterxml.jackson.annotation.JsonFormat;
+import com.fasterxml.jackson.annotation.JsonRawValue;
+import lombok.AllArgsConstructor;
+import lombok.Builder;
+import lombok.Data;
+import lombok.NoArgsConstructor;
+import java.time.LocalDateTime;
+
+@Data
+@Builder
+@NoArgsConstructor
+@AllArgsConstructor
+public class CommonRequestDto {
+    private Long id;
+    private String requestType;
+    private String changeType;
+    private String status;
+
+    @JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss")
+    private LocalDateTime requestDate;
+
+    private String creatorId;
+    private String creatorRemarks;
+
+    @JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss")
+    private LocalDateTime executionDate;
+
+    private String executionRemarks;
+    private String executorId;
+    private String executorRemarks;
+    @JsonRawValue
+    private String payload;
+    private String targetId;
+}
+
+package com.tcs.fincore.CommonMasterService.dto;
+
+import com.fasterxml.jackson.annotation.JsonFormat;
+import jakarta.validation.constraints.Future;
+import jakarta.validation.constraints.NotBlank;
+import lombok.AllArgsConstructor;
+import lombok.Builder;
+import lombok.Data;
+import lombok.NoArgsConstructor;
+
+import java.time.LocalDateTime;
+import java.util.List;
+
+@Data
+@Builder
+@NoArgsConstructor
+@AllArgsConstructor
+public class AnnouncementDto {
+
+    private Long id;
+
+    @NotBlank(message = "Title is required")
+    private String title;
+
+    @NotBlank(message = "Message content is required")
+    private String message;
+
+    private String severity; // INFO, WARN, CRITICAL
+
+    private List<String> targetRoles; // e.g. ["51", "55"] or ["ALL"]
+
+    // Used for Request (Post/Edit)
+    @JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss")
+    private LocalDateTime startDate;
+
+    @JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss")
+    @Future(message = "Expiry date must be in the future")
+    private LocalDateTime expiryDate;
+
+    private String isActive; // 'Y' or 'N'
+
+    // Derived Status for UI (e.g. "ACTIVE", "EXPIRED", "SCHEDULED", "DISABLED")
+    private String displayStatus;
+
+    // Read-only fields
+    private String createdBy;
+
+    @JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss")
+    private LocalDateTime createdAt;
+}
+
+package com.tcs.fincore.CommonMasterService.Controller;
+
+import com.fincore.commonutilities.jwt.JwtUtil;
+import com.tcs.fincore.CommonMasterService.dto.AnnouncementDto;
+import com.tcs.fincore.CommonMasterService.service.AnnouncementService;
+import jakarta.validation.Valid;
+import lombok.RequiredArgsConstructor;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.*;
+import java.util.List;
+
+
+/**
+ * AnnouncementController :-
+ *
+ * This controller handles API requests related to Announcement Screen.
+ * It provides endpoints for Admin Management Screen: For creating, editing, and toggling announcements
+ *
+ * @author Shubhankar [v1018405]
+ * @version 1.0
+ * @since 2025-12-11
+ */
+@RestController
+@RequestMapping("/api/announcements")
+@RequiredArgsConstructor
+public class AnnouncementController {
+    private final AnnouncementService service;
+    private final JwtUtil jwtUtil;
+
+    /**
+     * 1. CREATE ANNOUNCEMENT
+     */
+    @PostMapping
+    public ResponseEntity<AnnouncementDto> create(
+            @RequestHeader("Authorization") String token,
+            @Valid @RequestBody AnnouncementDto dto) {
+        String userId = jwtUtil.getUserIdFromToken(token);
+        return ResponseEntity.ok(service.createAnnouncement(dto, userId));
+    }
+
+    /**
+     * 2. UPDATE ANNOUNCEMENT
+     */
+    @PutMapping("/{id}")
+    public ResponseEntity<AnnouncementDto> update(
+            @RequestHeader("Authorization") String token,
+            @PathVariable Long id,
+            @Valid @RequestBody AnnouncementDto dto) {
+        String userId = jwtUtil.getUserIdFromToken(token);
+        return ResponseEntity.ok(service.updateAnnouncement(id, dto, userId));
+    }
+
+    /**
+     * 3. LIST ALL
+     * Used for the Management Grid.
+     */
+    @GetMapping("/list")
+    public ResponseEntity<List<AnnouncementDto>> listAll() {
+        return ResponseEntity.ok(service.getAllAnnouncements());
+    }
+
+    /**
+     * 4. TOGGLE STATUS
+     * Returns the updated DTO so UI can reflect the new Status immediately.
+     */
+    @PatchMapping("/{id}/toggle")
+    public ResponseEntity<AnnouncementDto> toggle(@PathVariable Long id) {
+        // No Token needed for toggle if we don't track "Who toggled it",
+        // otherwise add @RequestHeader("Authorization") and pass userId to service.
+        return ResponseEntity.ok(service.toggleStatus(id));
+    }
+}
+
