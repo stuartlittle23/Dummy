@@ -1,86 +1,255 @@
-package com.tcs.fincore.CommonMasterService.dto;
+package com.tcs.fincore.CommonMasterService.Controller;
 
-import com.fasterxml.jackson.annotation.JsonFormat;
-import jakarta.validation.constraints.Future;
-import jakarta.validation.constraints.NotBlank;
-import lombok.AllArgsConstructor;
-import lombok.Builder;
-import lombok.Data;
-import lombok.NoArgsConstructor;
-
-import java.time.LocalDateTime;
+import com.fincore.commonutilities.jwt.JwtUtil;
+import com.tcs.fincore.CommonMasterService.dto.AnnouncementRequestDto;
+import com.tcs.fincore.CommonMasterService.service.AnnouncementService;
+import jakarta.validation.Valid;
+import lombok.RequiredArgsConstructor;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.*;
 import java.util.List;
 
-@Data
-@Builder
-@NoArgsConstructor
-@AllArgsConstructor
-public class AnnouncementRequestDto {
 
-    @NotBlank(message = "Title is required")
-    private String title;
+/**
+ * AnnouncementController :-
+ *
+ * This controller handles API requests related to Announcement Screen.
+ * It provides endpoints for Admin Management Screen: For creating, editing, and toggling announcements
+ *
+ * @author Shubhankar [v1018405]
+ * @version 1.0
+ * @since 2025-12-11
+ */
+@RestController
+@RequestMapping("/api/announcements")
+@RequiredArgsConstructor
+public class AnnouncementController {
+    private final AnnouncementService service;
+    private final JwtUtil jwtUtil;
 
-    @NotBlank(message = "Message content is required")
-    private String message;
+    /**
+     * 1. CREATE ANNOUNCEMENT
+     */
+    @PostMapping
+    public ResponseEntity<AnnouncementRequestDto> create(
+            @RequestHeader("Authorization") String token,
+            @Valid @RequestBody AnnouncementRequestDto dto) {
+        String userId = jwtUtil.getUserIdFromToken(token);
+        return ResponseEntity.ok(service.createAnnouncement(dto, userId));
+    }
 
-    private String severity;
+    /**
+     * 2. UPDATE ANNOUNCEMENT
+     */
+    @PutMapping("/{id}")
+    public ResponseEntity<AnnouncementRequestDto> update(
+            @RequestHeader("Authorization") String token,
+            @PathVariable Long id,
+            @Valid @RequestBody AnnouncementRequestDto dto) {
+        String userId = jwtUtil.getUserIdFromToken(token);
+        return ResponseEntity.ok(service.updateAnnouncement(id, dto, userId));
+    }
 
-    private List<String> targetRoles;
+    /**
+     * 3. LIST ALL
+     * Used for the Management Grid.
+     */
+    @GetMapping("/list")
+    public ResponseEntity<List<AnnouncementRequestDto>> listAll() {
+        return ResponseEntity.ok(service.getAllAnnouncements());
+    }
 
-    @JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss")
-    private LocalDateTime startDate;
-
-    @JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss")
-    @Future(message = "Expiry date must be in the future")
-    private LocalDateTime expiryDate;
+    /**
+     * 4. TOGGLE STATUS
+     * Returns the updated DTO so UI can reflect the new Status immediately.
+     */
+    @PatchMapping("/{id}/toggle")
+    public ResponseEntity<AnnouncementRequestDto> toggle(@PathVariable Long id) {
+        // No Token needed for toggle if we don't track "Who toggled it",
+        // otherwise add @RequestHeader("Authorization") and pass userId to service.
+        return ResponseEntity.ok(service.toggleStatus(id));
+    }
 }
 
+package com.tcs.fincore.CommonMasterService.service;
 
+import com.tcs.fincore.CommonMasterService.dto.AnnouncementRequestDto;
+import jakarta.validation.Valid;
 
-package com.tcs.fincore.CommonMasterService.dto;
-
-import com.fasterxml.jackson.annotation.JsonFormat;
-import lombok.AllArgsConstructor;
-import lombok.Builder;
-import lombok.Data;
-import lombok.NoArgsConstructor;
-
-import java.time.LocalDateTime;
 import java.util.List;
 
-@Data
-@Builder
-@NoArgsConstructor
-@AllArgsConstructor
-public class AnnouncementResponseDto {
+public interface AnnouncementService {
 
-    private Long id;
+    AnnouncementRequestDto createAnnouncement(@Valid AnnouncementRequestDto dto, String userId);
 
-    private String title;
+    AnnouncementRequestDto updateAnnouncement(Long id, @Valid AnnouncementRequestDto dto, String userId);
 
-    private String message;
+    List<AnnouncementRequestDto> getAllAnnouncements();
 
-    private String severity;
-
-    private List<String> targetRoles;
-
-    @JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss")
-    private LocalDateTime startDate;
-
-    @JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss")
-    private LocalDateTime expiryDate;
-
-    private String isActive;
-
-    private String displayStatus;
-
-    private String createdBy;
-
-    @JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss")
-    private LocalDateTime createdAt;
+    AnnouncementRequestDto toggleStatus(Long id);
 }
 
+package com.tcs.fincore.CommonMasterService.service;
+
+import com.tcs.fincore.CommonMasterService.dto.AnnouncementRequestDto;
+import com.tcs.fincore.CommonMasterService.model.Announcements;
+import com.tcs.fincore.CommonMasterService.repository.AnnouncementsRepository;
+import jakarta.persistence.EntityNotFoundException;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+import java.time.LocalDateTime;
+import java.util.List;
+import java.util.stream.Collectors;
+
+@Service
+@RequiredArgsConstructor
+@Slf4j
+public class AnnouncementServiceImpl implements AnnouncementService {
+
+    private final AnnouncementsRepository repository;
+    private final AnnouncementNotificationService notificationService;
+
+    // --- 1. CREATE ---
+    @Transactional
+    public AnnouncementRequestDto createAnnouncement(AnnouncementRequestDto dto, String userId) {
+        Announcements entity = new Announcements();
+        log.info("dto : {}", dto);
+        mapDtoToEntity(dto, entity);
+
+        // Defaults
+        entity.setCreatedBy(userId);
+        entity.setCreatedAt(LocalDateTime.now());
+
+        if (entity.getStartDate() == null) entity.setStartDate(LocalDateTime.now());
+        if (entity.getIsActive() == null) entity.setIsActive("Y");
+        entity = repository.save(entity);
+
+        // TRIGGER NOTIFICATION
+        // Only if Active ('Y') AND Started (Not Future)
+        if ("Y".equals(entity.getIsActive()) && !isFuture(entity.getStartDate())) {
+            notificationService.broadcastAnnouncement(entity);
+        }
+
+        log.info("Announcement created with ID: {}", entity.getId());
+        return mapEntityToDto(entity);
+    }
+
+    // --- 2. UPDATE ---
+    @Transactional
+    public AnnouncementRequestDto updateAnnouncement(Long id, AnnouncementRequestDto dto, String userId) {
+        Announcements entity = repository.findById(id)
+                .orElseThrow(() -> new EntityNotFoundException("Announcement not found: " + id));
+
+        // Update fields
+        mapDtoToEntity(dto, entity);
+
+        // Audit update (Optional: Add updatedBy/updatedAt columns if needed)
+        log.info("Announcement {} updated by {}", id, userId);
+        entity = repository.save(entity);
+
+        return mapEntityToDto(entity);
+    }
+
+    // --- 3. LIST (Return all) ---
+    public List<AnnouncementRequestDto> getAllAnnouncements() {
+        return repository.findAllByOrderByCreatedAtDesc().stream()
+                .map(this::mapEntityToDto)
+                .collect(Collectors.toList());
+    }
+
+    // --- 4. TOGGLE STATUS (Quick Action) ---
+    @Transactional
+    public AnnouncementRequestDto toggleStatus(Long id) {
+        Announcements entity = repository.findById(id)
+                .orElseThrow(() -> new EntityNotFoundException("Announcement not found"));
+        String current = entity.getIsActive();
+        LocalDateTime now = LocalDateTime.now();
+
+        // LOGIC: If currently Inactive ('N'), and user wants to Activate ('Y')
+        if ("N".equals(current)) {
+            // Check Expiry
+            if (entity.getExpiryDate() != null && entity.getExpiryDate().isBefore(now)) {
+                // BLOCK THE ACTION
+                throw new IllegalStateException("Cannot activate an expired announcement. Please edit the announcement and extend the expiry date first.");
+            }
+            entity.setIsActive("Y");
+        } else {
+            // Deactivating is always allowed
+            entity.setIsActive("N");
+        }
+        repository.save(entity);
+
+        // TRIGGER NOTIFICATION
+        // Only if toggled to 'Y'
+        if ("N".equals(current)) {
+            notificationService.broadcastAnnouncement(entity);
+        }
+
+        return mapEntityToDto(entity);
+    }
+
+    // --- Helpers ---
+    private AnnouncementRequestDto mapEntityToDto(Announcements entity) {
+
+        AnnouncementRequestDto dto = AnnouncementRequestDto.builder()
+                .id(entity.getId())
+                .title(entity.getTitle())
+                .message(entity.getMessage())
+                .severity(entity.getSeverity())
+                .startDate(entity.getStartDate())
+                .expiryDate(entity.getExpiryDate())
+                .isActive(entity.getIsActive())
+                .createdBy(entity.getCreatedBy())
+                .createdAt(entity.getCreatedAt())
+                .build();
+
+        if (entity.getTargetRole() != null) {
+            dto.setTargetRoles(List.of(entity.getTargetRole().split(",")));
+        } else {
+            dto.setTargetRoles(List.of("ALL"));
+        }
 
 
+        // --- COMPUTED STATUS LOGIC ---
+        LocalDateTime now = LocalDateTime.now();
+        String displayStatus;
 
+        if ("N".equals(entity.getIsActive())) {
+            displayStatus = "DISABLED"; // Manually turned off
+        } else if (entity.getExpiryDate() != null && entity.getExpiryDate().isBefore(now)) {
+            displayStatus = "EXPIRED"; // Active='Y' but Time is up
+        } else if (entity.getStartDate().isAfter(now)) {
+            displayStatus = "SCHEDULED"; // Active='Y' but Time hasn't started
+        } else {
+            displayStatus = "ACTIVE"; // Live on Dashboard
+        }
+        dto.setDisplayStatus(displayStatus);
+        return dto;
+    }
+
+    private void mapDtoToEntity(AnnouncementRequestDto dto, Announcements entity) {
+        entity.setTitle(dto.getTitle());
+        entity.setMessage(dto.getMessage());
+        entity.setSeverity(dto.getSeverity());
+
+        // CONVERT LIST ["51", "55"] -> STRING "51,55"
+        if (dto.getTargetRoles() != null && !dto.getTargetRoles().isEmpty()) {
+            entity.setTargetRole(String.join(",", dto.getTargetRoles()));
+        } else {
+            entity.setTargetRole("ALL"); // Default
+        }
+
+        entity.setStartDate(dto.getStartDate());
+        entity.setExpiryDate(dto.getExpiryDate());
+        // Only update status if provided (otherwise keep existing)
+        if (dto.getIsActive() != null) entity.setIsActive(dto.getIsActive());
+    }
+
+    private boolean isFuture(LocalDateTime date) {
+        return date != null && date.isAfter(LocalDateTime.now());
+    }
+
+}
 
