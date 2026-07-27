@@ -1,1 +1,51 @@
 
+package com.tcs.fincore.CommonMasterService.dto;
+
+import com.fasterxml.jackson.annotation.JsonFormat;
+import jakarta.validation.constraints.Future;
+import jakarta.validation.constraints.NotBlank;
+import lombok.AllArgsConstructor;
+import lombok.Builder;
+import lombok.Data;
+import lombok.NoArgsConstructor;
+
+import java.time.LocalDateTime;
+import java.util.List;
+
+@Data
+@Builder
+@NoArgsConstructor
+@AllArgsConstructor
+public class AnnouncementDto {
+
+    private Long id;
+
+    @NotBlank(message = "Title is required")
+    private String title;
+
+    @NotBlank(message = "Message content is required")
+    private String message;
+
+    private String severity; // INFO, WARN, CRITICAL
+
+    private List<String> targetRoles; // e.g. ["51", "55"] or ["ALL"]
+
+    // Used for Request (Post/Edit)
+    @JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss")
+    private LocalDateTime startDate;
+
+    @JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss")
+    @Future(message = "Expiry date must be in the future")
+    private LocalDateTime expiryDate;
+
+    private String isActive; // 'Y' or 'N'
+
+    // Derived Status for UI (e.g. "ACTIVE", "EXPIRED", "SCHEDULED", "DISABLED")
+    private String displayStatus;
+
+    // Read-only fields
+    private String createdBy;
+
+    @JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss")
+    private LocalDateTime createdAt;
+}
