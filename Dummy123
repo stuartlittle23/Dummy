@@ -1,16 +1,14 @@
-Mass Assignment: Insecure Binder Configuration (6 issues)
+Mass Assignment: Sensitive Field Exposure (6 issues)
 Abstract
-The framework binder used for binding the HTTP request parameters to the model class has not been explicitly 
-configured to allow, or disallow certain attributes.
+A sensitive field is exposed to the model binder. 
 Explanation
-To ease development and increase productivity, most modern frameworks allow an object to be automatically 
-instantiated and populated with the HTTP request parameters whose names match an attribute of the class to be 
-bound. Automatic instantiation and population of objects speeds up development, but can lead to serious problems if 
-implemented without caution. Any attribute in the bound classes, or nested classes, will be automatically bound to the 
-HTTP request parameters. Therefore, malicious users will be able to assign a value to any attribute in bound or nested 
-classes, even if they are not exposed to the client through web forms or API contracts. Example 1: Using Spring 
-MVC with no additional configuration, the following controller method will bind the HTTP request parameters to any 
-attribute in the User or Details classes: 
+Modern frameworks allow developers to automatically bind HTTP request parameters from both request query and 
+body into model objects for ease of development and increased productivity. If the binder is not correctly configured 
+to control which HTTP request parameters are bound to which model attributes, an attacker may be able to abuse the 
+model binding process and set any other attributes that should not be exposed to user control. This binding is possible 
+even if the model attributes do not appear in the web forms or API contracts. Example 1: The following Spring 
+controller method (registerUser) is accessed from a web form that asks a user to register an account by providing 
+their first name, last name, and age: 
 @RequestMapping(method = RequestMethod.POST)
 public String registerUser(@ModelAttribute("user") User user, BindingResult 
 result, SessionStatus status) {
@@ -21,7 +19,7 @@ result, SessionStatus status) {
     return "CustomerSuccess";
   }
 }
-Where User class is defined as: 
+If registration is successful, the user data will be persisted in the database. The User class is defined as: 
 public class User {
   private String name;
   private String lastname;
@@ -30,7 +28,7 @@ public class User {
   // Public Getters and Setters
   ...
 }
-and Details class is defined as: 
+And the Details class is defined as: 
 public class Details {
   private boolean is_admin;
   private int id;
@@ -38,98 +36,34 @@ public class Details {
   // Public Getters and Setters
   ...
 }
+Given this scenario, an attacker may be able to explore the application and discover that there is a details attribute 
+in the User model. If this is the case, the attacker may then attempt to overwrite the current values assigned to their 
+attributes. If an attacker can find out these internal attributes, and the framework binder is not correctly configured in 
+order to disallow binding of these attributes, then the attacker would be able to register an administrator account by 
+sending the following request: 
+name=John&lastname=Smith&age=22&details.is_admin=true
 Recommendation
-When using frameworks that provide automatic model binding capabilities, it is a best practice to control which 
-attributes will be bound to the model object so that even if attackers figure out other non-exposed attributes of the 
-model or nested classes, they will not be able to bind arbitrary values from HTTP request parameters. Depending on 
-the framework used there will be different ways to control the model binding process: Spring MVC: It is possible to 
-control which HTTP request parameters will be used in the binding process and which ones will be ignored. In Spring 
-MVC applications using @ModelAttribute annotated parameters, the binder can be configured to control which 
+In order to avoid mass assignment vulnerabilities it is important to control the HTTP request to model class binding 
+process. There are different alternatives depending on the framework used: Architectural: Define dedicated DTO 
 Jul 27, 2026, 8:46 AM
 © Copyright [2008-2026] Micro Focus or one of its affiliates.
-69
-attributes should be bound. In order to do so, a method can be annotated with @InitBinder so that the framework 
-will inject a reference to the Spring Model Binder. The Spring Model Binder can be configured to control the attribute 
-binding process with the setAllowedFields and setDisallowedFields methods. Spring MVC applications 
-extending BaseCommandController can override the initBinder(HttpServletRequest request, 
-ServletRequestDataBinder binder) method in order to get a reference to the Spring Model Binder. 
-Example 2: The Spring Model Binder (3.x) is configured to disallow the binding of sensitive attributes: 
-final String[] DISALLOWED_FIELDS = new String[]{"details.role", "details.age", 
-"is_admin"};
-@InitBinder
-public void initBinder(WebDataBinder binder) {
-    binder.setDisallowedFields(DISALLOWED_FIELDS);
-}
-Example 3: The Spring Model Binder (2.x) is configured to disallow the binding of sensitive attributes: 
+76
+classes to be bound to user data and containing only those attributes that should be exposed to end users. Map their 
+attributes with the Domain Objects used along the application. These Domain Objects will contain attributes to 
+receive the validated user data and extra attributes that should never be exposed to user control. Binder configuration:
+Certain frameworks such as Spring, allow the developers to configure the model binder to accept or reject HTTP 
+request parameters based on their names. For example: Example 2: 
 @Override
 protected void initBinder(HttpServletRequest request, ServletRequestDataBinder 
 binder) throws Exception {
     binder.setDisallowedFields(new String[]{"details.role", "details.age", 
 "is_admin"});
 }
-In Spring MVC Applications using @RequestBody annotated parameters, the binding process is handled by 
-HttpMessageConverter instances which will use libraries such as Jackson and JAXB to convert the HTTP 
-request body into Java Objects. These libraries offer annotations to control which fields should be allowed or 
-disallowed. For example, for the Jackson JSON library, the @JsonIgnore annotation can be used to prevent a field 
-from being bound to the request. Example 4: A controller method binds an HTTP request to an instance of the 
-Employee class using the @RequestBody annotation. 
-    @RequestMapping(value="/add/employee", method=RequestMethod.POST, 
-consumes="text/html")
-    public void addEmployee(@RequestBody Employee employee){
-        // Do something with the employee object.
-    }
-The application uses the default Jackson HttpMessageConverter to bind JSON HTTP requests to the 
-Employee class. In order to prevent the binding of the is_admin sensitive field, use the @JsonIgnore 
-annotation: 
-public class Employee {
-  @JsonIgnore
-  private boolean is_admin;
-  ...
-  // Public Getters and Setters
-  ...
-}
-Note: Check the following REST frameworks information for more details on how to configure Jackson and JAXB 
-annotations. Apache Struts: Struts 1 and 2 will only bind HTTP request parameters to those Actions or 
-ActionForms attributes which have an associated public setter accessor. If an attribute should not be bound to the 
-request, its setter should be made private. Example 5: Configure a private setter so that Struts framework will not 
-automatically bind any HTTP request parameter: 
-private String role;
-private void setRole(String role)  {
-   this.role = role;
-}
-REST frameworks: Most REST frameworks will automatically bind any HTTP request bodies with content type 
-JSON or XML to a model object. Depending on the libraries used for JSON and XML processing, there will be different 
-ways of controlling the binding process. The following are some examples for JAXB (XML) and Jackson (JSON): 
-Example 6: Models bound from XML documents using Oracle's JAXB library can control the binding process using 
-Jul 27, 2026, 8:46 AM
-© Copyright [2008-2026] Micro Focus or one of its affiliates.
-70
-different annotations such as @XmlAccessorType, @XmlAttribute, @XmlElement and @XmlTransient. 
-The binder can be told not to bind any attributes by default, by annotating the models using the 
-@XmlAccessorType annotation with the value XmlAccessType.NONE and then selecting which fields should 
-be bound using @XmlAttribute and @XmlElement annotations: 
-@XmlRootElement
-@XmlAccessorType(XmlAccessType.NONE)
-public class User {
-    private String role;
-    private String name;
-    @XmlAttribute
-    public String getName() {
-        return name;
-    }
-    public void setName(String name) {
-        this.name = name;
-    }
-    public String getRole() {
-        return role;
-    }
-    public void setRole(String role) {
-        this.role = role;
-    }
-Example 7: Models bound from JSON documents using the Jackson library can control the binding process using 
-different annotations such as @JsonIgnore, @JsonIgnoreProperties, @JsonIgnoreType and 
-@JsonInclude. The binder can be told to ignore certain attributes by annotating them with @JsonIgnore 
-annotation: 
+Model class configuration: Depending on the frameworks used and the serialization/deserialization libraries in use, 
+the model classes to be bound to the HTTP request parameters can be annotated to allow, or disallow, certain attribute 
+bindings. For example, if user data is sent in JSON format and Jackson library is used to deserialize this data, the 
+@JsonIgnore annotation can be used to tell Jackson to ignore a given attribute for serialization and deserialization 
+purposes. Example 3: 
 public class User {
     @JsonIgnore
     private String role;
@@ -146,149 +80,231 @@ public class User {
     public void setRole(String role) {
         this.role = role;
     }
-A different approach to protecting against mass assignment vulnerabilities is using a layered architecture where the 
-HTTP request parameters are bound to DTO objects. The DTO objects are only used for that purpose, exposing only 
-those attributes defined in the web forms or API contracts, and then mapping these DTO objects to Domain Objects 
-where the rest of the private attributes can be defined. 
+In other frameworks such as Apache Struts 1 and 2, the framework will only allow binding HTTP request parameters 
+to class members with public setters. In case a given attribute should not be exposed, the setter should be declared 
+private. Example 4: 
+private String role;
+private void setRole(String role)  {
+   this.role = role;
+}
 Issue Summary
 Jul 27, 2026, 8:46 AM
 © Copyright [2008-2026] Micro Focus or one of its affiliates.
-71
+77
 Jul 27, 2026, 8:46 AM
 © Copyright [2008-2026] Micro Focus or one of its affiliates.
-72
+78
 Engine Breakdown
 SCA WebInspect SecurityScope Total
-Mass Assignment: Insecure Binder Configuration 6 0 0 6
+Mass Assignment: Sensitive Field Exposure 6 0 0 6
 Total 6 0 0 6
-Mass Assignment: Insecure Binder Configuration High
-Package: com.tcs.fincore.CommonMasterService.Controller
-src/main/java/com/tcs/fincore/CommonMasterService/Controller/
-CommonMasterController.java, line 273 (Mass Assignment: Insecure Binder 
-Configuration)
-High
+Mass Assignment: Sensitive Field Exposure High
+Package: com.tcs.fincore.CommonMasterService.dto
+src/main/java/com/tcs/fincore/CommonMasterService/dto/AnnouncementDto.java, line 30 
+(Mass Assignment: Sensitive Field Exposure) High
 Issue Details
-Kingdom: API Abuse
-Scan Engine: SCA (Structural)
-Sink Details
-Sink: Function: validateGlcc
-Enclosing Method: validateGlcc()
-File: src/main/java/com/tcs/fincore/CommonMasterService/Controller/CommonMasterController.java:273
-Taint Flags: 
-270  * @Author v1023042
-271  */
-272  @PostMapping("/validate-glcc")
-273  public ResponseEntity<ApiResponse<GlccValidationResponse>> validateGlcc(
-274  @RequestBody GlccValidationRequest dto) {
-275 
-276  return ResponseEntity.ok(
-src/main/java/com/tcs/fincore/CommonMasterService/Controller/BalanceController.java, 
-line 33 (Mass Assignment: Insecure Binder Configuration) High
-Issue Details
-Kingdom: API Abuse
-Scan Engine: SCA (Structural)
-Sink Details
-Jul 27, 2026, 8:46 AM
-© Copyright [2008-2026] Micro Focus or one of its affiliates.
-73
-Mass Assignment: Insecure Binder Configuration High
-Package: com.tcs.fincore.CommonMasterService.Controller
-src/main/java/com/tcs/fincore/CommonMasterService/Controller/BalanceController.java, 
-line 33 (Mass Assignment: Insecure Binder Configuration) High
-Sink: Function: exportBalance
-Enclosing Method: exportBalance()
-File: src/main/java/com/tcs/fincore/CommonMasterService/Controller/BalanceController.java:33
-Taint Flags: 
-30  }
-31 
-32  @PostMapping("/export")
-33  public ResponseEntity<byte[]> exportBalance(@RequestBody BalanceRequestDTO request) {
-34  byte[] bytes = service.exportBalanceToExcel(request);
-35  return ResponseEntity.ok().header(HttpHeaders.CONTENT_DISPOSITION, "atttachmet; filename=balance_enquiry.xlsx")
-36  .contentType(
-src/main/java/com/tcs/fincore/CommonMasterService/Controller/
-CommonMasterController.java, line 55 (Mass Assignment: Insecure Binder 
-Configuration)
-High
-Issue Details
-Kingdom: API Abuse
-Scan Engine: SCA (Structural)
-Sink Details
-Sink: Function: getCGLs
-Enclosing Method: getCGLs()
-File: src/main/java/com/tcs/fincore/CommonMasterService/Controller/CommonMasterController.java:55
-Taint Flags: 
-52  }
-53 
-54  @PostMapping("/cgls")
-55  public PaginatedResponseDto<?> getCGLs(
-56  @RequestHeader("Authorization") String authorizationHeader,
-57  @RequestHeader("X-Request-Type") String requestType,
-58  @RequestBody SearchRequest request) {
-src/main/java/com/tcs/fincore/CommonMasterService/Controller/BalanceController.java, 
-line 25 (Mass Assignment: Insecure Binder Configuration) High
-Issue Details
-Kingdom: API Abuse
-Scan Engine: SCA (Structural)
-Sink Details
-Sink: Function: getBalance
-Enclosing Method: getBalance()
-File: src/main/java/com/tcs/fincore/CommonMasterService/Controller/BalanceController.java:25
-Jul 27, 2026, 8:46 AM
-© Copyright [2008-2026] Micro Focus or one of its affiliates.
-74
-Mass Assignment: Insecure Binder Configuration High
-Package: com.tcs.fincore.CommonMasterService.Controller
-src/main/java/com/tcs/fincore/CommonMasterService/Controller/BalanceController.java, 
-line 25 (Mass Assignment: Insecure Binder Configuration) High
-Taint Flags: 
-22  private final CommonMasterService service;
-23 
-24  @PostMapping("/enquires")
-25  public ResponseEntity<ApiResponse<PaginatedResponseDto<BalanceResponseDTO>>> getBalance(
-26  @RequestBody BalanceRequestDTO request) {
+Kingdom: Encapsulation
+Scan Engine: SCA (Data Flow)
+Source Details
+Source: setTargetRoles(0)
+From: com.tcs.fincore.CommonMasterService.dto.AnnouncementDto.setTargetRoles
+File: src/main/java/com/tcs/fincore/CommonMasterService/dto/AnnouncementDto.java:30
 27 
-28  PaginatedResponseDto<BalanceResponseDTO> result = service.getBalanceDetails(request);
-src/main/java/com/tcs/fincore/CommonMasterService/Controller/
-LhoTransferController.java, line 20 (Mass Assignment: Insecure Binder Configuration) High
-Issue Details
-Kingdom: API Abuse
-Scan Engine: SCA (Structural)
+28  private String severity; // INFO, WARN, CRITICAL
+29 
+30  private List<String> targetRoles; // e.g. ["51", "55"] or ["ALL"]
+31 
+32  // Used for Request (Post/Edit)
+33  @JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss")
 Sink Details
-Sink: Function: searchLhoTransfers
-Enclosing Method: searchLhoTransfers()
-File: src/main/java/com/tcs/fincore/CommonMasterService/Controller/LhoTransferController.java:20
-Taint Flags: 
-17 
-18 
-19  @PostMapping("/search")
-20  public ResponseEntity<ApiResponse<PaginatedResponseDto<CommonRequestDto>>> searchLhoTransfers(
-21  @RequestBody SearchRequest request) {
-22  log.info("Received request to search LHO Transfers");
-23  PaginatedResponseDto<CommonRequestDto> response = service.searchLhoTransfers(request);
-src/main/java/com/tcs/fincore/CommonMasterService/Controller/
-CommonMasterController.java, line 143 (Mass Assignment: Insecure Binder 
-Configuration)
-High
+Sink: Assignment to this.targetRoles
+Enclosing Method: setTargetRoles()
+File: src/main/java/com/tcs/fincore/CommonMasterService/dto/AnnouncementDto.java:30
+Taint Flags: WEB, XSS
+27 
+28  private String severity; // INFO, WARN, CRITICAL
+29 
+30  private List<String> targetRoles; // e.g. ["51", "55"] or ["ALL"]
+31 
+32  // Used for Request (Post/Edit)
+33  @JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss")
+src/main/java/com/tcs/fincore/CommonMasterService/dto/AnnouncementDto.java, line 30 
+(Mass Assignment: Sensitive Field Exposure) High
 Issue Details
-Kingdom: API Abuse
-Scan Engine: SCA (Structural)
+Kingdom: Encapsulation
+Scan Engine: SCA (Data Flow)
+Jul 27, 2026, 8:46 AM
+© Copyright [2008-2026] Micro Focus or one of its affiliates.
+79
+Mass Assignment: Sensitive Field Exposure High
+Package: com.tcs.fincore.CommonMasterService.dto
+src/main/java/com/tcs/fincore/CommonMasterService/dto/AnnouncementDto.java, line 30 
+(Mass Assignment: Sensitive Field Exposure) High
+Source Details
+Source: org.springframework.data.repository.CrudRepository.findById()
+From: com.tcs.fincore.CommonMasterService.service.AnnouncementServiceImpl.toggleSta
+tus
+File: src/main/java/com/tcs/fincore/CommonMasterService/service/AnnouncementService
+Impl.java:74
+71  // --- 4. TOGGLE STATUS (Quick Action) --
+72  @Transactional
+73  public AnnouncementDto toggleStatus(Long id) {
+74  Announcements entity = repository.findById(id)
+75  .orElseThrow(() -> new EntityNotFoundException("Announcement not found"));
+76  String current = entity.getIsActive();
+77  LocalDateTime now = LocalDateTime.now();
 Sink Details
-Sink: Function: getBranchNames
-Enclosing Method: getBranchNames()
-File: src/main/java/com/tcs/fincore/CommonMasterService/Controller/CommonMasterController.java:143
-Taint Flags: 
-140  }
-Mass Assignment: Insecure Binder Configuration
-High
-Package: com.tcs.fincore.CommonMasterService.Controller
-src/main/java/com/tcs/fincore/CommonMasterService/Controller/
-CommonMasterController.java, line 143 (Mass Assignment: Insecure Binder 
-Configuration)
-High
-141 
-142  @PostMapping("/branches-master")
-143  public PaginatedResponseDto<?> getBranchNames(@RequestHeader("Authorization") String authorizationHeader,
-144  @RequestHeader("X-Request-Type") String requestType,
-145  @RequestBody SearchRequest request) {
-146  log.info("Received request to Search in Master table for {}.", requestType)
+Sink: Assignment to this.targetRoles
+Enclosing Method: setTargetRoles()
+File: src/main/java/com/tcs/fincore/CommonMasterService/dto/AnnouncementDto.java:30
+Taint Flags: DATABASE, XSS
+27 
+28  private String severity; // INFO, WARN, CRITICAL
+29 
+30  private List<String> targetRoles; // e.g. ["51", "55"] or ["ALL"]
+31 
+32  // Used for Request (Post/Edit)
+33  @JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss")
+src/main/java/com/tcs/fincore/CommonMasterService/dto/AnnouncementDto.java, line 30 
+(Mass Assignment: Sensitive Field Exposure) High
+Issue Details
+Kingdom: Encapsulation
+Scan Engine: SCA (Data Flow)
+Source Details
+Source: org.springframework.data.repository.CrudRepository.findById()
+From: com.tcs.fincore.CommonMasterService.service.AnnouncementServiceImpl.updateAnn
+ouncement
+File: src/main/java/com/tcs/fincore/CommonMasterService/service/AnnouncementService
+Impl.java:51
+48  // --- 2. UPDATE --
+49  @Transactional
+Jul 27, 2026, 8:46 AM
+© Copyright [2008-2026] Micro Focus or one of its affiliates.
+80
+Mass Assignment: Sensitive Field Exposure High
+Package: com.tcs.fincore.CommonMasterService.dto
+src/main/java/com/tcs/fincore/CommonMasterService/dto/AnnouncementDto.java, line 30 
+(Mass Assignment: Sensitive Field Exposure) High
+50  public AnnouncementDto updateAnnouncement(Long id, AnnouncementDto dto, String userId) {
+51  Announcements entity = repository.findById(id)
+52  .orElseThrow(() -> new EntityNotFoundException("Announcement not found: " + id));
+53 
+54  // Update fields
+Sink Details
+Sink: Assignment to this.targetRoles
+Enclosing Method: setTargetRoles()
+File: src/main/java/com/tcs/fincore/CommonMasterService/dto/AnnouncementDto.java:30
+Taint Flags: DATABASE, XSS
+27 
+28  private String severity; // INFO, WARN, CRITICAL
+29 
+30  private List<String> targetRoles; // e.g. ["51", "55"] or ["ALL"]
+31 
+32  // Used for Request (Post/Edit)
+33  @JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss")
+src/main/java/com/tcs/fincore/CommonMasterService/dto/AnnouncementDto.java, line 30 
+(Mass Assignment: Sensitive Field Exposure) High
+Issue Details
+Kingdom: Encapsulation
+Scan Engine: SCA (Data Flow)
+Source Details
+Source: com.tcs.fincore.CommonMasterService.repository.AnnouncementsRepository.find
+AllByOrderByCreatedAtDesc()
+From: com.tcs.fincore.CommonMasterService.service.AnnouncementServiceImpl.getAllAnn
+ouncements
+File: src/main/java/com/tcs/fincore/CommonMasterService/service/AnnouncementService
+Impl.java:66
+63 
+64  // --- 3. LIST (Return all) --
+65  public List<AnnouncementDto> getAllAnnouncements() {
+66  return repository.findAllByOrderByCreatedAtDesc().stream()
+67  .map(this::mapEntityToDto)
+68  .collect(Collectors.toList());
+69  }
+Jul 27, 2026, 8:46 AM
+© Copyright [2008-2026] Micro Focus or one of its affiliates.
+81
+Mass Assignment: Sensitive Field Exposure High
+Package: com.tcs.fincore.CommonMasterService.dto
+src/main/java/com/tcs/fincore/CommonMasterService/dto/AnnouncementDto.java, line 30 
+(Mass Assignment: Sensitive Field Exposure) High
+Sink Details
+Sink: Assignment to this.targetRoles
+Enclosing Method: setTargetRoles()
+File: src/main/java/com/tcs/fincore/CommonMasterService/dto/AnnouncementDto.java:30
+Taint Flags: DATABASE, XSS
+27 
+28  private String severity; // INFO, WARN, CRITICAL
+29 
+30  private List<String> targetRoles; // e.g. ["51", "55"] or ["ALL"]
+31 
+32  // Used for Request (Post/Edit)
+33  @JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss")
+URL: null
+src/main/java/com/tcs/fincore/CommonMasterService/dto/AnnouncementDto.java, line 30 
+(Mass Assignment: Sensitive Field Exposure) High
+Issue Details
+Kingdom: Encapsulation
+Scan Engine: SCA (Data Flow)
+Source Details
+Source: update(2)
+From: com.tcs.fincore.CommonMasterService.Controller.AnnouncementController.update
+File: src/main/java/com/tcs/fincore/CommonMasterService/Controller/AnnouncementCont
+roller.java:48
+URL: null
+45  public ResponseEntity<AnnouncementDto> update(
+46  @RequestHeader("Authorization") String token,
+47  @PathVariable Long id,
+48  @Valid @RequestBody AnnouncementDto dto) {
+49  String userId = jwtUtil.getUserIdFromToken(token);
+50  return ResponseEntity.ok(service.updateAnnouncement(id, dto, userId));
+51  }
+Sink Details
+Sink: Assignment to this.targetRoles
+Enclosing Method: setTargetRoles()
+File: src/main/java/com/tcs/fincore/CommonMasterService/dto/AnnouncementDto.java:30
+Taint Flags: WEB, XSS
+27 
+Jul 27, 2026, 8:46 AM
+© Copyright [2008-2026] Micro Focus or one of its affiliates.
+82
+Mass Assignment: Sensitive Field Exposure High
+URL: null
+src/main/java/com/tcs/fincore/CommonMasterService/dto/AnnouncementDto.java, line 30 
+(Mass Assignment: Sensitive Field Exposure) High
+28  private String severity; // INFO, WARN, CRITICAL
+29 
+30  private List<String> targetRoles; // e.g. ["51", "55"] or ["ALL"]
+31 
+32  // Used for Request (Post/Edit)
+33  @JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss")
+src/main/java/com/tcs/fincore/CommonMasterService/dto/AnnouncementDto.java, line 30 
+(Mass Assignment: Sensitive Field Exposure) High
+Issue Details
+Kingdom: Encapsulation
+Scan Engine: SCA (Data Flow)
+Source Details
+Source: create(1)
+From: com.tcs.fincore.CommonMasterService.Controller.AnnouncementController.create
+File: src/main/java/com/tcs/fincore/CommonMasterService/Controller/AnnouncementCont
+roller.java:36
+URL: null
+33  @PostMapping
+34  public ResponseEntity<AnnouncementDto> create(
+35  @RequestHeader("Authorization") String token,
+36  @Valid @RequestBody AnnouncementDto dto) {
+37  String userId = jwtUtil.getUserIdFromToken(token);
+38  return ResponseEntity.ok(service.createAnnouncement(dto, userId));
+39  }
+Sink Details
+Sink: Assignment to this.targetRoles
+Enclosing Method: setTargetRoles()
+File: src/main/java/com/tcs/fincore/CommonMasterService/dto/AnnouncementDto.java:30
+Taint Flags: WEB, XSS
+27 
+28  private String severity; // INFO, WARN, CRITICAL
+29 
+30  private List<String> targetRoles; // e.g. ["51", "55"] or ["ALL"]
+31 
+32  // Used for Request (Post/Edit)
+33  @JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss"
