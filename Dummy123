@@ -1,99 +1,166 @@
-package com.tcs.fincore.CommonRequestService.config;
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xmlns="http://maven.apache.org/POM/4.0.0"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
 
-import org.springframework.cache.CacheManager;
-import org.springframework.cache.annotation.EnableCaching;
-import org.springframework.context.annotation.Bean;
-import org.springframework.context.annotation.Configuration;
-import org.springframework.data.redis.cache.RedisCacheConfiguration;
-import org.springframework.data.redis.cache.RedisCacheManager;
-import org.springframework.data.redis.connection.RedisConnectionFactory;
-import org.springframework.data.redis.core.RedisTemplate;
-import org.springframework.data.redis.serializer.GenericJacksonJsonRedisSerializer;
-import org.springframework.data.redis.serializer.RedisSerializationContext;
-import org.springframework.data.redis.serializer.StringRedisSerializer;
+    <parent>
+        <groupId>org.springframework.boot</groupId>
+        <artifactId>spring-boot-starter-parent</artifactId>
+        <version>4.1.0</version>
+        <relativePath/>
+        <!-- lookup parent from repository -->
+    </parent>
 
-import tools.jackson.databind.json.JsonMapper;
-import tools.jackson.databind.jsontype.BasicPolymorphicTypeValidator;
-import tools.jackson.databind.jsontype.PolymorphicTypeValidator;
+    <repositories>
+    </repositories>
 
-import java.time.Duration;
+    <groupId>com.tcs.fincore</groupId>
+    <artifactId>CommonMasterService</artifactId>
+    <version>0.0.1-SNAPSHOT</version>
+    <name>common-master-service</name>
+    <description>Service to get data from all the master screens</description>
+    <packaging>jar</packaging>
 
-/**
- * Configuration class for setting up Redis integration within the Spring Boot application.
- *
- * This class enables Spring's caching mechanism via `@EnableCaching` and customizes
- * how data is serialized and deserialized when stored in Redis, primarily using JSON
- * and ensuring correct handling of Java 8 Date/Time API types.
- */
-@Configuration
-@EnableCaching
-public class RedisConfig {
+    <properties>
+        <java.version>21</java.version>
+    </properties>
 
-    /**
-     * Configures and provides a custom `CacheManager` bean for Redis caching operations.
-     *
-     * This manager sets up default cache behavior, including a 24-hour Time-To-Live (TTL)
-     * for entries, prevention of caching `null` values, and specialized JSON serialization.
-     *
-     * The serialization is configured with `GenericJacksonJsonRedisSerializer` and includes
-     * polymorphic type handling (`enableDefaultTyping`) to ensure that cached objects
-     * retain their original class information during deserialization, which is crucial
-     * for generic object caching.
-     *
-     * @param connectionFactory The auto-configured RedisConnectionFactory provided by Spring.
-     * @return A configured RedisCacheManager instance.
-     */
-    @Bean
-    public CacheManager cacheManager(RedisConnectionFactory connectionFactory) {
-        // Enable Polymorphic Typing for Redis (so we can cache generic Objects)
-        PolymorphicTypeValidator typeValidator = BasicPolymorphicTypeValidator.builder()
-                .allowIfBaseType(Object.class)
-                .build();
+    <dependencies>
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-web</artifactId>
+        </dependency>
 
-        GenericJacksonJsonRedisSerializer serializer = GenericJacksonJsonRedisSerializer.builder(JsonMapper::builder)
-                .enableDefaultTyping(typeValidator)
-                .build();
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-actuator</artifactId>
+        </dependency>
 
-        RedisCacheConfiguration cacheConfig = RedisCacheConfiguration.defaultCacheConfig()
-                .entryTtl(Duration.ofHours(12))
-                .disableCachingNullValues()
-                .serializeKeysWith(RedisSerializationContext.SerializationPair.fromSerializer(new StringRedisSerializer()))
-                .serializeValuesWith(RedisSerializationContext.SerializationPair.fromSerializer(serializer));
-        return RedisCacheManager.builder(connectionFactory)
-                .cacheDefaults(cacheConfig)
-                .build();
-    }
+        <dependency>
+            <groupId>org.projectlombok</groupId>
+            <artifactId>lombok</artifactId>
+            <optional>true</optional>
+        </dependency>
 
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-data-jpa</artifactId>
+        </dependency>
 
-    /**
-     * Configures and provides a custom `RedisTemplate` bean.
-     *
-     * This bean is used for direct, programmatic interaction with Redis (e.g., using `redisTemplate.opsForValue().set(...)`)
-     * rather than using the `@Cacheable` annotations. It uses its own Jackson 3 JsonMapper-based
-     * serializer, which is suitable for specific key-value operations where polymorphic typing
-     * might not be necessary or is handled explicitly.
-     *
-     * @param connectionFactory The auto-configured RedisConnectionFactory.
-     * @return A configured RedisTemplate instance for String keys and Object values.
-     */
-    @Bean
-    public RedisTemplate<String, Object> redisTemplate(RedisConnectionFactory connectionFactory) {
-        RedisTemplate<String, Object> template = new RedisTemplate<>();
-        template.setConnectionFactory(connectionFactory);
+        <dependency>
+            <groupId>com.oracle.database.jdbc</groupId>
+            <artifactId>ojdbc11</artifactId>
+            <scope>runtime</scope>
+        </dependency>
 
-        // Enable Polymorphic Typing so cached objects retain their class information
-        PolymorphicTypeValidator typeValidator = BasicPolymorphicTypeValidator.builder()
-                .allowIfBaseType(Object.class)
-                .build();
+        <!-- Upgraded Apache POI to latest -->
+        <dependency>
+            <groupId>org.apache.poi</groupId>
+            <artifactId>poi</artifactId>
+            <version>5.5.1</version>
+        </dependency>
+        <dependency>
+            <groupId>org.apache.poi</groupId>
+            <artifactId>poi-ooxml</artifactId>
+            <version>5.5.1</version>
+        </dependency>
 
-        GenericJacksonJsonRedisSerializer serializer = GenericJacksonJsonRedisSerializer.builder(JsonMapper::builder)
-                .enableDefaultTyping(typeValidator)
-                .build();
+        <!-- Required by Apache POI for internal logging -->
+        <dependency>
+            <groupId>org.apache.logging.log4j</groupId>
+            <artifactId>log4j-api</artifactId>
+            <version>2.26.0</version>
+        </dependency>
+        <dependency>
+            <groupId>org.apache.logging.log4j</groupId>
+            <artifactId>log4j-core</artifactId>
+            <version>2.26.0</version>
+        </dependency>
 
-        template.setValueSerializer(serializer);
-        template.setKeySerializer(new StringRedisSerializer()); // Ensure keys are always strings
+        <!-- health metrics -->
+        <dependency>
+            <groupId>io.micrometer</groupId>
+            <artifactId>micrometer-registry-prometheus</artifactId>
+        </dependency>
 
-        return template;
-    }
+        <dependency>
+            <groupId>org.jetbrains</groupId>
+            <artifactId>annotations</artifactId>
+            <version>26.0.1</version>
+            <scope>compile</scope>
+        </dependency>
+        <dependency>
+            <groupId>jakarta.validation</groupId>
+            <artifactId>jakarta.validation-api</artifactId>
+        </dependency>
 
-}
+        <!-- Internal Dependency with POI Exclusions -->
+        <dependency>
+            <groupId>com.fincore</groupId>
+            <artifactId>common-utilities</artifactId>
+            <version>0.0.1-SNAPSHOT</version>
+            <exclusions>
+                <exclusion>
+                    <groupId>org.apache.poi</groupId>
+                    <artifactId>poi</artifactId>
+                </exclusion>
+                <exclusion>
+                    <groupId>org.apache.poi</groupId>
+                    <artifactId>poi-ooxml</artifactId>
+                </exclusion>
+                <exclusion>
+                    <groupId>org.apache.poi</groupId>
+                    <artifactId>poi-ooxml-schemas</artifactId>
+                </exclusion>
+            </exclusions>
+        </dependency>
+
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-data-redis</artifactId>
+        </dependency>
+
+        <!-- Upgraded Logstash Encoder to latest -->
+        <dependency>
+            <groupId>net.logstash.logback</groupId>
+            <artifactId>logstash-logback-encoder</artifactId>
+            <version>9.0</version>
+        </dependency>
+    </dependencies>
+
+    <build>
+        <finalName>${project.artifactId}</finalName>
+        <plugins>
+            <!-- Spring Boot Maven Plugin excluding Lombok from fat jar -->
+            <plugin>
+                <groupId>org.springframework.boot</groupId>
+                <artifactId>spring-boot-maven-plugin</artifactId>
+                <configuration>
+                    <excludes>
+                        <exclude>
+                            <groupId>org.projectlombok</groupId>
+                            <artifactId>lombok</artifactId>
+                        </exclude>
+                    </excludes>
+                </configuration>
+            </plugin>
+
+            <!-- maven-compiler-plugin with Lombok Annotation Processor and Java 21 fix -->
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-compiler-plugin</artifactId>
+                <configuration>
+                    <source>${java.version}</source>
+                    <target>${java.version}</target>
+                    <annotationProcessorPaths>
+                        <path>
+                            <groupId>org.projectlombok</groupId>
+                            <artifactId>lombok</artifactId>
+                        </path>
+                    </annotationProcessorPaths>
+                </configuration>
+            </plugin>
+        </plugins>
+    </build>
+</project>
