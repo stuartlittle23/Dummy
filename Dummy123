@@ -1,310 +1,78 @@
-Mass Assignment: Sensitive Field Exposure (6 issues)
+Password Management: Password in Configuration File (2 issues)
 Abstract
-A sensitive field is exposed to the model binder. 
+Storing a plain text password in a configuration file may result in a system compromise.
 Explanation
-Modern frameworks allow developers to automatically bind HTTP request parameters from both request query and 
-body into model objects for ease of development and increased productivity. If the binder is not correctly configured 
-to control which HTTP request parameters are bound to which model attributes, an attacker may be able to abuse the 
-model binding process and set any other attributes that should not be exposed to user control. This binding is possible 
-even if the model attributes do not appear in the web forms or API contracts. Example 1: The following Spring 
-controller method (registerUser) is accessed from a web form that asks a user to register an account by providing 
-their first name, last name, and age: 
-@RequestMapping(method = RequestMethod.POST)
-public String registerUser(@ModelAttribute("user") User user, BindingResult 
-result, SessionStatus status) {
-  if (db.save(user).hasErrors()) {
-    return "CustomerForm";
-  } else {
-    status.setComplete();
-    return "CustomerSuccess";
-  }
-}
-If registration is successful, the user data will be persisted in the database. The User class is defined as: 
-public class User {
-  private String name;
-  private String lastname;
-  private int age;
-  private Details details;
-  // Public Getters and Setters
-  ...
-}
-And the Details class is defined as: 
-public class Details {
-  private boolean is_admin;
-  private int id;
-  private Date login_date;
-  // Public Getters and Setters
-  ...
-}
-Given this scenario, an attacker may be able to explore the application and discover that there is a details attribute 
-in the User model. If this is the case, the attacker may then attempt to overwrite the current values assigned to their 
-attributes. If an attacker can find out these internal attributes, and the framework binder is not correctly configured in 
-order to disallow binding of these attributes, then the attacker would be able to register an administrator account by 
-sending the following request: 
-name=John&lastname=Smith&age=22&details.is_admin=true
+Storing a plain text password in a configuration file allows anyone who can read the file access to the password
+protected resource. Developers sometimes believe that they cannot defend the application from someone who has 
+access to the configuration, but this attitude makes an attacker's job easier. Good password management guidelines 
+require that a password never be stored in plain text. 
 Recommendation
-In order to avoid mass assignment vulnerabilities it is important to control the HTTP request to model class binding 
-process. There are different alternatives depending on the framework used: Architectural: Define dedicated DTO 
-Jul 27, 2026, 8:46 AM
-© Copyright [2008-2026] Micro Focus or one of its affiliates.
-76
-classes to be bound to user data and containing only those attributes that should be exposed to end users. Map their 
-attributes with the Domain Objects used along the application. These Domain Objects will contain attributes to 
-receive the validated user data and extra attributes that should never be exposed to user control. Binder configuration:
-Certain frameworks such as Spring, allow the developers to configure the model binder to accept or reject HTTP 
-request parameters based on their names. For example: Example 2: 
-@Override
-protected void initBinder(HttpServletRequest request, ServletRequestDataBinder 
-binder) throws Exception {
-    binder.setDisallowedFields(new String[]{"details.role", "details.age", 
-"is_admin"});
-}
-Model class configuration: Depending on the frameworks used and the serialization/deserialization libraries in use, 
-the model classes to be bound to the HTTP request parameters can be annotated to allow, or disallow, certain attribute 
-bindings. For example, if user data is sent in JSON format and Jackson library is used to deserialize this data, the 
-@JsonIgnore annotation can be used to tell Jackson to ignore a given attribute for serialization and deserialization 
-purposes. Example 3: 
-public class User {
-    @JsonIgnore
-    private String role;
-    private String name;
-    public String getName() {
-        return name;
-    }
-    public void setName(String name) {
-        this.name = name;
-    }
-    public String getRole() {
-        return role;
-    }
-    public void setRole(String role) {
-        this.role = role;
-    }
-In other frameworks such as Apache Struts 1 and 2, the framework will only allow binding HTTP request parameters 
-to class members with public setters. In case a given attribute should not be exposed, the setter should be declared 
-private. Example 4: 
-private String role;
-private void setRole(String role)  {
-   this.role = role;
-}
+A password should never be stored in plain text. An administrator should be required to enter the password when the 
+system starts. If that approach is impractical, a less secure but often adequate solution is to obfuscate the password and 
+scatter the de-obfuscation material around the system so that an attacker has to obtain and correctly combine multiple 
+system resources to decipher the password. Some third-party products claim the ability to manage passwords in a 
+more secure way. For example, WebSphere Application Server 4.x uses a simple XOR encryption algorithm for 
+obfuscating values, but be skeptical about such facilities. WebSphere and other application servers offer outdated and 
+relatively weak encryption mechanisms that are insufficient for security-sensitive environments. For a secure solution 
+the only viable option is a proprietary one. 
 Issue Summary
-Jul 27, 2026, 8:46 AM
-© Copyright [2008-2026] Micro Focus or one of its affiliates.
-77
-Jul 27, 2026, 8:46 AM
-© Copyright [2008-2026] Micro Focus or one of its affiliates.
-78
 Engine Breakdown
-SCA WebInspect SecurityScope Total
-Mass Assignment: Sensitive Field Exposure 6 0 0 6
-Total 6 0 0 6
-Mass Assignment: Sensitive Field Exposure High
-Package: com.tcs.fincore.CommonMasterService.dto
-src/main/java/com/tcs/fincore/CommonMasterService/dto/AnnouncementDto.java, line 30 
-(Mass Assignment: Sensitive Field Exposure) High
+Password Management: Password in Configuration File
+Total
+Password Management: Password in Configuration File
+SCA
+2
+2
+WebInspect
+0
+0
+SecurityScope
+Total
+0
+0
+2
+2
+High
+Package: src.main.resources
+src/main/resources/application-dev.properties, line 3 (Password Management: Password 
+in Configuration File)
+High
 Issue Details
-Kingdom: Encapsulation
-Scan Engine: SCA (Data Flow)
-Source Details
-Source: setTargetRoles(0)
-From: com.tcs.fincore.CommonMasterService.dto.AnnouncementDto.setTargetRoles
-File: src/main/java/com/tcs/fincore/CommonMasterService/dto/AnnouncementDto.java:30
-27 
-28  private String severity; // INFO, WARN, CRITICAL
-29 
-30  private List<String> targetRoles; // e.g. ["51", "55"] or ["ALL"]
-31 
-32  // Used for Request (Post/Edit)
-33  @JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss")
-Sink Details
-Sink: Assignment to this.targetRoles
-Enclosing Method: setTargetRoles()
-File: src/main/java/com/tcs/fincore/CommonMasterService/dto/AnnouncementDto.java:30
-Taint Flags: WEB, XSS
-27 
-28  private String severity; // INFO, WARN, CRITICAL
-29 
-30  private List<String> targetRoles; // e.g. ["51", "55"] or ["ALL"]
-31 
-32  // Used for Request (Post/Edit)
-33  @JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss")
-src/main/java/com/tcs/fincore/CommonMasterService/dto/AnnouncementDto.java, line 30 
-(Mass Assignment: Sensitive Field Exposure) High
-Issue Details
-Kingdom: Encapsulation
-Scan Engine: SCA (Data Flow)
+Kingdom: Environment
+Scan Engine: SCA (Configuration)
 Jul 27, 2026, 8:46 AM
 © Copyright [2008-2026] Micro Focus or one of its affiliates.
-79
-Mass Assignment: Sensitive Field Exposure High
-Package: com.tcs.fincore.CommonMasterService.dto
-src/main/java/com/tcs/fincore/CommonMasterService/dto/AnnouncementDto.java, line 30 
-(Mass Assignment: Sensitive Field Exposure) High
-Source Details
-Source: org.springframework.data.repository.CrudRepository.findById()
-From: com.tcs.fincore.CommonMasterService.service.AnnouncementServiceImpl.toggleSta
-tus
-File: src/main/java/com/tcs/fincore/CommonMasterService/service/AnnouncementService
-Impl.java:74
-71  // --- 4. TOGGLE STATUS (Quick Action) --
-72  @Transactional
-73  public AnnouncementDto toggleStatus(Long id) {
-74  Announcements entity = repository.findById(id)
-75  .orElseThrow(() -> new EntityNotFoundException("Announcement not found"));
-76  String current = entity.getIsActive();
-77  LocalDateTime now = LocalDateTime.now();
-Sink Details
-Sink: Assignment to this.targetRoles
-Enclosing Method: setTargetRoles()
-File: src/main/java/com/tcs/fincore/CommonMasterService/dto/AnnouncementDto.java:30
-Taint Flags: DATABASE, XSS
-27 
-28  private String severity; // INFO, WARN, CRITICAL
-29 
-30  private List<String> targetRoles; // e.g. ["51", "55"] or ["ALL"]
-31 
-32  // Used for Request (Post/Edit)
-33  @JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss")
-src/main/java/com/tcs/fincore/CommonMasterService/dto/AnnouncementDto.java, line 30 
-(Mass Assignment: Sensitive Field Exposure) High
-Issue Details
-Kingdom: Encapsulation
-Scan Engine: SCA (Data Flow)
-Source Details
-Source: org.springframework.data.repository.CrudRepository.findById()
-From: com.tcs.fincore.CommonMasterService.service.AnnouncementServiceImpl.updateAnn
-ouncement
-File: src/main/java/com/tcs/fincore/CommonMasterService/service/AnnouncementService
-Impl.java:51
-48  // --- 2. UPDATE --
-49  @Transactional
+83
 Jul 27, 2026, 8:46 AM
 © Copyright [2008-2026] Micro Focus or one of its affiliates.
-80
-Mass Assignment: Sensitive Field Exposure High
-Package: com.tcs.fincore.CommonMasterService.dto
-src/main/java/com/tcs/fincore/CommonMasterService/dto/AnnouncementDto.java, line 30 
-(Mass Assignment: Sensitive Field Exposure) High
-50  public AnnouncementDto updateAnnouncement(Long id, AnnouncementDto dto, String userId) {
-51  Announcements entity = repository.findById(id)
-52  .orElseThrow(() -> new EntityNotFoundException("Announcement not found: " + id));
-53 
-54  // Update fields
+84
+Password Management: Password in Configuration File High
+Package: src.main.resources
+src/main/resources/application-dev.properties, line 3 (Password Management: Password 
+in Configuration File) High
 Sink Details
-Sink: Assignment to this.targetRoles
-Enclosing Method: setTargetRoles()
-File: src/main/java/com/tcs/fincore/CommonMasterService/dto/AnnouncementDto.java:30
-Taint Flags: DATABASE, XSS
-27 
-28  private String severity; // INFO, WARN, CRITICAL
-29 
-30  private List<String> targetRoles; // e.g. ["51", "55"] or ["ALL"]
-31 
-32  // Used for Request (Post/Edit)
-33  @JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss")
-src/main/java/com/tcs/fincore/CommonMasterService/dto/AnnouncementDto.java, line 30 
-(Mass Assignment: Sensitive Field Exposure) High
+Sink: spring.datasource.password
+File: src/main/resources/application-dev.properties:3
+Taint Flags: 
+1 spring.datasource.url=jdbc:oracle:thin:@10.177.103.192:1523/fincorepdb1
+2 spring.datasource.username=fincore
+3 spring.datasource.password=Password#1234
+4 
+5 
+6 # --- Redis Configuration --
+7 
+src/main/resources/application-dev.properties, line 12 (Password Management: Password 
+in Configuration File) High
 Issue Details
-Kingdom: Encapsulation
-Scan Engine: SCA (Data Flow)
-Source Details
-Source: com.tcs.fincore.CommonMasterService.repository.AnnouncementsRepository.find
-AllByOrderByCreatedAtDesc()
-From: com.tcs.fincore.CommonMasterService.service.AnnouncementServiceImpl.getAllAnn
-ouncements
-File: src/main/java/com/tcs/fincore/CommonMasterService/service/AnnouncementService
-Impl.java:66
-63 
-64  // --- 3. LIST (Return all) --
-65  public List<AnnouncementDto> getAllAnnouncements() {
-66  return repository.findAllByOrderByCreatedAtDesc().stream()
-67  .map(this::mapEntityToDto)
-68  .collect(Collectors.toList());
-69  }
-Jul 27, 2026, 8:46 AM
-© Copyright [2008-2026] Micro Focus or one of its affiliates.
-81
-Mass Assignment: Sensitive Field Exposure High
-Package: com.tcs.fincore.CommonMasterService.dto
-src/main/java/com/tcs/fincore/CommonMasterService/dto/AnnouncementDto.java, line 30 
-(Mass Assignment: Sensitive Field Exposure) High
+Kingdom: Environment
+Scan Engine: SCA (Configuration)
 Sink Details
-Sink: Assignment to this.targetRoles
-Enclosing Method: setTargetRoles()
-File: src/main/java/com/tcs/fincore/CommonMasterService/dto/AnnouncementDto.java:30
-Taint Flags: DATABASE, XSS
-27 
-28  private String severity; // INFO, WARN, CRITICAL
-29 
-30  private List<String> targetRoles; // e.g. ["51", "55"] or ["ALL"]
-31 
-32  // Used for Request (Post/Edit)
-33  @JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss")
-URL: null
-src/main/java/com/tcs/fincore/CommonMasterService/dto/AnnouncementDto.java, line 30 
-(Mass Assignment: Sensitive Field Exposure) High
-Issue Details
-Kingdom: Encapsulation
-Scan Engine: SCA (Data Flow)
-Source Details
-Source: update(2)
-From: com.tcs.fincore.CommonMasterService.Controller.AnnouncementController.update
-File: src/main/java/com/tcs/fincore/CommonMasterService/Controller/AnnouncementCont
-roller.java:48
-URL: null
-45  public ResponseEntity<AnnouncementDto> update(
-46  @RequestHeader("Authorization") String token,
-47  @PathVariable Long id,
-48  @Valid @RequestBody AnnouncementDto dto) {
-49  String userId = jwtUtil.getUserIdFromToken(token);
-50  return ResponseEntity.ok(service.updateAnnouncement(id, dto, userId));
-51  }
-Sink Details
-Sink: Assignment to this.targetRoles
-Enclosing Method: setTargetRoles()
-File: src/main/java/com/tcs/fincore/CommonMasterService/dto/AnnouncementDto.java:30
-Taint Flags: WEB, XSS
-27 
-Jul 27, 2026, 8:46 AM
-© Copyright [2008-2026] Micro Focus or one of its affiliates.
-82
-Mass Assignment: Sensitive Field Exposure High
-URL: null
-src/main/java/com/tcs/fincore/CommonMasterService/dto/AnnouncementDto.java, line 30 
-(Mass Assignment: Sensitive Field Exposure) High
-28  private String severity; // INFO, WARN, CRITICAL
-29 
-30  private List<String> targetRoles; // e.g. ["51", "55"] or ["ALL"]
-31 
-32  // Used for Request (Post/Edit)
-33  @JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss")
-src/main/java/com/tcs/fincore/CommonMasterService/dto/AnnouncementDto.java, line 30 
-(Mass Assignment: Sensitive Field Exposure) High
-Issue Details
-Kingdom: Encapsulation
-Scan Engine: SCA (Data Flow)
-Source Details
-Source: create(1)
-From: com.tcs.fincore.CommonMasterService.Controller.AnnouncementController.create
-File: src/main/java/com/tcs/fincore/CommonMasterService/Controller/AnnouncementCont
-roller.java:36
-URL: null
-33  @PostMapping
-34  public ResponseEntity<AnnouncementDto> create(
-35  @RequestHeader("Authorization") String token,
-36  @Valid @RequestBody AnnouncementDto dto) {
-37  String userId = jwtUtil.getUserIdFromToken(token);
-38  return ResponseEntity.ok(service.createAnnouncement(dto, userId));
-39  }
-Sink Details
-Sink: Assignment to this.targetRoles
-Enclosing Method: setTargetRoles()
-File: src/main/java/com/tcs/fincore/CommonMasterService/dto/AnnouncementDto.java:30
-Taint Flags: WEB, XSS
-27 
-28  private String severity; // INFO, WARN, CRITICAL
-29 
-30  private List<String> targetRoles; // e.g. ["51", "55"] or ["ALL"]
-31 
-32  // Used for Request (Post/Edit)
-33  @JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss"
+Sink: jwt.secret
+File: src/main/resources/application-dev.properties:12
+Taint Flags: 
+9 spring.cache.type=redis
+10 
+11 # LOGIN SERVICE KEY USED BY common-entities
+12 jwt.secret=bWV0aGlvbnlsdGhyZW9ueWx0aHJlb255bGdsdXRhbWlueWxhbGFueWw=
+13 
+14 #management.endpoints.web.exposure.include=
