@@ -1,89 +1,131 @@
-package com.tcs.fincore.CommonMasterService.dto;
-
-import com.fasterxml.jackson.annotation.JsonFormat;
-import jakarta.validation.constraints.Future;
-import jakarta.validation.constraints.NotBlank;
-import lombok.AllArgsConstructor;
-import lombok.Builder;
-import lombok.Data;
-import lombok.NoArgsConstructor;
-
-import java.time.LocalDateTime;
-import java.util.List;
-
-@Data
-@Builder
-@NoArgsConstructor
-@AllArgsConstructor
-public class AnnouncementRequestDto {
-
-    @NotBlank(message = "Title is required")
-    private String title;
-
-    @NotBlank(message = "Message content is required")
-    private String message;
-
-    private String severity; // INFO, WARN, CRITICAL
-
-    private List<String> targetRoles; // e.g. ["51", "55"] or ["ALL"]
-
-    // Used for Request (Post/Edit)
-    @JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss")
-    private LocalDateTime startDate;
-
-    @JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss")
-    @Future(message = "Expiry date must be in the future")
-    private LocalDateTime expiryDate;
-
-    // Optional during Update
-    // If provided, status will be updated.
-    // Otherwise existing status will be retained.
-    private String isActive; // 'Y' or 'N'
+Mass Assignment: Sensitive Field Exposure (1 issue)
+Abstract
+A sensitive field is exposed to the model binder. 
+Explanation
+Modern frameworks allow developers to automatically bind HTTP request parameters from both request query and 
+body into model objects for ease of development and increased productivity. If the binder is not correctly configured 
+to control which HTTP request parameters are bound to which model attributes, an attacker may be able to abuse the 
+model binding process and set any other attributes that should not be exposed to user control. This binding is possible 
+even if the model attributes do not appear in the web forms or API contracts. Example 1: The following Spring 
+controller method (registerUser) is accessed from a web form that asks a user to register an account by providing 
+their first name, last name, and age: 
+@RequestMapping(method = RequestMethod.POST)
+public String registerUser(@ModelAttribute("user") User user, BindingResult 
+result, SessionStatus status) {
+  if (db.save(user).hasErrors()) {
+    return "CustomerForm";
+  } else {
+    status.setComplete();
+    return "CustomerSuccess";
+  }
 }
-
-package com.tcs.fincore.CommonMasterService.dto;
-
-import com.fasterxml.jackson.annotation.JsonFormat;
-import lombok.AllArgsConstructor;
-import lombok.Builder;
-import lombok.Data;
-import lombok.NoArgsConstructor;
-
-import java.time.LocalDateTime;
-import java.util.List;
-
-@Data
-@Builder
-@NoArgsConstructor
-@AllArgsConstructor
-public class AnnouncementResponseDto {
-
-    private Long id;
-
-    private String title;
-
-    private String message;
-
-    private String severity; // INFO, WARN, CRITICAL
-
-    private List<String> targetRoles; // e.g. ["51", "55"] or ["ALL"]
-
-    @JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss")
-    private LocalDateTime startDate;
-
-    @JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss")
-    private LocalDateTime expiryDate;
-
-    private String isActive; // 'Y' or 'N'
-
-    // Derived Status for UI (e.g. "ACTIVE", "EXPIRED", "SCHEDULED", "DISABLED")
-    private String displayStatus;
-
-    // Read-only fields
-    private String createdBy;
-
-    @JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss")
-    private LocalDateTime createdAt;
+If registration is successful, the user data will be persisted in the database. The User class is defined as: 
+public class User {
+  private String name;
+  private String lastname;
+  private int age;
+  private Details details;
+  // Public Getters and Setters
+  ...
 }
-
-
+And the Details class is defined as: 
+public class Details {
+  private boolean is_admin;
+  private int id;
+  private Date login_date;
+  // Public Getters and Setters
+  ...
+}
+Given this scenario, an attacker may be able to explore the application and discover that there is a details attribute 
+in the User model. If this is the case, the attacker may then attempt to overwrite the current values assigned to their 
+attributes. If an attacker can find out these internal attributes, and the framework binder is not correctly configured in 
+order to disallow binding of these attributes, then the attacker would be able to register an administrator account by 
+sending the following request: 
+name=John&lastname=Smith&age=22&details.is_admin=true
+Recommendation
+In order to avoid mass assignment vulnerabilities it is important to control the HTTP request to model class binding 
+process. There are different alternatives depending on the framework used: Architectural: Define dedicated DTO 
+Jul 27, 2026, 12:38 PM
+© Copyright [2008-2026] Micro Focus or one of its affiliates.
+67
+classes to be bound to user data and containing only those attributes that should be exposed to end users. Map their 
+attributes with the Domain Objects used along the application. These Domain Objects will contain attributes to 
+receive the validated user data and extra attributes that should never be exposed to user control. Binder configuration:
+Certain frameworks such as Spring, allow the developers to configure the model binder to accept or reject HTTP 
+request parameters based on their names. For example: Example 2: 
+@Override
+protected void initBinder(HttpServletRequest request, ServletRequestDataBinder 
+binder) throws Exception {
+    binder.setDisallowedFields(new String[]{"details.role", "details.age", 
+"is_admin"});
+}
+Model class configuration: Depending on the frameworks used and the serialization/deserialization libraries in use, 
+the model classes to be bound to the HTTP request parameters can be annotated to allow, or disallow, certain attribute 
+bindings. For example, if user data is sent in JSON format and Jackson library is used to deserialize this data, the 
+@JsonIgnore annotation can be used to tell Jackson to ignore a given attribute for serialization and deserialization 
+purposes. Example 3: 
+public class User {
+    @JsonIgnore
+    private String role;
+    private String name;
+    public String getName() {
+        return name;
+    }
+    public void setName(String name) {
+        this.name = name;
+    }
+    public String getRole() {
+        return role;
+    }
+    public void setRole(String role) {
+        this.role = role;
+    }
+In other frameworks such as Apache Struts 1 and 2, the framework will only allow binding HTTP request parameters 
+to class members with public setters. In case a given attribute should not be exposed, the setter should be declared 
+private. Example 4: 
+private String role;
+private void setRole(String role)  {
+   this.role = role;
+}
+Issue Summary
+Jul 27, 2026, 12:38 PM
+© Copyright [2008-2026] Micro Focus or one of its affiliates.
+68
+Jul 27, 2026, 12:38 PM
+© Copyright [2008-2026] Micro Focus or one of its affiliates.
+69
+Engine Breakdown
+SCA WebInspect SecurityScope Total
+Mass Assignment: Sensitive Field Exposure 1 0 0 1
+Total 1 0 0 1
+Mass Assignment: Sensitive Field Exposure High
+Package: com.tcs.fincore.CommonMasterService.dto
+src/main/java/com/tcs/fincore/CommonMasterService/dto/
+AnnouncementRequestDto.java, line 28 (Mass Assignment: Sensitive Field Exposure) High
+Issue Details
+Kingdom: Encapsulation
+Scan Engine: SCA (Data Flow)
+Source Details
+Source: setTargetRoles(0)
+From: com.tcs.fincore.CommonMasterService.dto.AnnouncementRequestDto.setTargetRoles
+File: src/main/java/com/tcs/fincore/CommonMasterService/dto/AnnouncementRequestDto.
+java:28
+25 
+26  private String severity; // INFO, WARN, CRITICAL
+27 
+28  private List<String> targetRoles; // e.g. ["51", "55"] or ["ALL"]
+29 
+30  // Used for Request (Post/Edit)
+31  @JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss")
+Sink Details
+Sink: Assignment to this.targetRoles
+Enclosing Method: setTargetRoles()
+File: src/main/java/com/tcs/fincore/CommonMasterService/dto/AnnouncementRequestDto.java:28
+Taint Flags: WEB, XSS
+25 
+26  private String severity; // INFO, WARN, CRITICAL
+27 
+28  private List<String> targetRoles; // e.g. ["51", "55"] or ["ALL"]
+29 
+30  // Used for Request (Post/Edit)
+31  @JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss"
