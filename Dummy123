@@ -1,20 +1,79 @@
-@Bean
-public RedisTemplate<String, String> redisTemplate(
-        RedisConnectionFactory factory) {
 
-    RedisTemplate<String, String> template = new RedisTemplate<>();
+	// This method will fetch all the data in Source Flag Table and return to FE.
+	@Override
+	public List<SourceFlag> findSourceFlags() {
+		return sourceFlagRepo.findAll();
+	}
 
-    template.setConnectionFactory(factory);
+	@Override
+	public GlccValidationResponse validateGlcc(
+			GlccValidationRequest dto) {
 
-    StringRedisSerializer serializer = new StringRedisSerializer();
+		String glcc = dto.getGlcc();
+		String circleCode = dto.getCircleCode();
 
-    template.setKeySerializer(serializer);
-    template.setValueSerializer(serializer);
-    template.setHashKeySerializer(serializer);
-    template.setHashValueSerializer(serializer);
-    template.setDefaultSerializer(serializer);
+		List<String> errors = new ArrayList<>();
 
-    template.afterPropertiesSet();
+		if (glcc == null || glcc.trim().length() != 18) {
 
-    return template;
+			return GlccValidationResponse.builder()
+					.valid(false)
+					.errors(List.of("GLCC must be exactly 18 characters"))
+					.build();
+		}
+
+		if(!glcc.matches("\\d{18}")){
+			return GlccValidationResponse.builder().valid(false).errors(List.of("GLCC must contain exactly 18 digits")).build();
+		}
+
+		glcc = glcc.trim();
+
+		String branchCode = glcc.substring(0, 5);
+		String currencyCode = glcc.substring(5, 8);
+		String cglNumber = glcc.substring(8, 18);
+
+		BranchMaster branch = branchMasterRepository
+				.findByCode(circleCode, branchCode);
+
+		CurrencyMasterModel currency = currencyMasterRepo
+				.findByCurrencyCode(currencyCode);
+
+		CGLMaster cgl = cglMasterRepository
+				.findByCglNumber(cglNumber);
+
+		if (branch == null) {
+			errors.add("Invalid Branch");
+		}
+
+		if (currency == null) {
+			errors.add("Invalid Currency");
+		}
+
+		if (cgl == null) {
+			errors.add("Invalid CGL");
+		}
+
+		if (!errors.isEmpty()) {
+
+			return GlccValidationResponse.builder()
+					.valid(false)
+					.errors(errors)
+					.build();
+		}
+
+		return GlccValidationResponse.builder()
+				.valid(true)
+
+				.branchCode(branch.getCode())
+				.branchName(branch.getName())
+
+				.currencyCode(currency.getCurrencyCode())
+				.currencyName(currency.getCurrencyName())
+
+				.cglNumber(cgl.getCglNumber())
+				.cglDescription(cgl.getDescription())
+
+				.message("Valid GLCC")
+				.build();
+	}
 }
