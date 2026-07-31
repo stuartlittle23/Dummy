@@ -1,1 +1,42 @@
+<Typography variant="caption" color="text.secondary" fontWeight={600}>
+                    Net Difference Amount
+                  </Typography>
+                  <Typography
+                    variant="h5"
+                    sx={{
+                      fontWeight: 800,
+                      fontFamily: "monospace",
+                      color: selectedRow.differenceAmount < 0 ? "#dc2626" : "#16a34a",
+                    }}
+                  >
+                    {selectedRow.differenceAmount != null
+                      ? Number(selectedRow.differenceAmount).toLocaleString()
+                      : "0.00"}
+                  </Typography>
+                </Box>
+              </Grid>
+            </Grid>
+          )}
+        </DialogContent>
 
+        <DialogActions sx={{ px: 3, pb: 2 }}>
+          <Button
+            variant="outlined"
+            onClick={() => setOpenHistory(false)}
+            sx={{
+              borderRadius: "20px",
+              textTransform: "none",
+              fontWeight: 600,
+              borderColor: "#cbd5e1",
+              color: "#475569",
+            }}
+          >
+            Close
+          </Button>
+        </DialogActions>
+      </Dialog>
+    </Box>
+  );
+};
+
+export default BalanceParticularSearchScreen;
