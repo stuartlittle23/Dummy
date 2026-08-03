@@ -1,1 +1,435 @@
 
+import React, { useCallback, useEffect, useMemo, useState } from "react";
+import {
+  Box,
+  Paper,
+  Typography,
+  TextField,
+  Select,
+  MenuItem,
+  IconButton,
+  Button,
+  Avatar,
+  Divider,
+  Skeleton,
+  Tooltip,
+  Fade,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
+  Grid,
+  Stack,
+  LinearProgress,
+} from "@mui/material";
+
+import SearchRoundedIcon from "@mui/icons-material/SearchRounded";
+import RestartAltRoundedIcon from "@mui/icons-material/RestartAltRounded";
+import SwapHorizRoundedIcon from "@mui/icons-material/SwapHorizRounded";
+import RefreshRoundedIcon from "@mui/icons-material/RefreshRounded";
+import CalendarMonthRoundedIcon from "@mui/icons-material/CalendarMonthRounded";
+import AccountBalanceRoundedIcon from "@mui/icons-material/AccountBalanceRounded";
+import PublicRoundedIcon from "@mui/icons-material/PublicRounded";
+import TagRoundedIcon from "@mui/icons-material/TagRounded";
+import VisibilityRoundedIcon from "@mui/icons-material/VisibilityRounded";
+import ErrorOutlineRoundedIcon from "@mui/icons-material/ErrorOutlineRounded";
+import CheckCircleRoundedIcon from "@mui/icons-material/CheckCircleRounded";
+import ChevronLeftRoundedIcon from "@mui/icons-material/ChevronLeftRounded";
+import ChevronRightRoundedIcon from "@mui/icons-material/ChevronRightRounded";
+import ScaleRoundedIcon from "@mui/icons-material/ScaleRounded";
+import TrendingUpRoundedIcon from "@mui/icons-material/TrendingUpRounded";
+import TrendingDownRoundedIcon from "@mui/icons-material/TrendingDownRounded";
+
+/**
+ * ─────────────────────────────────────────────────────────────────────────
+ * V2 — GENUINELY DIFFERENT STRUCTURE (not a re-skin of v1)
+ *
+ * v1 was: top filter bar  →  table below.  Same skeleton as the original
+ * screen, just restyled. That's why it "looked the same" once rendered.
+ *
+ * v2 is: dark left-hand filter RAIL (sticky) + a card-based results feed
+ * on the right, no table element at all. Each mismatch is its own card
+ * with a mini progress bar showing how far CBS balance has drifted from
+ * GL balance — that visual (a deviation bar) is the whole point of this
+ * redesign and doesn't exist in either the original screen or v1.
+ *
+ * Results still render ONLY after Search is clicked.
+ * ─────────────────────────────────────────────────────────────────────────
+ */
+
+const RAIL_BG = "#111827";
+const RAIL_BG_SOFT = "#1F2937";
+const ACCENT = "#6366F1";
+const ACCENT_LIGHT = "#818CF8";
+const INK = "#0F172A";
+const SLATE = "#64748B";
+const LINE = "#E7E9F2";
+const POSITIVE = "#15803D";
+const NEGATIVE = "#B91C1C";
+const CANVAS = "#F5F6FA";
+
+const mono = `"JetBrains Mono", "Roboto Mono", Menlo, Consolas, monospace`;
+const sans = `"Inter", "Segoe UI", system-ui, sans-serif`;
+
+// ---------------------------------------------------------------------------
+// Mock service — replace with your real API call. Same signature you
+// already use: fetchData(date, pageIndex, pageSize) -> { rows, totalElements }
+// ---------------------------------------------------------------------------
+async function callApi(date, pageIndex, pageSize, filters) {
+  await new Promise((r) => setTimeout(r, 550));
+  const total = 26;
+  const start = pageIndex * pageSize;
+  const rows = Array.from({ length: Math.min(pageSize, Math.max(total - start, 0)) }).map((_, i) => {
+    const idx = start + i;
+    const diff = Math.round((Math.random() - 0.4) * 400000) / 100;
+    const cbs = Math.round((80000 + idx * 4231.7) * 100) / 100;
+    return {
+      id: `ROW-${idx}`,
+      errorDate: date,
+      glcc: `GL${(410000000000 + idx * 173).toString().slice(0, 18)}`,
+      cbsBalance: cbs,
+      glBalance: Math.round((cbs - diff) * 100) / 100,
+      differenceAmount: diff,
+      branchCode: filters?.branch || `${1000 + (idx % 12)}`,
+      currency: filters?.currency || "INR",
+    };
+  });
+  return { totalElements: total, rows };
+}
+
+const CURRENCIES = ["INR", "USD", "EUR", "GBP", "AED"];
+
+function fmt(n) {
+  return Number(n).toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+}
+function today() {
+  return new Date().toISOString().slice(0, 10);
+}
+
+// ---------------------------------------------------------------------------
+
+function RailField({ icon, label, children }) {
+  return (
+    <Box sx={{ mb: 2.5 }}>
+      <Stack direction="row" spacing={0.75} alignItems="center" sx={{ mb: 0.75 }}>
+        <Box sx={{ color: ACCENT_LIGHT, display: "flex" }}>{icon}</Box>
+        <Typography sx={{ fontSize: 11.5, fontWeight: 700, color: "rgba(255,255,255,0.55)", letterSpacing: 0.5, textTransform: "uppercase" }}>
+          {label}
+        </Typography>
+      </Stack>
+      {children}
+    </Box>
+  );
+}
+
+const railFieldSx = {
+  "& .MuiInputBase-root": {
+    fontFamily: sans,
+    fontSize: 14,
+    fontWeight: 600,
+    color: "#fff",
+    bgcolor: "rgba(255,255,255,0.06)",
+    borderRadius: "10px",
+  },
+  "& .MuiOutlinedInput-notchedOutline": { borderColor: "rgba(255,255,255,0.12)" },
+  "&:hover .MuiOutlinedInput-notchedOutline": { borderColor: "rgba(255,255,255,0.25)" },
+  "& .Mui-focused .MuiOutlinedInput-notchedOutline": { borderColor: `${ACCENT_LIGHT} !important` },
+  "& .MuiSvgIcon-root": { color: "rgba(255,255,255,0.5)" },
+  "& input::placeholder": { color: "rgba(255,255,255,0.35)", opacity: 1 },
+};
+
+function DeviationBar({ cbs, gl }) {
+  const max = Math.max(cbs, gl, 1);
+  const cbsPct = (cbs / max) * 100;
+  const glPct = (gl / max) * 100;
+  return (
+    <Box sx={{ position: "relative", height: 6, borderRadius: 3, bgcolor: "#F1F5F9", mt: 1.25 }}>
+      <Box sx={{ position: "absolute", left: 0, top: 0, height: "100%", width: `${cbsPct}%`, borderRadius: 3, bgcolor: "#C7D2FE" }} />
+      <Box sx={{ position: "absolute", left: 0, top: -2, height: 10, width: 2, bgcolor: ACCENT, borderRadius: 1, ml: `${glPct}%`, transform: "translateX(-50%)" }} />
+    </Box>
+  );
+}
+
+export default function BalanceParticularSearchScreen() {
+  const [filters, setFilters] = useState({ date: today(), branch: "", currency: "", cgl: "" });
+  const [paginationModel, setPaginationModel] = useState({ page: 0, pageSize: 8 });
+  const [rows, setRows] = useState([]);
+  const [totalElements, setTotalElements] = useState(0);
+  const [loading, setLoading] = useState(false);
+  const [hasSearched, setHasSearched] = useState(false); // results render ONLY once true
+  const [detailRow, setDetailRow] = useState(null);
+
+  const fetchData = useCallback(
+    async (date, pageIndex, pageSize) => {
+      setLoading(true);
+      try {
+        const response = await callApi(date, pageIndex, pageSize, filters);
+        setRows(response.rows || []);
+        setTotalElements(response?.totalElements ?? 0);
+      } catch (err) {
+        console.error("Search Fail:", err);
+        setRows([]);
+        setTotalElements(0);
+      } finally {
+        setLoading(false);
+      }
+    },
+    [filters]
+  );
+
+  useEffect(() => {
+    if (hasSearched && filters.date) {
+      fetchData(filters.date, paginationModel.page, paginationModel.pageSize);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [paginationModel.page, paginationModel.pageSize]);
+
+  const handleSearch = () => {
+    setPaginationModel((p) => ({ ...p, page: 0 }));
+    setHasSearched(true);
+    fetchData(filters.date, 0, paginationModel.pageSize);
+  };
+
+  const handleReset = () => {
+    setFilters({ date: today(), branch: "", currency: "", cgl: "" });
+    setRows([]);
+    setTotalElements(0);
+    setHasSearched(false);
+  };
+
+  const summary = useMemo(() => {
+    const mismatched = rows.filter((r) => Math.abs(r.differenceAmount) > 0.001).length;
+    const net = rows.reduce((acc, r) => acc + r.differenceAmount, 0);
+    return { mismatched, matched: rows.length - mismatched, net };
+  }, [rows]);
+
+  const pageStart = paginationModel.page * paginationModel.pageSize;
+  const pageEnd = Math.min(pageStart + rows.length, totalElements);
+
+  return (
+    <Box sx={{ display: "flex", minHeight: "100vh", bgcolor: CANVAS, fontFamily: sans }}>
+      {/* ── LEFT RAIL — sticky filter panel, dark, vertical ─────────── */}
+      <Box
+        sx={{
+          width: { xs: "100%", md: 300 },
+          flexShrink: 0,
+          bgcolor: RAIL_BG,
+          color: "#fff",
+          position: { md: "sticky" },
+          top: 0,
+          height: { md: "100vh" },
+          px: 3,
+          py: 4,
+          display: "flex",
+          flexDirection: "column",
+        }}
+      >
+        <Stack direction="row" spacing={1.25} alignItems="center" sx={{ mb: 0.5 }}>
+          <Avatar sx={{ bgcolor: ACCENT, width: 34, height: 34 }}>
+            <ScaleRoundedIcon sx={{ fontSize: 18 }} />
+          </Avatar>
+          <Typography sx={{ fontWeight: 800, fontSize: 15 }}>Balance Compare</Typography>
+        </Stack>
+        <Typography sx={{ fontSize: 12, color: "rgba(255,255,255,0.45)", mb: 4 }}>Particular Search</Typography>
+
+        <RailField icon={<CalendarMonthRoundedIcon sx={{ fontSize: 17 }} />} label="ETL Date">
+          <TextField fullWidth size="small" type="date" value={filters.date} onChange={(e) => setFilters((f) => ({ ...f, date: e.target.value }))} sx={railFieldSx} />
+        </RailField>
+
+        <RailField icon={<AccountBalanceRoundedIcon sx={{ fontSize: 17 }} />} label="Branch code">
+          <TextField fullWidth size="small" placeholder="All branches" value={filters.branch} onChange={(e) => setFilters((f) => ({ ...f, branch: e.target.value }))} sx={railFieldSx} />
+        </RailField>
+
+        <RailField icon={<PublicRoundedIcon sx={{ fontSize: 17 }} />} label="Currency">
+          <Select fullWidth size="small" displayEmpty value={filters.currency} onChange={(e) => setFilters((f) => ({ ...f, currency: e.target.value }))} sx={railFieldSx}>
+            <MenuItem value="">All currencies</MenuItem>
+            {CURRENCIES.map((c) => (
+              <MenuItem key={c} value={c}>{c}</MenuItem>
+            ))}
+          </Select>
+        </RailField>
+
+        <RailField icon={<TagRoundedIcon sx={{ fontSize: 17 }} />} label="CGL number">
+          <TextField fullWidth size="small" placeholder="Enter CGL number" value={filters.cgl} onChange={(e) => setFilters((f) => ({ ...f, cgl: e.target.value }))} sx={railFieldSx} />
+        </RailField>
+
+        <Box sx={{ mt: "auto", pt: 3 }}>
+          <Button
+            fullWidth
+            variant="contained"
+            disableElevation
+            startIcon={<SearchRoundedIcon />}
+            onClick={handleSearch}
+            sx={{
+              textTransform: "none",
+              fontWeight: 700,
+              borderRadius: "10px",
+              py: 1.1,
+              bgcolor: ACCENT,
+              mb: 1,
+              "&:hover": { bgcolor: "#4F46E5" },
+            }}
+          >
+            Search
+          </Button>
+          <Button
+            fullWidth
+            variant="text"
+            startIcon={<RestartAltRoundedIcon />}
+            onClick={handleReset}
+            sx={{ textTransform: "none", fontWeight: 700, color: "rgba(255,255,255,0.6)", "&:hover": { bgcolor: "rgba(255,255,255,0.06)" } }}
+          >
+            Reset filters
+          </Button>
+        </Box>
+      </Box>
+
+      {/* ── MAIN CONTENT — card feed, not a table ───────────────────── */}
+      <Box sx={{ flex: 1, px: { xs: 2, md: 5 }, py: 4, minWidth: 0 }}>
+        <Stack direction={{ xs: "column", sm: "row" }} justifyContent="space-between" alignItems={{ sm: "center" }} spacing={2} sx={{ mb: 3 }}>
+          <Box>
+            <Typography sx={{ fontSize: { xs: 20, md: 23 }, fontWeight: 800, color: INK, letterSpacing: -0.3 }}>
+              Balance Search &amp; Comparison
+            </Typography>
+            <Typography sx={{ fontSize: 13.5, color: SLATE }}>CBS vs. GL balances, one glance at what's drifted.</Typography>
+          </Box>
+          <Tooltip title="Refresh current page">
+            <span>
+              <IconButton
+                onClick={() => hasSearched && fetchData(filters.date, paginationModel.page, paginationModel.pageSize)}
+                disabled={!hasSearched}
+                sx={{ border: `1px solid ${LINE}`, bgcolor: "#fff", borderRadius: "10px" }}
+              >
+                <RefreshRoundedIcon sx={{ fontSize: 19, color: SLATE }} />
+              </IconButton>
+            </span>
+          </Tooltip>
+        </Stack>
+
+        {loading && <LinearProgress sx={{ mb: 3, borderRadius: 2, height: 3, "& .MuiLinearProgress-bar": { bgcolor: ACCENT } }} />}
+
+        {/* BEFORE search */}
+        {!hasSearched && !loading && (
+          <Box sx={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", textAlign: "center", py: 12 }}>
+            <Avatar sx={{ bgcolor: "#EEF2FF", color: ACCENT, width: 64, height: 64, mb: 2.5 }}>
+              <SwapHorizRoundedIcon sx={{ fontSize: 32 }} />
+            </Avatar>
+            <Typography sx={{ fontWeight: 800, fontSize: 18, color: INK }}>Ready when you are</Typography>
+            <Typography sx={{ fontSize: 14, color: SLATE, mt: 0.75, maxWidth: 360 }}>
+              Set your filters on the left and hit <b style={{ color: ACCENT }}>Search</b> — results will show up here as cards, not a spreadsheet.
+            </Typography>
+          </Box>
+        )}
+
+        {/* AFTER search */}
+        {hasSearched && (
+          <Fade in={hasSearched}>
+            <Box>
+              {/* KPI cards row — replaces the old summary strip concept entirely */}
+              <Grid container spacing={2} sx={{ mb: 3 }}>
+                <KpiCard label="Records" value={loading ? "—" : totalElements} icon={<ScaleRoundedIcon />} color={ACCENT} />
+                <KpiCard label="Matched" value={loading ? "—" : summary.matched} icon={<CheckCircleRoundedIcon />} color={POSITIVE} />
+                <KpiCard label="Mismatched" value={loading ? "—" : summary.mismatched} icon={<ErrorOutlineRoundedIcon />} color={NEGATIVE} />
+                <KpiCard
+                  label="Net difference"
+                  value={loading ? "—" : fmt(summary.net)}
+                  icon={summary.net < 0 ? <TrendingDownRoundedIcon /> : <TrendingUpRoundedIcon />}
+                  color={summary.net < 0 ? NEGATIVE : POSITIVE}
+                  mono
+                />
+              </Grid>
+
+              {/* Card feed */}
+              {loading ? (
+                <Stack spacing={1.5}>
+                  {Array.from({ length: 4 }).map((_, i) => (
+                    <Skeleton key={i} variant="rounded" height={92} sx={{ borderRadius: "14px" }} />
+                  ))}
+                </Stack>
+              ) : rows.length === 0 ? (
+                <Box sx={{ py: 8, textAlign: "center", bgcolor: "#fff", borderRadius: "16px", border: `1px solid ${LINE}` }}>
+                  <Avatar sx={{ bgcolor: "#F0FDF4", color: POSITIVE, width: 52, height: 52, mx: "auto", mb: 2 }}>
+                    <CheckCircleRoundedIcon sx={{ fontSize: 26 }} />
+                  </Avatar>
+                  <Typography sx={{ fontWeight: 700, fontSize: 15, color: INK }}>No records match these filters</Typography>
+                  <Typography sx={{ fontSize: 13.5, color: SLATE, mt: 0.5 }}>Try a different date, or clear a filter and search again.</Typography>
+                </Box>
+              ) : (
+                <Stack spacing={1.5}>
+                  {rows.map((row) => {
+                    const isMismatch = Math.abs(row.differenceAmount) > 0.001;
+                    return (
+                      <Paper
+                        key={row.id}
+                        elevation={0}
+                        sx={{
+                          border: `1px solid ${LINE}`,
+                          borderLeft: `4px solid ${isMismatch ? (row.differenceAmount < 0 ? NEGATIVE : POSITIVE) : "#CBD5E1"}`,
+                          borderRadius: "14px",
+                          p: 2.25,
+                          bgcolor: "#fff",
+                          "&:hover": { boxShadow: "0 4px 14px rgba(15,23,42,0.06)" },
+                          transition: "box-shadow 0.15s",
+                        }}
+                      >
+                        <Grid container alignItems="center" spacing={2}>
+                          <Grid item xs={12} md={4}>
+                            <Typography sx={{ fontFamily: mono, fontSize: 13, fontWeight: 700, color: INK }}>{row.glcc}</Typography>
+                            <Typography sx={{ fontSize: 12, color: SLATE, mt: 0.25 }}>
+                              {row.errorDate} · Branch {row.branchCode} · {row.currency}
+                            </Typography>
+                            <DeviationBar cbs={row.cbsBalance} gl={row.glBalance} />
+                          </Grid>
+                          <Grid item xs={6} md={2.5}>
+                            <Typography sx={{ fontSize: 11, fontWeight: 700, color: SLATE, textTransform: "uppercase" }}>CBS</Typography>
+                            <Typography sx={{ fontFamily: mono, fontSize: 14.5, fontWeight: 700, color: INK, fontVariantNumeric: "tabular-nums" }}>
+                              {fmt(row.cbsBalance)}
+                            </Typography>
+                          </Grid>
+                          <Grid item xs={6} md={2.5}>
+                            <Typography sx={{ fontSize: 11, fontWeight: 700, color: SLATE, textTransform: "uppercase" }}>GL</Typography>
+                            <Typography sx={{ fontFamily: mono, fontSize: 14.5, fontWeight: 700, color: INK, fontVariantNumeric: "tabular-nums" }}>
+                              {fmt(row.glBalance)}
+                            </Typography>
+                          </Grid>
+                          <Grid item xs={8} md={2}>
+                            <Typography sx={{ fontSize: 11, fontWeight: 700, color: SLATE, textTransform: "uppercase" }}>Difference</Typography>
+                            <Stack direction="row" spacing={0.5} alignItems="center">
+                              {isMismatch ? (
+                                <ErrorOutlineRoundedIcon sx={{ fontSize: 15, color: row.differenceAmount < 0 ? NEGATIVE : POSITIVE }} />
+                              ) : (
+                                <CheckCircleRoundedIcon sx={{ fontSize: 15, color: SLATE }} />
+                              )}
+                              <Typography
+                                sx={{
+                                  fontFamily: mono,
+                                  fontSize: 14.5,
+                                  fontWeight: 800,
+                                  fontVariantNumeric: "tabular-nums",
+                                  color: !isMismatch ? SLATE : row.differenceAmount < 0 ? NEGATIVE : POSITIVE,
+                                }}
+                              >
+                                {row.differenceAmount === 0 ? "0.00" : `${row.differenceAmount > 0 ? "+" : ""}${fmt(row.differenceAmount)}`}
+                              </Typography>
+                            </Stack>
+                          </Grid>
+                          <Grid item xs={4} md={1} sx={{ textAlign: "right" }}>
+                            <Tooltip title="View detail">
+                              <IconButton size="small" onClick={() => setDetailRow(row)} sx={{ color: SLATE, "&:hover": { color: ACCENT, bgcolor: "#EEF2FF" } }}>
+                                <VisibilityRoundedIcon sx={{ fontSize: 18 }} />
+                              </IconButton>
+                            </Tooltip>
+                          </Grid>
+                        </Grid>
+                      </Paper>
+                    );
+                  })}
+
+                  {/* Pagination footer */}
+                  <Stack direction="row" alignItems="center" justifyContent="flex-end" spacing={2} sx={{ pt: 1 }}>
+                    <Typography sx={{ fontSize: 12.5, color: SLATE }}>Rows per page</Typography>
+                    <Select
+                      size="small"
+                      variant="standard"
+                      value={paginationModel.pageSize}
+                      onChange={(e) => setPaginationModel({
