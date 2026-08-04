@@ -1,1 +1,503 @@
+import React, { useState, useCallback, useEffect, useMemo } from "react";
+import {
+  Box,
+  Paper,
+  Typography,
+  TextField,
+  IconButton,
+  Button,
+  Avatar,
+  Divider,
+  Tooltip,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
+  Grid,
+  Stack,
+  LinearProgress,
+} from "@mui/material";
+import { DataGrid } from "@mui/x-data-grid";
+import { LocalizationProvider, DatePicker } from "@mui/x-date-pickers";
+import { AdapterDayjs } from "@mui/x-date-pickers/AdapterDayjs";
+import dayjs from "dayjs";
 
+import SearchRoundedIcon from "@mui/icons-material/SearchRounded";
+import RestartAltRoundedIcon from "@mui/icons-material/RestartAltRounded";
+import SwapHorizRoundedIcon from "@mui/icons-material/SwapHorizRounded";
+import RefreshRoundedIcon from "@mui/icons-material/RefreshRounded";
+import AccountBalanceRoundedIcon from "@mui/icons-material/AccountBalanceRounded";
+import PublicRoundedIcon from "@mui/icons-material/PublicRounded";
+import TagRoundedIcon from "@mui/icons-material/TagRounded";
+import CalendarMonthRoundedIcon from "@mui/icons-material/CalendarMonthRounded";
+import HistoryRoundedIcon from "@mui/icons-material/HistoryRounded";
+import ErrorOutlineRoundedIcon from "@mui/icons-material/ErrorOutlineRounded";
+import CheckCircleRoundedIcon from "@mui/icons-material/CheckCircleRounded";
+import ScaleRoundedIcon from "@mui/icons-material/ScaleRounded";
+import TrendingUpRoundedIcon from "@mui/icons-material/TrendingUpRounded";
+import TrendingDownRoundedIcon from "@mui/icons-material/TrendingDownRounded";
+
+import useApi from "../../hooks/useApi";
+import useValidation from "./Validation";
+
+// ─── design tokens ──────────────────────────────────────────────────────
+const RAIL_BG = "#111827";
+const ACCENT = "#6366F1";
+const ACCENT_LIGHT = "#818CF8";
+const INK = "#0F172A";
+const SLATE = "#64748B";
+const LINE = "#E7E9F2";
+const POSITIVE = "#15803D";
+const NEGATIVE = "#B91C1C";
+const CANVAS = "#F5F6FA";
+const mono = `"JetBrains Mono", "Roboto Mono", Menlo, Consolas, monospace`;
+const sans = `"Inter", "Segoe UI", system-ui, sans-serif`;
+
+// Fixed heights so the page never grows/shrinks between pages or states
+const TABLE_AREA_HEIGHT = 600;
+const ROW_HEIGHT = 52;
+
+function fmt(n) {
+  if (n === null || n === undefined || n === "") return "0.00";
+  return Number(n).toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+}
+
+function RailField({ icon, label, children }) {
+  return (
+    <Box sx={{ mb: 2.5 }}>
+      <Stack direction="row" spacing={0.75} alignItems="center" sx={{ mb: 0.75 }}>
+        <Box sx={{ color: ACCENT_LIGHT, display: "flex" }}>{icon}</Box>
+        <Typography sx={{ fontSize: 11.5, fontWeight: 700, color: "rgba(255,255,255,0.55)", letterSpacing: 0.5, textTransform: "uppercase" }}>
+          {label}
+        </Typography>
+      </Stack>
+      {children}
+    </Box>
+  );
+}
+
+const railFieldSx = {
+  "& .MuiInputBase-root": { fontFamily: sans, fontSize: 14, fontWeight: 600, color: "#fff", bgcolor: "rgba(255,255,255,0.06)", borderRadius: "10px" },
+  "& .MuiOutlinedInput-notchedOutline": { borderColor: "rgba(255,255,255,0.12)" },
+  "&:hover .MuiOutlinedInput-notchedOutline": { borderColor: "rgba(255,255,255,0.25)" },
+  "& .Mui-focused .MuiOutlinedInput-notchedOutline": { borderColor: `${ACCENT_LIGHT} !important` },
+  "& .MuiSvgIcon-root": { color: "rgba(255,255,255,0.5)" },
+  "& input::placeholder": { color: "rgba(255,255,255,0.35)", opacity: 1 },
+};
+
+function KpiCard({ label, value, icon, color, mono: useMono }) {
+  return (
+    <Grid size={{ xs: 6, md: 3 }}>
+      <Paper elevation={0} sx={{ border: `1px solid ${LINE}`, borderRadius: "14px", p: 2, bgcolor: "#fff", height: "100%" }}>
+        <Stack direction="row" spacing={1} alignItems="center" sx={{ mb: 0.75 }}>
+          <Avatar sx={{ bgcolor: `${color}1A`, color, width: 28, height: 28 }}>
+            {React.cloneElement(icon, { sx: { fontSize: 16 } })}
+          </Avatar>
+          <Typography sx={{ fontSize: 11.5, fontWeight: 700, color: SLATE, textTransform: "uppercase", letterSpacing: 0.4 }}>
+            {label}
+          </Typography>
+        </Stack>
+        <Typography sx={{ fontFamily: useMono ? mono : sans, fontSize: 22, fontWeight: 800, color: INK, fontVariantNumeric: "tabular-nums" }}>
+          {value}
+        </Typography>
+      </Paper>
+    </Grid>
+  );
+}
+
+// Overlay shown inside the DataGrid area — keeps the panel's height fixed
+// whether we're in the "not searched yet" state, loading, or truly empty.
+function GridEmptyOverlay({ hasSearched }) {
+  return (
+    <Box sx={{ height: "100%", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", textAlign: "center", px: 3 }}>
+      <Avatar sx={{ bgcolor: hasSearched ? "#F0FDF4" : "#EEF2FF", color: hasSearched ? POSITIVE : ACCENT, width: 56, height: 56, mb: 2 }}>
+        {hasSearched ? <CheckCircleRoundedIcon sx={{ fontSize: 28 }} /> : <SwapHorizRoundedIcon sx={{ fontSize: 28 }} />}
+      </Avatar>
+      <Typography sx={{ fontWeight: 700, fontSize: 15, color: INK }}>
+        {hasSearched ? "No records match these filters" : "Ready when you are"}
+      </Typography>
+      <Typography sx={{ fontSize: 13.5, color: SLATE, mt: 0.5, maxWidth: 340 }}>
+        {hasSearched
+          ? "Try a different date, or clear a filter and search again."
+          : <>Set your filters on the left and hit <b style={{ color: ACCENT }}>Search</b>.</>}
+      </Typography>
+    </Box>
+  );
+}
+
+// ─── main component ─────────────────────────────────────────────────────
+const BalanceParticularSearchScreen = () => {
+  const { callApi } = useApi();
+  const { validateBranchCode, validateCurrency, validateCGL } = useValidation();
+
+  const [filters, setFilters] = useState({
+    date: "",
+    branchCode: "",
+    currency: "",
+    cgl: "",
+  });
+
+  const [rows, setRows] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [totalElements, setTotalElements] = useState(0);
+  const [etlDate, setEtlDate] = useState();
+  const [hasSearched, setHasSearched] = useState(false);
+
+  const [paginationModel, setPaginationModel] = useState({ page: 0, pageSize: 10 });
+  const [openHistory, setOpenHistory] = useState(false);
+  const [selectedRow, setSelectedRow] = useState(null);
+
+  const updateFilter = (key, value) => setFilters((prev) => ({ ...prev, [key]: value }));
+
+  // ── ETL Date default — same endpoint as your original ──
+  useEffect(() => {
+    const fetchDefaultETLDate = async () => {
+      try {
+        const response = await callApi("/PS/file/fincore-date", {}, "GET");
+        const defaultDate = response?.data?.etlDate || response?.date || "";
+        if (defaultDate) {
+          setEtlDate(defaultDate);
+          updateFilter("date", defaultDate);
+        }
+      } catch (err) {
+        console.error("ETL Date Error:", err);
+      }
+    };
+    fetchDefaultETLDate();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // ── MAIN API — unchanged from your original ──
+  const fetchData = useCallback(
+    async (date, pageIndex, pageSize) => {
+      if (!date) return;
+      setLoading(true);
+      try {
+        const payload = {
+          fromDate: date,
+          toDate: date,
+          branchCode: filters.branchCode || null,
+          currency: filters.currency || null,
+          cgl: filters.cgl || null,
+        };
+
+        const response = await callApi(
+          `/ES/differences/search?page=${pageIndex}&size=${pageSize}`,
+          payload,
+          "POST"
+        );
+
+        const content = response?.data?.content || response?.content || [];
+        const mappedRows = content.map((item, index) => ({
+          id: item.id || `row-${pageIndex}-${index}`,
+          ...item,
+          GLCC_VAL: `${item.branchCode} ${item.currency} ${item.cgl}`,
+        }));
+
+        setRows(mappedRows);
+        setTotalElements(response?.data?.totalElements || response?.totalElements || 0);
+      } catch (err) {
+        console.error("Search Fail:", err);
+        setRows([]);
+        setTotalElements(0);
+      } finally {
+        setLoading(false);
+      }
+    },
+    [filters]
+  );
+
+  useEffect(() => {
+    if (hasSearched && filters.date) {
+      fetchData(filters.date, paginationModel.page, paginationModel.pageSize);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [paginationModel.page, paginationModel.pageSize]);
+
+  const handleSearch = () => {
+    setPaginationModel((prev) => ({ ...prev, page: 0 }));
+    setHasSearched(true);
+    fetchData(filters.date, 0, paginationModel.pageSize);
+  };
+
+  const handleReset = () => {
+    setFilters({ date: etlDate || "", branchCode: "", currency: "", cgl: "" });
+    setRows([]);
+    setTotalElements(0);
+    setHasSearched(false);
+  };
+
+  const summary = useMemo(() => {
+    const mismatched = rows.filter((r) => Math.abs(Number(r.differenceAmount) || 0) > 0.001).length;
+    const net = rows.reduce((acc, r) => acc + (Number(r.differenceAmount) || 0), 0);
+    return { mismatched, matched: rows.length - mismatched, net };
+  }, [rows]);
+
+  // ── DataGrid columns — same fields as your original, restyled ──
+  const columns = [
+    { field: "reconRunDate", headerName: "Error Date", flex: 1, minWidth: 130 },
+    { field: "GLCC_VAL", headerName: "GLCC", flex: 1.3, minWidth: 180 },
+    {
+      field: "cbsBalance",
+      headerName: "CBS Balance",
+      flex: 1,
+      minWidth: 130,
+      align: "right",
+      headerAlign: "right",
+      renderCell: (params) => (
+        <Typography sx={{ fontFamily: mono, fontSize: 13.5, fontVariantNumeric: "tabular-nums" }}>{fmt(params.value)}</Typography>
+      ),
+    },
+    {
+      field: "glBalance",
+      headerName: "GL Balance",
+      flex: 1,
+      minWidth: 130,
+      align: "right",
+      headerAlign: "right",
+      renderCell: (params) => (
+        <Typography sx={{ fontFamily: mono, fontSize: 13.5, fontVariantNumeric: "tabular-nums" }}>{fmt(params.value)}</Typography>
+      ),
+    },
+    {
+      field: "differenceAmount",
+      headerName: "Difference",
+      flex: 1,
+      minWidth: 140,
+      align: "right",
+      headerAlign: "right",
+      renderCell: (params) => {
+        const diff = Number(params.value) || 0;
+        const isMismatch = Math.abs(diff) > 0.001;
+        return (
+          <Stack direction="row" spacing={0.5} alignItems="center">
+            {isMismatch ? (
+              <ErrorOutlineRoundedIcon sx={{ fontSize: 15, color: diff < 0 ? NEGATIVE : POSITIVE }} />
+            ) : (
+              <CheckCircleRoundedIcon sx={{ fontSize: 15, color: SLATE }} />
+            )}
+            <Typography
+              sx={{
+                fontFamily: mono,
+                fontSize: 13.5,
+                fontWeight: 700,
+                fontVariantNumeric: "tabular-nums",
+                color: !isMismatch ? SLATE : diff < 0 ? NEGATIVE : POSITIVE,
+              }}
+            >
+              {diff === 0 ? "0.00" : `${diff > 0 ? "+" : ""}${fmt(diff)}`}
+            </Typography>
+          </Stack>
+        );
+      },
+    },
+    {
+      field: "action",
+      headerName: "",
+      sortable: false,
+      filterable: false,
+      disableColumnMenu: true,
+      width: 60,
+      renderCell: (params) => (
+        <Tooltip title="View history">
+          <IconButton
+            size="small"
+            onClick={() => {
+              setSelectedRow(params.row);
+              setOpenHistory(true);
+            }}
+            sx={{ color: SLATE, "&:hover": { color: ACCENT, bgcolor: "#EEF2FF" } }}
+          >
+            <HistoryRoundedIcon sx={{ fontSize: 18 }} />
+          </IconButton>
+        </Tooltip>
+      ),
+    },
+  ];
+
+  return (
+    <Box sx={{ display: "flex", minHeight: "100vh", bgcolor: CANVAS, fontFamily: sans }}>
+      {/* ── LEFT RAIL — filters ─────────────────────────────────────── */}
+      <Box
+        sx={{
+          width: { xs: "100%", md: 300 },
+          flexShrink: 0,
+          bgcolor: RAIL_BG,
+          color: "#fff",
+          position: { md: "sticky" },
+          top: 0,
+          height: { md: "100vh" },
+          px: 3,
+          py: 4,
+          display: "flex",
+          flexDirection: "column",
+        }}
+      >
+        <Stack direction="row" spacing={1.25} alignItems="center" sx={{ mb: 0.5 }}>
+          <Avatar sx={{ bgcolor: ACCENT, width: 34, height: 34 }}>
+            <ScaleRoundedIcon sx={{ fontSize: 18 }} />
+          </Avatar>
+          <Typography sx={{ fontWeight: 800, fontSize: 15 }}>Balance Compare</Typography>
+        </Stack>
+        <Typography sx={{ fontSize: 12, color: "rgba(255,255,255,0.45)", mb: 4 }}>Particular Search</Typography>
+
+        <RailField icon={<CalendarMonthRoundedIcon sx={{ fontSize: 17 }} />} label="ETL Date">
+          <LocalizationProvider dateAdapter={AdapterDayjs}>
+            <DatePicker
+              value={etlDate ? dayjs(etlDate) : null}
+              onChange={(newValue) => {
+                const formattedDate = newValue ? newValue.format("YYYY-MM-DD") : "";
+                setEtlDate(formattedDate);
+                updateFilter("date", formattedDate);
+              }}
+              slotProps={{
+                textField: { fullWidth: true, size: "small", sx: railFieldSx },
+              }}
+            />
+          </LocalizationProvider>
+        </RailField>
+
+        <RailField icon={<AccountBalanceRoundedIcon sx={{ fontSize: 17 }} />} label="Branch code">
+          <TextField
+            fullWidth
+            size="small"
+            placeholder="All branches"
+            value={filters.branchCode}
+            onChange={(e) => updateFilter("branchCode", validateBranchCode(e.target.value))}
+            sx={railFieldSx}
+          />
+        </RailField>
+
+        <RailField icon={<PublicRoundedIcon sx={{ fontSize: 17 }} />} label="Currency">
+          <TextField
+            fullWidth
+            size="small"
+            placeholder="All currencies"
+            value={filters.currency}
+            onChange={(e) => updateFilter("currency", validateCurrency(e.target.value))}
+            sx={railFieldSx}
+          />
+        </RailField>
+
+        <RailField icon={<TagRoundedIcon sx={{ fontSize: 17 }} />} label="CGL number">
+          <TextField
+            fullWidth
+            size="small"
+            placeholder="Enter CGL number"
+            value={filters.cgl}
+            onChange={(e) => updateFilter("cgl", validateCGL(e.target.value))}
+            sx={railFieldSx}
+          />
+        </RailField>
+
+        <Box sx={{ mt: "auto", pt: 3 }}>
+          <Button
+            fullWidth
+            variant="contained"
+            disableElevation
+            startIcon={<SearchRoundedIcon />}
+            onClick={handleSearch}
+            sx={{ textTransform: "none", fontWeight: 700, borderRadius: "10px", py: 1.1, bgcolor: ACCENT, mb: 1, "&:hover": { bgcolor: "#4F46E5" } }}
+          >
+            Search
+          </Button>
+          <Button
+            fullWidth
+            variant="text"
+            startIcon={<RestartAltRoundedIcon />}
+            onClick={handleReset}
+            sx={{ textTransform: "none", fontWeight: 700, color: "rgba(255,255,255,0.6)", "&:hover": { bgcolor: "rgba(255,255,255,0.06)" } }}
+          >
+            Reset filters
+          </Button>
+        </Box>
+      </Box>
+
+      {/* ── MAIN CONTENT ─────────────────────────────────────────────── */}
+      <Box sx={{ flex: 1, px: { xs: 2, md: 5 }, py: 4, minWidth: 0 }}>
+        <Stack direction={{ xs: "column", sm: "row" }} justifyContent="space-between" alignItems={{ sm: "center" }} spacing={2} sx={{ mb: 3 }}>
+          <Box>
+            <Typography sx={{ fontSize: { xs: 20, md: 23 }, fontWeight: 800, color: INK, letterSpacing: -0.3 }}>
+              Balance Search &amp; Comparison
+            </Typography>
+            <Typography sx={{ fontSize: 13.5, color: SLATE }}>CBS vs. GL balances, one glance at what's drifted.</Typography>
+          </Box>
+          <Tooltip title="Refresh current page">
+            <span>
+              <IconButton
+                onClick={() => hasSearched && fetchData(filters.date, paginationModel.page, paginationModel.pageSize)}
+                disabled={!hasSearched}
+                sx={{ border: `1px solid ${LINE}`, bgcolor: "#fff", borderRadius: "10px" }}
+              >
+                <RefreshRoundedIcon sx={{ fontSize: 19, color: SLATE }} />
+              </IconButton>
+            </span>
+          </Tooltip>
+        </Stack>
+
+        {/* Fixed-height row so this never shifts the layout when loading toggles */}
+        <Box sx={{ height: 4, mb: 2 }}>
+          {loading && <LinearProgress sx={{ borderRadius: 2, height: 3, "& .MuiLinearProgress-bar": { bgcolor: ACCENT } }} />}
+        </Box>
+
+        {/* KPI row — fixed height cards, new Grid `size` API */}
+        <Grid container spacing={2} sx={{ mb: 3 }}>
+          <KpiCard label="Records" value={hasSearched ? totalElements : "—"} icon={<ScaleRoundedIcon />} color={ACCENT} />
+          <KpiCard label="Matched" value={hasSearched ? summary.matched : "—"} icon={<CheckCircleRoundedIcon />} color={POSITIVE} />
+          <KpiCard label="Mismatched" value={hasSearched ? summary.mismatched : "—"} icon={<ErrorOutlineRoundedIcon />} color={NEGATIVE} />
+          <KpiCard
+            label="Net difference"
+            value={hasSearched ? fmt(summary.net) : "—"}
+            icon={summary.net < 0 ? <TrendingDownRoundedIcon /> : <TrendingUpRoundedIcon />}
+            color={summary.net < 0 ? NEGATIVE : POSITIVE}
+            mono
+          />
+        </Grid>
+
+        {/* Fixed-height table panel — height NEVER changes between pages/states */}
+        <Paper elevation={0} sx={{ border: `1px solid ${LINE}`, borderRadius: "16px", overflow: "hidden", height: TABLE_AREA_HEIGHT, bgcolor: "#fff" }}>
+          <DataGrid
+            rows={rows}
+            columns={columns}
+            rowCount={totalElements}
+            loading={loading}
+            paginationMode="server"
+            paginationModel={paginationModel}
+            onPaginationModelChange={(model) => setPaginationModel(model)}
+            pageSizeOptions={[10, 25, 50]}
+            rowHeight={ROW_HEIGHT}
+            disableRowSelectionOnClick
+            slots={{ noRowsOverlay: () => <GridEmptyOverlay hasSearched={hasSearched} /> }}
+            sx={{
+              border: "none",
+              height: "100%",
+              fontFamily: sans,
+              "& .MuiDataGrid-columnHeaders": { bgcolor: "#FAFAFD", borderBottom: `1px solid ${LINE}`, fontSize: 11.5, fontWeight: 700, color: SLATE, textTransform: "uppercase" },
+              "& .MuiDataGrid-cell": { borderBottom: `1px solid ${LINE}`, fontSize: 13.5, color: INK },
+              "& .MuiDataGrid-row:hover": { bgcolor: "#F8FAFF" },
+              "& .MuiDataGrid-footerContainer": { borderTop: `1px solid ${LINE}`, minHeight: 52 }, // fixed footer height
+            }}
+          />
+        </Paper>
+      </Box>
+
+      {/* ── History dialog ───────────────────────────────────────────── */}
+      <Dialog open={openHistory} onClose={() => setOpenHistory(false)} maxWidth="xs" fullWidth PaperProps={{ sx: { borderRadius: "16px" } }}>
+        <DialogTitle sx={{ fontWeight: 800, fontSize: 17, color: INK, pb: 1 }}>
+          Difference Details
+          {selectedRow && (
+            <Typography sx={{ fontFamily: mono, fontSize: 12.5, color: SLATE, fontWeight: 500, mt: 0.25 }}>
+              {selectedRow.GLCC_VAL}
+            </Typography>
+          )}
+        </DialogTitle>
+        <DialogContent sx={{ pt: 1 }}>
+          {selectedRow && (
+            <Grid container spacing={2}>
+              <Grid size={{ xs: 6 }}>
+                <Typography variant="caption" sx={{ color: SLATE, fontWeight: 700 }}>Date</Typography>
+                <Typography sx={{ fontSize: 14, fontWeight: 700 }}>{selectedRow.reconRunDate}</Typography>
+              </Grid>
+              <Grid size={{ xs: 6 }}>
+                <Typography variant="caption" sx={{ color: SLATE, fontWeight: 700 }}>Branch</Typography>
+                <Typography sx={{ fontSize: 14, fontWeight: 700 }}>{selecte
