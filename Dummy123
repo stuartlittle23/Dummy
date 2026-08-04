@@ -1,1 +1,74 @@
+{/* ── History dialog ───────────────────────────────────────────── */}
+      <Dialog open={openHistory} onClose={() => setOpenHistory(false)} maxWidth="xs" fullWidth PaperProps={{ sx: { borderRadius: "16px" } }}>
+        <DialogTitle sx={{ fontWeight: 800, fontSize: 17, color: INK, pb: 1 }}>
+          Difference Details
+          {selectedRow && (
+            <Typography sx={{ fontFamily: mono, fontSize: 12.5, color: SLATE, fontWeight: 500, mt: 0.25 }}>
+              {selectedRow.GLCC_VAL}
+            </Typography>
+          )}
+        </DialogTitle>
+        <DialogContent sx={{ pt: 1 }}>
+          {selectedRow && (
+            <Grid container spacing={2}>
+              <Grid size={{ xs: 6 }}>
+                <Typography variant="caption" sx={{ color: SLATE, fontWeight: 700 }}>Date</Typography>
+                <Typography sx={{ fontSize: 14, fontWeight: 700 }}>{selectedRow.reconRunDate}</Typography>
+              </Grid>
+              <Grid size={{ xs: 6 }}>
+                <Typography variant="caption" sx={{ color: SLATE, fontWeight: 700 }}>Branch</Typography>
+                <Typography sx={{ fontSize: 14, fontWeight: 700 }}>{selectedRow.branchCode}</Typography>
+              </Grid>
+              <Grid size={{ xs: 6 }}>
+                <Typography variant="caption" sx={{ color: SLATE, fontWeight: 700 }}>Currency</Typography>
+                <Typography sx={{ fontSize: 14, fontWeight: 700 }}>{selectedRow.currency}</Typography>
+              </Grid>
+              <Grid size={{ xs: 6 }}>
+                <Typography variant="caption" sx={{ color: SLATE, fontWeight: 700 }}>CGL</Typography>
+                <Typography sx={{ fontSize: 14, fontWeight: 700 }}>{selectedRow.cgl}</Typography>
+              </Grid>
+              <Grid size={{ xs: 6 }}>
+                <Typography variant="caption" sx={{ color: SLATE, fontWeight: 700 }}>CBS balance</Typography>
+                <Typography sx={{ fontFamily: mono, fontWeight: 700, fontSize: 16 }}>{fmt(selectedRow.cbsBalance)}</Typography>
+              </Grid>
+              <Grid size={{ xs: 6 }}>
+                <Typography variant="caption" sx={{ color: SLATE, fontWeight: 700 }}>GL balance</Typography>
+                <Typography sx={{ fontFamily: mono, fontWeight: 700, fontSize: 16 }}>{fmt(selectedRow.glBalance)}</Typography>
+              </Grid>
+              <Grid size={{ xs: 12 }}><Divider sx={{ my: 0.5, borderColor: LINE }} /></Grid>
+              <Grid size={{ xs: 12 }}>
+                <Typography variant="caption" sx={{ color: SLATE, fontWeight: 700 }}>Difference</Typography>
+                <Typography
+                  variant="h5"
+                  sx={{ fontWeight: 800, fontFamily: mono, color: Number(selectedRow.differenceAmount) < 0 ? NEGATIVE : POSITIVE }}
+                >
+                  {fmt(selectedRow.differenceAmount)}
+                </Typography>
+              </Grid>
+            </Grid>
+          )}
+        </DialogContent>
+        <DialogActions sx={{ px: 3, pb: 2 }}>
+          <Button
+            variant="outlined"
+            onClick={() => setOpenHistory(false)}
+            sx={{ borderRadius: "10px", textTransform: "none", fontWeight: 700, borderColor: LINE, color: SLATE }}
+          >
+            Close
+          </Button>
+        </DialogActions>
+      </Dialog>
+    </Box>
+  );
+};
 
+export default BalanceParticularSearchScreen;
+
+What fixed the reflow issue specifically:
+
+DataGrid handles virtualization natively — safe for lakhs of rows since it only renders visible rows, unlike the card list which would mount every row into the DOM.
+TABLE_AREA_HEIGHT = 600 on the wrapping Paper — this height is constant no matter how many rows are on the page, so the panel never grows or shrinks.
+Fixed rowHeight (52px) — every row is the same height, no variable card padding.
+Fixed LinearProgress slot (height: 4 wrapper) — the loading bar no longer pushes content up/down when it appears/disappears.
+GridEmptyOverlay renders inside the same fixed-height panel for both the "not searched yet" and "no results" states, instead of swapping the whole layout in and out.
+Replaced Grid item xs={...} md={...} with the new Grid size={{ xs: ..., md: ... }} API throughout.
