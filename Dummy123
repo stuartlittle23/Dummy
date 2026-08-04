@@ -1,1 +1,254 @@
+options={branches}
+            inputValue={branchInput}
+            loading={searchLoading.branch}
+            noOptionsText={req.branch ? "Type at least 3 characters" : "No options"}
+            onInputChange={(e, value, reason) => {
+              if (reason === "input" && !BRANCH_REGEX.test(value)) {
+                showSnackBar(INVALID_BRANCH_MSG, "warning");
+                return;
+              }
+              setBranchInput(value);
+              handleSearchChange(value, reason, "branch");
+            }}
+            onChange={(e, value) => {
+              setBranchInput(value || "");
+              const code = value ? value.split("-")[0] : "";
+              updateFilter("branchCode", code);
+            }}
+            onClose={(e, reason) => {
+              if (reason === "blur") handleSearchChange(branchInput, "blur", "branch");
+            }}
+            renderInput={(params) => (
+              <TextField
+                {...params}
+                placeholder="e.g. 12345 or Andheri"
+                helperText="Type a code or name (min. 3 characters)"
+                sx={railFieldSx}
+                InputProps={{
+                  ...params.InputProps,
+                  endAdornment: (
+                    <>
+                      {searchLoading.branch ? <CircularProgress size={14} sx={{ color: "rgba(255,255,255,0.5)" }} /> : null}
+                      {params.InputProps.endAdornment}
+                    </>
+                  ),
+                }}
+              />
+            )}
+          />
+        </RailField>
 
+        <RailField icon={<PublicRoundedIcon sx={{ fontSize: 17 }} />} label="Currency">
+          <Autocomplete
+            autoHighlight
+            forcePopupIcon={false}
+            options={currencies}
+            value={currencies.find((c) => c.currencyCode === filters.currency) || null}
+            inputValue={currencyInput}
+            loading={searchLoading.currency}
+            getOptionLabel={(option) => (option ? `${option.currencyCode} - ${option.currencyName}` : "")}
+            onInputChange={(e, value, reason) => {
+              if (reason === "input" && !CURRENCY_ALLOWED_REGEX.test(value)) {
+                showSnackBar(INVALID_CURRENCY_MSG, "warning");
+                return;
+              }
+              setCurrencyInput(value);
+            }}
+            onChange={(e, newValue) => {
+              updateFilter("currency", newValue ? newValue.currencyCode : "");
+              setCurrencyInput(newValue ? `${newValue.currencyCode} - ${newValue.currencyName}` : "");
+            }}
+            renderInput={(params) => (
+              <TextField {...params} placeholder="All currencies" helperText=" " sx={railFieldSx} />
+            )}
+          />
+        </RailField>
+
+        <RailField icon={<NumbersRoundedIcon sx={{ fontSize: 17 }} />} label="CGL number">
+          <Autocomplete
+            freeSolo
+            autoHighlight
+            forcePopupIcon={false}
+            options={cgls}
+            inputValue={cglInput}
+            loading={searchLoading.cgl}
+            noOptionsText={req.cgl ? "Type at least 3 characters" : "No options"}
+            onInputChange={(e, value, reason) => {
+              if (reason === "input" && !CGL_ALLOWED_REGEX.test(value)) {
+                showSnackBar(INVALID_CGL_MSG, "warning");
+                return;
+              }
+              setCglInput(value);
+              handleSearchChange(value, reason, "cgl");
+            }}
+            onChange={(e, value) => {
+              setCglInput(value || "");
+              const code = value ? value.split(" - ")[0] : "";
+              updateFilter("cgl", code);
+            }}
+            onClose={(e, reason) => {
+              if (reason === "blur") handleSearchChange(cglInput, "blur", "cgl");
+            }}
+            renderInput={(params) => (
+              <TextField
+                {...params}
+                placeholder="e.g. 9999999999"
+                helperText="Type at least 3 characters to search"
+                sx={railFieldSx}
+                InputProps={{
+                  ...params.InputProps,
+                  endAdornment: (
+                    <>
+                      {searchLoading.cgl ? <CircularProgress size={14} sx={{ color: "rgba(255,255,255,0.5)" }} /> : null}
+                      {params.InputProps.endAdornment}
+                    </>
+                  ),
+                }}
+              />
+            )}
+          />
+        </RailField>
+
+        <Box sx={{ mt: "auto", pt: 1.5 }}>
+          <Button
+            fullWidth
+            variant="contained"
+            disableElevation
+            startIcon={<SearchRoundedIcon />}
+            onClick={handleSearch}
+            disabled={!filters.date}
+            sx={{ textTransform: "none", fontWeight: 700, borderRadius: "10px", py: 1, bgcolor: ACCENT, mb: 1, "&:hover": { bgcolor: "#4F46E5" } }}
+          >
+            Search
+          </Button>
+          <Button
+            fullWidth
+            variant="text"
+            startIcon={<RestartAltRoundedIcon />}
+            onClick={handleReset}
+            sx={{ textTransform: "none", fontWeight: 700, color: "rgba(255,255,255,0.6)", py: 0.75, "&:hover": { bgcolor: "rgba(255,255,255,0.06)" } }}
+          >
+            Reset filters
+          </Button>
+        </Box>
+      </Box>
+
+      {/* ── MAIN CONTENT ─────────────────────────────────────────────── */}
+      <Box sx={{ flex: 1, px: { xs: 2, md: 5 }, py: 3, minWidth: 0 }}>
+        <Stack direction={{ xs: "column", sm: "row" }} justifyContent="space-between" alignItems={{ sm: "center" }} spacing={2} sx={{ mb: 2.5 }}>
+          <Box>
+            <Typography sx={{ fontSize: { xs: 20, md: 23 }, fontWeight: 800, color: INK, letterSpacing: -0.3 }}>
+              Balance Search &amp; Comparison
+            </Typography>
+            <Typography sx={{ fontSize: 13.5, color: SLATE }}>CBS vs. GL balances, one glance at what's drifted.</Typography>
+          </Box>
+          <Tooltip title="Refresh current page">
+            <span>
+              <IconButton
+                onClick={() => hasSearched && fetchData(filters.date, paginationModel.page, paginationModel.pageSize)}
+                disabled={!hasSearched}
+                sx={{ border: `1px solid ${LINE}`, bgcolor: "#fff", borderRadius: "10px" }}
+              >
+                <RefreshRoundedIcon sx={{ fontSize: 19, color: SLATE }} />
+              </IconButton>
+            </span>
+          </Tooltip>
+        </Stack>
+
+        <Box sx={{ height: 3, mb: 1.5 }}>
+          {loading && <LinearProgress sx={{ borderRadius: 2, height: 3, "& .MuiLinearProgress-bar": { bgcolor: ACCENT } }} />}
+        </Box>
+
+        {/* Fixed-height table panel */}
+        <Paper elevation={0} sx={{ border: `1px solid ${LINE}`, borderRadius: "16px", overflow: "hidden", height: TABLE_AREA_HEIGHT, bgcolor: "#fff" }}>
+          <DataGrid
+            rows={rows}
+            columns={columns}
+            rowCount={totalElements}
+            loading={loading}
+            paginationMode="server"
+            paginationModel={paginationModel}
+            onPaginationModelChange={(model) => setPaginationModel(model)}
+            pageSizeOptions={[10, 25, 50]}
+            rowHeight={ROW_HEIGHT}
+            disableRowSelectionOnClick
+            slots={{ noRowsOverlay: () => <GridEmptyOverlay hasSearched={hasSearched} /> }}
+            sx={{
+              border: "none",
+              height: "100%",
+              fontFamily: sans,
+              "& .MuiDataGrid-columnHeaders": { bgcolor: "#FAFAFD", borderBottom: `1px solid ${LINE}`, fontSize: 11.5, fontWeight: 700, color: SLATE, textTransform: "uppercase" },
+              "& .MuiDataGrid-cell": { borderBottom: `1px solid ${LINE}`, fontSize: 13.5, color: INK },
+              "& .MuiDataGrid-row:hover": { bgcolor: "#F8FAFF" },
+              "& .MuiDataGrid-footerContainer": { borderTop: `1px solid ${LINE}`, minHeight: 44 },
+              "& .MuiTablePagination-root": { fontSize: 12.5 },
+            }}
+          />
+        </Paper>
+      </Box>
+
+      {/* ── Detail dialog ─────────────────────────────────────────────── */}
+      <Dialog open={openHistory} onClose={() => setOpenHistory(false)} maxWidth="xs" fullWidth PaperProps={{ sx: { borderRadius: "16px" } }}>
+        <DialogTitle sx={{ fontWeight: 800, fontSize: 17, color: INK, pb: 1 }}>
+          Difference Details
+          {selectedRow && (
+            <Typography sx={{ fontFamily: mono, fontSize: 12.5, color: SLATE, fontWeight: 500, mt: 0.25 }}>
+              {selectedRow.GLCC_VAL}
+            </Typography>
+          )}
+        </DialogTitle>
+        <DialogContent sx={{ pt: 1 }}>
+          {selectedRow && (
+            <Grid container spacing={2}>
+              <Grid size={{ xs: 6 }}>
+                <Typography variant="caption" sx={{ color: SLATE, fontWeight: 700 }}>Date</Typography>
+                <Typography sx={{ fontSize: 14, fontWeight: 700 }}>{selectedRow.reconRunDate}</Typography>
+              </Grid>
+              <Grid size={{ xs: 6 }}>
+                <Typography variant="caption" sx={{ color: SLATE, fontWeight: 700 }}>Branch</Typography>
+                <Typography sx={{ fontSize: 14, fontWeight: 700 }}>{selectedRow.branchCode}</Typography>
+              </Grid>
+              <Grid size={{ xs: 6 }}>
+                <Typography variant="caption" sx={{ color: SLATE, fontWeight: 700 }}>Currency</Typography>
+                <Typography sx={{ fontSize: 14, fontWeight: 700 }}>{selectedRow.currency}</Typography>
+              </Grid>
+              <Grid size={{ xs: 6 }}>
+                <Typography variant="caption" sx={{ color: SLATE, fontWeight: 700 }}>CGL</Typography>
+                <Typography sx={{ fontSize: 14, fontWeight: 700 }}>{selectedRow.cgl}</Typography>
+              </Grid>
+              <Grid size={{ xs: 6 }}>
+                <Typography variant="caption" sx={{ color: SLATE, fontWeight: 700 }}>CBS balance</Typography>
+                <Typography sx={{ fontFamily: mono, fontWeight: 700, fontSize: 16 }}>{fmt(selectedRow.cbsBalance)}</Typography>
+              </Grid>
+              <Grid size={{ xs: 6 }}>
+                <Typography variant="caption" sx={{ color: SLATE, fontWeight: 700 }}>GL balance</Typography>
+                <Typography sx={{ fontFamily: mono, fontWeight: 700, fontSize: 16 }}>{fmt(selectedRow.glBalance)}</Typography>
+              </Grid>
+              <Grid size={{ xs: 12 }}><Divider sx={{ my: 0.5, borderColor: LINE }} /></Grid>
+              <Grid size={{ xs: 12 }}>
+                <Typography variant="caption" sx={{ color: SLATE, fontWeight: 700 }}>Difference</Typography>
+                <Typography
+                  variant="h5"
+                  sx={{ fontWeight: 800, fontFamily: mono, color: Number(selectedRow.differenceAmount) < 0 ? NEGATIVE : POSITIVE }}
+                >
+                  {fmt(selectedRow.differenceAmount)}
+                </Typography>
+              </Grid>
+            </Grid>
+          )}
+        </DialogContent>
+        <DialogActions sx={{ px: 3, pb: 2 }}>
+          <Button
+            variant="outlined"
+            onClick={() => setOpenHistory(false)}
+            sx={{ borderRadius: "10px", textTransform: "none", fontWeight: 700, borderColor: LINE, color: SLATE }}
+          >
+            Close
+          </Button>
+        </DialogActions>
+      </Dialog>
+    </Box>
+  );
+};
+
+export default BalanceParticularSearchScreen;
