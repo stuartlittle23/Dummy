@@ -1,1 +1,271 @@
 
+let circleValue = "";
+        if (permissions?.wholebank === true) {
+          circleValue = "null";
+        } else if (user?.isCircle === true || permissions?.circle) {
+          circleValue = user?.circleCode;
+        }
+
+        const url =
+          type === "branch"
+            ? `/CM/common-master/branches-code-name-only?q=${encodeURIComponent(term)}&circleCode=${circleValue || ""}`
+            : `/CM/common-master/cgl-code-description-only?q=${encodeURIComponent(term)}`;
+
+        const result = await callApi(url, null, "GET");
+
+        if (result?.data?.length > 0) {
+          if (type === "branch") {
+            setBranches(result.data.map((i) => `${i.code}-${i.name}`));
+          } else {
+            setCgls(result.data.map((i) => `${i.cglNumber} - ${i.description}`));
+          }
+        } else {
+          if (type === "branch") setBranches([]);
+          else setCgls([]);
+        }
+      } catch (e) {
+        console.error(e);
+      } finally {
+        setSearchLoading((p) => ({ ...p, [type]: false }));
+      }
+    },
+    [callApi, permissions, user]
+  );
+
+  const handleSearchChange = (value, reason, type) => {
+    if (reason === "input") {
+      if (value?.length >= 3) fetchSearchData(type, value);
+    } else if (reason === "clear" || reason === "blur") {
+      if (type === "branch") setBranches([]);
+      if (type === "cgl") setCgls([]);
+    }
+  };
+
+  // ── MAIN API — payload/field names unchanged from your original ──
+  const fetchData = useCallback(
+    async (date, pageIndex, pageSize) => {
+      if (!date) return;
+      setLoading(true);
+      try {
+        const payload = {
+          fromDate: date,
+          toDate: date,
+          branchCode: filters.branchCode || null,
+          currency: filters.currency || null,
+          cgl: filters.cgl || null,
+        };
+
+        const response = await callApi(
+          `/ES/differences/search?page=${pageIndex}&size=${pageSize}`,
+          payload,
+          "POST"
+        );
+
+        // Real response shape: { data: { content: [...], page: { totalElements, ... } } }
+        const content = response?.data?.content || [];
+        const mappedRows = content.map((item, index) => ({
+          id: `row-${pageIndex}-${index}`,
+          ...item,
+          GLCC_VAL: `${item.branchCode} ${item.currency} ${item.cgl}`,
+        }));
+
+        setRows(mappedRows);
+        setTotalElements(
+          response?.data?.page?.totalElements ?? response?.data?.totalElements ?? 0
+        );
+      } catch (err) {
+        console.error("Search Fail:", err);
+        setRows([]);
+        setTotalElements(0);
+      } finally {
+        setLoading(false);
+      }
+    },
+    [filters]
+  );
+
+  useEffect(() => {
+    if (hasSearched && filters.date) {
+      fetchData(filters.date, paginationModel.page, paginationModel.pageSize);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [paginationModel.page, paginationModel.pageSize]);
+
+  const handleSearch = () => {
+    setPaginationModel((prev) => ({ ...prev, page: 0 }));
+    setHasSearched(true);
+    fetchData(filters.date, 0, paginationModel.pageSize);
+  };
+
+  const handleReset = () => {
+    setFilters({ date: etlDate || "", branchCode: "", currency: "", cgl: "" });
+    setBranchInput("");
+    setCglInput("");
+    setCurrencyInput("");
+    setBranches([]);
+    setCgls([]);
+    setRows([]);
+    setTotalElements(0);
+    setHasSearched(false);
+  };
+
+  const pageStart = paginationModel.page * paginationModel.pageSize;
+  const pageEnd = Math.min(pageStart + rows.length, totalElements);
+
+  // ── DataGrid columns ──
+  const columns = [
+    { field: "reconRunDate", headerName: "Error Date", flex: 1, minWidth: 120 },
+    { field: "GLCC_VAL", headerName: "GLCC", flex: 1.3, minWidth: 180 },
+    {
+      field: "cbsBalance",
+      headerName: "CBS Balance",
+      flex: 1,
+      minWidth: 130,
+      align: "right",
+      headerAlign: "right",
+      renderCell: (params) => (
+        <Typography sx={{ fontFamily: mono, fontSize: 13.5, fontVariantNumeric: "tabular-nums" }}>{fmt(params.value)}</Typography>
+      ),
+    },
+    {
+      field: "glBalance",
+      headerName: "GL Balance",
+      flex: 1,
+      minWidth: 130,
+      align: "right",
+      headerAlign: "right",
+      renderCell: (params) => (
+        <Typography sx={{ fontFamily: mono, fontSize: 13.5, fontVariantNumeric: "tabular-nums" }}>{fmt(params.value)}</Typography>
+      ),
+    },
+    {
+      field: "differenceAmount",
+      headerName: "Difference",
+      flex: 1,
+      minWidth: 140,
+      align: "right",
+      headerAlign: "right",
+      renderCell: (params) => {
+        const diff = Number(params.value) || 0;
+        const isMismatch = Math.abs(diff) > 0.001;
+        return (
+          <Stack direction="row" spacing={0.5} alignItems="center">
+            {isMismatch ? (
+              <ErrorOutlineRoundedIcon sx={{ fontSize: 15, color: diff < 0 ? NEGATIVE : POSITIVE }} />
+            ) : (
+              <CheckCircleRoundedIcon sx={{ fontSize: 15, color: SLATE }} />
+            )}
+            <Typography
+              sx={{
+                fontFamily: mono,
+                fontSize: 13.5,
+                fontWeight: 700,
+                fontVariantNumeric: "tabular-nums",
+                color: !isMismatch ? SLATE : diff < 0 ? NEGATIVE : POSITIVE,
+              }}
+            >
+              {diff === 0 ? "0.00" : `${diff > 0 ? "+" : ""}${fmt(diff)}`}
+            </Typography>
+          </Stack>
+        );
+      },
+    },
+    {
+      field: "action",
+      headerName: "",
+      sortable: false,
+      filterable: false,
+      disableColumnMenu: true,
+      width: 56,
+      renderCell: (params) => (
+        <Tooltip title="View details">
+          <IconButton
+            size="small"
+            onClick={() => {
+              setSelectedRow(params.row);
+              setOpenHistory(true);
+            }}
+            sx={{ color: SLATE, "&:hover": { color: ACCENT, bgcolor: "#EEF2FF" } }}
+          >
+            <VisibilityRoundedIcon sx={{ fontSize: 18 }} />
+          </IconButton>
+        </Tooltip>
+      ),
+    },
+  ];
+
+  return (
+    <Box sx={{ display: "flex", alignItems: "stretch", minHeight: "100vh", bgcolor: CANVAS, fontFamily: sans }}>
+      {/* ── LEFT RAIL — filters. No fixed height: flex-stretch makes it match
+           the content column's real height, so there's never a mismatched gap. ── */}
+      <Box
+        sx={{
+          width: { xs: "100%", md: 300 },
+          flexShrink: 0,
+          bgcolor: RAIL_BG,
+          color: "#fff",
+          px: 3,
+          py: 3,
+          display: "flex",
+          flexDirection: "column",
+        }}
+      >
+        <Stack direction="row" spacing={1.25} alignItems="center" sx={{ mb: 0.5 }}>
+          <Avatar sx={{ bgcolor: ACCENT, width: 34, height: 34 }}>
+            <ScaleRoundedIcon sx={{ fontSize: 18 }} />
+          </Avatar>
+          <Typography sx={{ fontWeight: 800, fontSize: 15 }}>Balance Compare</Typography>
+        </Stack>
+        <Typography sx={{ fontSize: 12, color: "rgba(255,255,255,0.45)", mb: 3 }}>Particular Search</Typography>
+
+        <RailField icon={<CalendarMonthRoundedIcon sx={{ fontSize: 17 }} />} label="ETL Date">
+          <LocalizationProvider dateAdapter={AdapterDayjs}>
+            <DatePicker
+              value={filters.date ? dayjs(filters.date) : null}
+              onChange={(newValue) => {
+                const formatted = newValue ? newValue.format("YYYY-MM-DD") : "";
+                updateFilter("date", formatted);
+              }}
+              slotProps={{
+                textField: { fullWidth: true, size: "small", sx: railFieldSx },
+                popper: { sx: { "& .MuiPaper-root": { bgcolor: RAIL_PAPER_BG, color: "#fff" } } },
+              }}
+            />
+          </LocalizationProvider>
+        </RailField>
+
+        <RailField icon={<AccountBalanceRoundedIcon sx={{ fontSize: 17 }} />} label="Branch code or name">
+          <Autocomplete
+            {...railAutocompleteProps}
+            freeSolo
+            autoHighlight
+            forcePopupIcon={false}
+            clearIcon={branchInput ? undefined : null}
+            options={branches}
+            inputValue={branchInput}
+            loading={searchLoading.branch}
+            noOptionsText={req.branch ? "Please enter at least 3 characters" : "No Options"}
+            onInputChange={(e, value, reason) => {
+              if (reason === "input" && !BRANCH_REGEX.test(value)) {
+                showSnackBar(INVALID_BRANCH_MSG, "warning");
+                return;
+              }
+              setBranchInput(value);
+              handleSearchChange(value, reason, "branch");
+            }}
+            onChange={(e, value) => {
+              setBranchInput(value || "");
+              const code = value ? value.split("-")[0] : "";
+              updateFilter("branchCode", code);
+            }}
+            onClose={(e, reason) => {
+              if (reason === "blur") handleSearchChange(branchInput, "blur", "branch");
+            }}
+            renderInput={(params) => (
+              <TextField
+                {...params}
+                placeholder="eg. 12345 or ABC"
+                sx={railFieldSx}
+                slotProps={{
+                  htmlInput: {
+                    ...params.inputProps,
