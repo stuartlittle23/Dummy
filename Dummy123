@@ -1,515 +1,558 @@
-import React, { useState, useMemo, useEffect } from "react";
-import {
-  Autocomplete,
-  Box,
-  MenuItem,
-  TextField,
-  Typography,
-  Stack,
-} from "@mui/material";
-import { DatePicker, LocalizationProvider } from "@mui/x-date-pickers";
-import { AdapterDayjs } from "@mui/x-date-pickers/AdapterDayjs";
-import { StyledButton } from "./BalanceStyles";
+import React, { useEffect, useState, useCallback } from "react";
+import useApi from "../../hooks/useApi";
+import useCustomSnackbar from "../../utils/useCustomSnackbar";
 import dayjs from "dayjs";
-import SearchIcon from "@mui/icons-material/Search";
-import RestartAltIcon from "@mui/icons-material/RestartAlt";
-import useCustomSnackbar from "../../../utils/useCustomSnackbar";
-import {
-  calculateQuickFilterDates,
-  getAvailableFilters,
-} from "../../../utils/CommonUtilities";
+import downloadFile from "../../utils/DownloadUtils";
+import { Box, Paper, Typography, Stack } from "@mui/material";
+import AccountBalanceIcon from "@mui/icons-material/AccountBalance";
+import { useSelector } from "react-redux";
+import { getPermissions } from "../../utils/CommonUtilities";
+import ManageSearchOutlinedIcon from "@mui/icons-material/ManageSearchOutlined";
+import LinearProgress from "@mui/material/LinearProgress";
 
-export default function BalanceFilters({
-  branch,
-  setBranch,
-  currency,
-  setCurrency,
-  cgl,
-  setCgl,
-  start,
-  setStart,
-  end,
-  setEnd,
-  currencies,
-  branches,
-  cgls,
-  loading,
-  handleSearchChange,
-  fetchCurrencies,
-  handleSubmit,
-  resetState,
-  isNumeric,
-  req,
-  user,
-  permissions,
-  etlDate,
-  glcc,
-  setGlcc,
-  glccValidated,
-  setGlccValidated,
-  validateGlcc,
-}) {
-  const [fromDateError, setFromDateError] = useState(null);
-  const [toDateError, setToDateError] = useState(null);
-  const [quickFilter, setQuickFilter] = useState("custom");
+import BalanceFilters from "./components/BalanceFilters";
+import BalanceTable from "./components/BalanceTable";
+import { StyledButton } from "./components/BalanceStyles";
+
+export default function BalanceEnquiryScreen() {
+  const { callApi } = useApi();
   const showSnackBar = useCustomSnackbar();
 
-  const { hasWholeBank } = permissions;
-  const isBranchUser = !hasWholeBank && !user?.isCircle;
+  const user = useSelector((state) => state.auth.user);
+  const selectedMenu = useSelector((state) => state.menus.selectedMenuItem);
+  const permissions = getPermissions(selectedMenu);
 
-  const MIN_ALLOWED_DATE = useMemo(() => dayjs("2026-03-31"), []);
-  const baseDate = etlDate?.isValid?.() ? etlDate : dayjs();
+  const [data, setData] = useState(null);
+  const [branches, setBranches] = useState([]);
+  const [cgls, setCgls] = useState([]);
+  const [currencies, setCurrencies] = useState([]);
 
-  const GLCC_ALLOWED_REGEX = /^[A-Z0-9]*$/;
-  const GLCC_REGEX = /^\d{5}[A-Z]{3}\d{10}$/;
+  const [mode, setMode] = useState("datewise");
+  const [start, setStart] = useState(null);
+  const [end, setEnd] = useState(null);
 
-  const BRANCH_REGEX = /^[A-Za-z0-9/&(), -]*$/;
-  const [branchInput, setBranchInput] = useState("");
+  const [currency, setCurrency] = useState();
+  const [cgl, setCgl] = useState(null);
 
-  const [cglInput, setCglInput] = useState("");
-  const CGL_ALLOWED_REGEX = /^[A-Za-z0-9._<>/&()= -]*$/;
+  const branchCodeStr = String(user?.branch).padStart(5, "0");
+  const [branch, setBranch] = useState(
+    user?.isCircle === false ? `${branchCodeStr}-${user.branchName}` : "",
+  );
 
-  const [currencyInput, setCurrencyInput] = useState("");
-  const CURRENCY_ALLOWED_REGEX = /^[A-Za-z ()]*$/;
+  const [etlDate, setEtlDate] = useState(null);
 
-  const INVALID_GLCC_MSG =
-    "Invalid GLCC format. Only letters and numbers are allowed.";
+  const [exportLoading, setExportLoading] = useState(false);
+  const [searchLoading, setSearchLoading] = useState(false);
 
-  const INVALID_GLCC_PATTERN_MSG =
-    "Invalid GLCC format. Enter 5 digits, followed by 3 letters, and then 10 digits.";
+  const [glcc, setGlcc] = useState("");
+  const [glccValidated, setGlccValidated] = useState(false);
+  const [glccLoading, setGlccLoading] = useState(false);
 
-  const INVALID_BRANCH_MSG =
-    "Invalid Branch Code/Branch Name format. Only letters, numbers, spaces, '/', '&', '(', ')', '-', and ',' are allowed.";
+  const [loading, setLoading] = useState({
+    branch: false,
+    cgl: false,
+    currency: false,
+    balance: false,
+  });
 
-  const INVALID_CURRENCY_MSG =
-    "Invalid Currency format. Only letters, spaces, '(' and ')' are allowed.";
+  const [rowCount, setRowCount] = useState(0);
 
-  const INVALID_CGL_MSG =
-    "Invalid CGL format. Only letters, numbers, spaces, '_', '-', ' ' ', '<', '>', '/', '&', '('  and ')' are allowed.";
+  const [req, setReq] = useState({
+    branch: true,
+    cgl: true,
+  });
 
-  const availableFilters = useMemo(() => {
-    return getAvailableFilters(baseDate, MIN_ALLOWED_DATE);
-  }, [MIN_ALLOWED_DATE, baseDate]);
+  const [filtersExpanded, setFiltersExpanded] = useState(true);
 
-  const handleQuickFilter = (e) => {
-    const option = e.target.value;
-    setQuickFilter(option);
+  // Adopted the DataGrid standard models
+  const [paginationModel, setPaginationModel] = useState({
+    page: 0,
+    pageSize: 25,
+  });
 
-    if (option === "custom") return;
+  const [sortModel, setSortModel] = useState([{ field: "date", sort: "desc" }]);
 
-    const { newStart, newEnd } = calculateQuickFilterDates(
-      option,
-      baseDate,
-      MIN_ALLOWED_DATE,
-    );
-
-    setStart(newStart);
-    setEnd(newEnd);
+  const isNumeric = (value) => {
+    if (value) {
+      const regex = /^\d+$/;
+      return regex.test(value);
+    }
+    return false;
   };
 
-  const getDateErrorMessage = (field, error) => {
-    switch (error) {
-      case "invalidDate":
-        return `Please enter a valid ${field}`;
-      case "minDate":
-        return `${field} cannot be earlier than ${MIN_ALLOWED_DATE.format(
-          "DD-MM-YYYY",
-        )}`;
-      case "maxDate":
-        return `${field} cannot exceed ${etlDate?.format("DD-MM-YYYY")}`;
-      case "fromGreaterThanTo":
-        return "From Date cannot be greater than To Date";
-      case "toLessThanFrom":
-        return "To Date cannot be less than From Date";
-      case "rangeExceeds12Months":
-        return "Date range cannot exceed 12 months";
-      case "afterEtlDate":
-        return `To Date cannot exceed Fincore ETL Date ${etlDate?.format("DD-MM-YYYY")}`;
-      default:
-        return "";
-    }
-  };
+  const fetchBalance = useCallback(async () => {
+    try {
+      setLoading((prev) => ({ ...prev, balance: true }));
 
-  // Centralized Validation Effect
-  useEffect(() => {
-    let fromErr = null;
-    let toErr = null;
+      const matched = branch?.match(/^(\d{5})-/);
+      if (!matched) return;
 
-    // 1. Validate From Date independently
-    if (start) {
-      if (!start.isValid?.()) fromErr = "invalidDate";
-      else if (start.isBefore(MIN_ALLOWED_DATE, "day")) fromErr = "minDate";
-      else if (etlDate?.isValid?.() && start.isAfter(etlDate, "day"))
-        fromErr = "maxDate";
-    }
+      const payload = {
+        currency,
+        cgl: cgl?.split(" - ")[0],
+        branch: matched[1],
+        startDate: start.format("DD-MM-YYYY"),
+        endDate: end.format("DD-MM-YYYY"),
+        page: paginationModel.page,
+        size: paginationModel.pageSize,
+        sortIn: sortModel?.[0]?.sort?.toUpperCase() || "DESC",
+      };
 
-    // 2. Validate To Date independently
-    if (end) {
-      if (!end.isValid?.()) toErr = "invalidDate";
-      else if (end.isBefore(MIN_ALLOWED_DATE, "day")) toErr = "minDate";
-      else if (etlDate?.isValid?.() && end.isAfter(etlDate, "day"))
-        toErr = "afterEtlDate";
-    }
+      const result = await callApi("/ES/balance/enquires", payload, "POST");
 
-    // 3. Cross-field Validation (Only run if both dates are individually valid)
-    if (start?.isValid?.() && end?.isValid?.() && !fromErr && !toErr) {
-      if (start.isAfter(end, "day")) {
-        fromErr = "fromGreaterThanTo";
-      } else if (end.isAfter(start.clone().add(1, "year"), "day")) {
-        toErr = "rangeExceeds12Months";
+      if (result?.data?.data?.length > 0) {
+        setData(result.data.data);
+        setRowCount(result.data.totalElements);
+        setFiltersExpanded(false);
+      } else {
+        setData([]);
+        setRowCount(0);
       }
+    } catch (e) {
+      setData([]);
+      setRowCount(0);
+      showSnackBar("No records found", "error");
+    } finally {
+      setLoading((prev) => ({ ...prev, balance: false }));
+      setSearchLoading(false);
     }
+  }, [
+    callApi,
+    branch,
+    currency,
+    cgl,
+    start,
+    end,
+    paginationModel,
+    sortModel,
+    showSnackBar,
+  ]);
 
-    setFromDateError(fromErr);
-    setToDateError(toErr);
-  }, [start, end, etlDate, MIN_ALLOWED_DATE]);
+  const validateGlcc = async (value) => {
+    try {
+      setGlccLoading(true);
 
-  const handleReset = () => {
-    setFromDateError(null);
-    setToDateError(null);
-    setQuickFilter("custom");
-    resetState();
+      const res = await callApi(
+        "/CM/common-master/validate-glcc",
+        { glcc: value },
+        "POST",
+      );
+
+      const glccData = res?.data;
+
+      if (glccData?.valid) {
+        setBranch(`${glccData.branchCode}-${glccData.branchName?.trim()}`);
+        setCurrency(glccData.currencyCode);
+        setCgl(`${glccData.cglNumber} - ${glccData.cglDescription}`);
+        setGlccValidated(true);
+      } else {
+        setGlccValidated(false);
+        setBranch("");
+        setCurrency("");
+        setCgl("");
+        showSnackBar(glccData?.errors?.join(", ") || "Invalid GLCC", "error");
+      }
+    } catch (e) {
+      setGlccValidated(false);
+      setBranch("");
+      setCurrency("");
+      setCgl("");
+
+      const errors =
+        e?.response?.data?.data?.errors || e?.response?.data?.errors;
+      showSnackBar(errors?.join(", ") || "Invalid GLCC", "error");
+    } finally {
+      setGlccLoading(false);
+    }
   };
 
-  const validationMessages = [
-    fromDateError && getDateErrorMessage("From Date", fromDateError),
-    toDateError && getDateErrorMessage("To Date", toDateError),
-  ].filter(Boolean);
+  const fetchCurrencies = async () => {
+    setLoading((prev) => ({ ...prev, currency: true }));
+    try {
+      const result = await callApi(
+        "/CM/common-master/currency-code-name-only",
+        null,
+        "GET",
+      );
+
+      const sortedData = (result?.data || []).sort((a, b) => {
+        if (a.currencyCode === "INR") return -1;
+        if (b.currencyCode === "INR") return 1;
+        return a.currencyName.localeCompare(b.currencyName);
+      });
+
+      setCurrencies(sortedData);
+    } catch {
+      showSnackBar("Currency data not available", "error");
+    } finally {
+      setLoading((prev) => ({ ...prev, currency: false }));
+    }
+  };
+
+  const handleDownloadExcel = async () => {
+    try {
+      setExportLoading(true);
+      const payload = {
+        menuId: selectedMenu?.id,
+        currency: currency,
+        cgl: cgl?.split(" - ")[0],
+        branch: branch.split("-")[0],
+        startDate:
+          mode === "datewise"
+            ? start.format("DD-MM-YYYY")
+            : dayjs(start).format("DD-MM-YYYY"),
+        endDate:
+          mode === "datewise"
+            ? end.format("DD-MM-YYYY")
+            : dayjs(end).format("DD-MM-YYYY"),
+      };
+
+      const downloadResponse = await callApi(
+        "/ES/balance/export",
+        payload,
+        "POST",
+        "arraybuffer",
+      );
+
+      const fileName = `GL_Balance_${payload.cgl}`;
+      if (downloadResponse && downloadResponse?.byteLength > 0) {
+        downloadFile(downloadResponse, "excel", fileName);
+        return;
+      }
+    } catch (error) {
+      console.error("Something Went Wrong!!", error);
+      showSnackBar("Download Failed", "error");
+    } finally {
+      setExportLoading(false);
+    }
+  };
+
+  const fetchSearchData = useCallback(
+    async (type, term) => {
+      try {
+        setLoading((prev) => ({ ...prev, [type]: true }));
+
+        let circleValue = "";
+        if (permissions?.wholebank === true) {
+          circleValue = "null";
+        } else if (user?.isCircle === true || permissions?.circle) {
+          circleValue = user?.circleCode;
+        }
+
+        const url =
+          type === "branch"
+            ? `/CM/common-master/branches-code-name-only?q=${encodeURIComponent(
+                term,
+              )}&circleCode=${circleValue || ""}`
+            : `/CM/common-master/cgl-code-description-only?q=${encodeURIComponent(
+                term,
+              )}`;
+
+        const result = await callApi(url, null, "GET");
+
+        if (result?.data?.length > 0) {
+          if (type === "branch") {
+            setBranches(result.data.map((i) => `${i.code}-${i.name}`));
+          } else {
+            setCgls(
+              result.data.map((i) => `${i.cglNumber} - ${i.description}`),
+            );
+          }
+        } else {
+          showSnackBar("Data not available", "error");
+        }
+      } catch (e) {
+        console.error(e);
+      } finally {
+        setLoading((prev) => ({ ...prev, [type]: false }));
+      }
+    },
+    [callApi, permissions, user, showSnackBar],
+  );
+
+  const handleSearchChange = (value, reason, type) => {
+    if (reason === "input") {
+      if (value?.length >= 3) {
+        fetchSearchData(type, value);
+      }
+    } else if (reason === "clear" || reason === "blur") {
+      if (type === "branch") setBranches([]);
+      if (type === "cgl") setCgls([]);
+    }
+  };
+
+  // Mirrored logic from Transaction Component
+  const handleSubmit = () => {
+    setSearchLoading(true);
+    if (paginationModel.page === 0) {
+      fetchBalance();
+    } else {
+      setPaginationModel((prev) => ({
+        ...prev,
+        page: 0,
+      }));
+    }
+  };
+
+  const resetState = () => {
+    setData(null);
+    setCgl(null);
+    setCgls([]);
+    setBranch(null);
+    setCurrency(null);
+    setStart(null);
+    setEnd(null);
+    setBranches([]);
+    setGlcc("");
+    setGlccValidated(false);
+    setFiltersExpanded(true);
+
+    // Reset DataGrid models
+    setPaginationModel({
+      page: 0,
+      pageSize: 25,
+    });
+    setSortModel([{ field: "date", sort: "desc" }]);
+  };
+
+  // The unified observer effect matching the Transaction code
+  useEffect(() => {
+    if (data) {
+      fetchBalance();
+    }
+  }, [paginationModel.page, paginationModel.pageSize, sortModel]);
+
+  useEffect(() => {
+    fetchCurrencies();
+  }, []);
+
+  useEffect(() => {
+    const fetchSystemDate = async () => {
+      try {
+        const dateRes = await callApi("/PS/file/fincore-date", {}, "GET");
+        const etlRaw = dateRes?.data?.userDate;
+        const etl = etlRaw ? dayjs(etlRaw.split("T")[0]) : dayjs();
+        setEtlDate(etl);
+      } catch (e) {
+        console.error("Date error:", e);
+        setEtlDate(dayjs());
+      }
+    };
+    fetchSystemDate();
+  }, [callApi]);
 
   return (
-    <Box sx={{ width: "100%", mt: 3 }}>
-      <Box
-        sx={{
-          display: "grid",
-          gridTemplateColumns: {
-            xs: "1fr",
-            sm: "repeat(2, 1fr)",
-            md:
-              permissions?.wholebank || !isBranchUser
-                ? "repeat(4, 1fr)"
-                : "repeat(3, 1fr)",
-          },
-          gap: 2,
-          mb: 2,
-        }}
-      >
-        {(hasWholeBank || user?.isCircle === true) && (
-          <Box>
-            <TextField
-              label="GLCC (Optional)"
-              fullWidth
-              value={glcc}
-              placeholder="Enter 18 Characters GLCC"
-              InputLabelProps={{ shrink: true }}
-              inputProps={{ maxLength: 18 }}
-              onChange={(e) => {
-                const value = e.target.value.toUpperCase();
-
-                if (!GLCC_ALLOWED_REGEX.test(value)) {
-                  showSnackBar(INVALID_GLCC_MSG, "warning");
-                  return;
-                }
-
-                if (value.length <= 5 && !/^\d*$/.test(value)) {
-                  showSnackBar(INVALID_GLCC_PATTERN_MSG, "warning");
-                  return;
-                }
-
-                if (
-                  value.length > 5 &&
-                  value.length <= 8 &&
-                  !/^\d{5}[A-Z]*$/.test(value)
-                ) {
-                  showSnackBar(INVALID_GLCC_PATTERN_MSG, "warning");
-                  return;
-                }
-
-                if (value.length > 8 && !/^\d{5}[A-Z]{3}\d*$/.test(value)) {
-                  showSnackBar(INVALID_GLCC_PATTERN_MSG, "warning");
-                  return;
-                }
-
-                setGlcc(value);
-                setGlccValidated(false);
-                setBranch("");
-                setCurrency("");
-                setCgl("");
-
-                if (value.length === 18) {
-                  validateGlcc(value);
-                }
-              }}
-            />
-          </Box>
-        )}
-
-        <Autocomplete
-          autoHighlight
-          disabled={
-            glccValidated ||
-            (!permissions?.wholebank &&
-              (user?.isCircle === false || permissions?.branch))
-          }
-          value={branch}
-          forcePopupIcon={false}
-          clearIcon={branchInput ? undefined : null}
-          options={branches || []}
-          noOptionsText={
-            req.branch ? "Please enter at least 3 characters" : "No Options"
-          }
-          inputValue={branchInput}
-          loading={!req.branch && loading.branch}
-          onClose={(e, reason) => {
-            if (reason === "blur") {
-              handleSearchChange(branchInput, "blur", "branch");
-            }
-          }}
-          onInputChange={(e, value, reason) => {
-            if (reason === "input" && !BRANCH_REGEX.test(value)) {
-              showSnackBar(INVALID_BRANCH_MSG, "warning");
-              return;
-            }
-
-            setBranchInput(value);
-            handleSearchChange(value, reason, "branch");
-          }}
-          onChange={(e, value) => setBranch(value)}
-          renderInput={(params) => (
-            <TextField
-              {...params}
-              label="Branch Code or Name*"
-              fullWidth
-              InputLabelProps={{ shrink: true }}
-              placeholder="eg. 12345 or ABC"
-              slotProps={{
-                htmlInput: {
-                  ...params.inputProps,
-                  maxLength: isNumeric(params.inputProps.value) ? 5 : 15,
-                },
-              }}
-            />
-          )}
-        />
-
-        <Autocomplete
-          autoHighlight
-          disabled={glccValidated}
-          options={currencies || []}
-          value={currencies?.find((c) => c.currencyCode === currency) || null}
-          inputValue={currencyInput}
-          getOptionLabel={(option) =>
-            option ? `${option.currencyCode} - ${option.currencyName}` : ""
-          }
-          onInputChange={(e, value, reason) => {
-            if (reason === "input" && !CURRENCY_ALLOWED_REGEX.test(value)) {
-              showSnackBar(INVALID_CURRENCY_MSG, "warning");
-              return;
-            }
-
-            setCurrencyInput(value);
-          }}
-          onChange={(event, newValue) => {
-            setCurrency(newValue ? newValue.currencyCode : "");
-            setCurrencyInput(
-              newValue
-                ? `${newValue.currencyCode} - ${newValue.currencyName}`
-                : "",
-            );
-          }}
-          onOpen={fetchCurrencies}
-          renderInput={(params) => (
-            <TextField
-              {...params}
-              label="Currency*"
-              fullWidth
-              InputLabelProps={{ shrink: true }}
-              placeholder={!currency ? "Please select Currency" : ""}
-            />
-          )}
-        />
-
-        <Autocomplete
-          disabled={glccValidated}
-          forcePopupIcon={false}
-          autoHighlight
-          value={cgl}
-          options={cgls}
-          inputValue={cglInput}
-          clearIcon={cglInput || cgl ? undefined : null}
-          noOptionsText={
-            cglInput.length < 3
-              ? "Please enter at least 3 characters"
-              : "No Options"
-          }
-          loading={!req.cgl && loading.cgl}
-          onClose={(e, reason) => {
-            if (reason === "blur") {
-              handleSearchChange(cglInput, "blur", "cgl");
-            }
-          }}
-          onInputChange={(e, value, reason) => {
-            if (reason === "input" && !CGL_ALLOWED_REGEX.test(value)) {
-              showSnackBar(INVALID_CGL_MSG, "warning");
-              return;
-            }
-
-            setCglInput(value);
-            handleSearchChange(value, reason, "cgl");
-          }}
-          onChange={(e, value) => {
-            setCgl(value);
-            setCglInput(value || "");
-          }}
-          renderInput={(params) => (
-            <TextField
-              {...params}
-              label="CGL*"
-              fullWidth
-              InputLabelProps={{ shrink: true }}
-              placeholder="eg. 9999999999"
-              slotProps={{
-                htmlInput: {
-                  ...params.inputProps,
-                  maxLength: isNumeric(params.inputProps.value) ? 10 : 30,
-                },
-              }}
-            />
-          )}
-        />
-      </Box>
-
-      <LocalizationProvider dateAdapter={AdapterDayjs}>
-        <Box
+    <>
+      <Box sx={{ p: 1 }}>
+        <Paper
+          elevation={0}
           sx={{
-            display: "grid",
-            mt: 3,
-            mb: 0.5,
-            gridTemplateColumns: {
-              xs: "1fr",
-              sm: "repeat(2, 1fr)",
-              md: "repeat(4, 1fr)",
-            },
-            gap: 2,
-            alignItems: "start",
+            p: { xs: 1.5, sm: 2, md: 2.5 },
+            mt: { xs: -1, sm: -2 },
+            mb: 3,
+            bgcolor: "rgba(255, 255, 255, 0.4)",
+            backdropFilter: "blur(4px)",
+            border: "1px solid",
+            borderColor: "divider",
+            borderRadius: { xs: 2, sm: 3 },
+            overflow: "hidden",
           }}
         >
-          <TextField
-            select
-            label="Date Range"
-            value={quickFilter}
-            onChange={handleQuickFilter}
-            InputLabelProps={{ shrink: true }}
-            fullWidth
-          >
-            {availableFilters.map((opt) => (
-              <MenuItem key={opt.value} value={opt.value}>
-                {opt.label}
-              </MenuItem>
-            ))}
-          </TextField>
-
-          <DatePicker
-            value={start}
-            format="DD-MM-YYYY"
-            minDate={MIN_ALLOWED_DATE}
-            maxDate={etlDate}
-            views={["year", "month", "day"]}
-            disableHighlightToday
-            onChange={(value) => {
-              setStart(value);
-              setQuickFilter("custom");
-            }}
-            slotProps={{
-              textField: {
-                label: "From Date*",
-                InputLabelProps: { shrink: true },
-                placeholder: "DD-MM-YYYY",
-                error: !!fromDateError,
-                fullWidth: true,
-              },
-            }}
-          />
-
-          <DatePicker
-            value={end}
-            format="DD-MM-YYYY"
-            minDate={start || MIN_ALLOWED_DATE}
-            maxDate={etlDate}
-            views={["year", "month", "day"]}
-            disableHighlightToday
-            disabled={!start}
-            onChange={(value) => {
-              setEnd(value);
-              setQuickFilter("custom");
-            }}
-            slotProps={{
-              textField: {
-                label: "To Date*",
-                InputLabelProps: { shrink: true },
-                placeholder: "DD-MM-YYYY",
-                error: !!toDateError,
-                fullWidth: true,
-              },
-            }}
-          />
-
           <Box
             sx={{
-              display: "flex",
-              justifyContent: { xs: "stretch", sm: "flex-end" },
-              gap: 1.5,
-              height: "100%",
-              alignItems: "center",
+              mb: filtersExpanded ? 1 : 0.5,
+              p: { xs: 1, sm: 1.2 },
+              borderRadius: 2,
+              bgcolor: "background.paper",
+              boxShadow: 2,
+              borderLeft: "6px solid",
+              borderColor: "primary.main",
             }}
           >
-            <StyledButton
-              variant="contained"
-              startIcon={<RestartAltIcon />}
-              onClick={handleReset}
-              sx={{ flex: { xs: 1, sm: "unset" } }}
+            <Stack
+              direction={{ xs: "column", sm: "row" }}
+              alignItems={{ xs: "flex-start", sm: "center" }}
+              justifyContent="space-between"
+              spacing={2}
             >
-              Reset
-            </StyledButton>
-            <StyledButton
-              variant="contained"
-              startIcon={<SearchIcon />}
-              disabled={
-                !(cgl && currency && branch && start && end) ||
-                fromDateError !== null ||
-                toDateError !== null
-              }
-              onClick={handleSubmit}
-              sx={{ flex: { xs: 1, sm: "unset" } }}
-            >
-              Search
-            </StyledButton>
-          </Box>
-        </Box>
-      </LocalizationProvider>
-
-      {validationMessages.length > 0 && (
-        <Box
-          sx={{
-            mt: 2,
-            p: 1.5,
-            borderRadius: 2,
-            border: "1px solid #ff4d4f",
-            bgcolor: "#fff1f0",
-          }}
-        >
-          <Stack spacing={0.5}>
-            {validationMessages.map((msg, index) => (
-              <Typography
-                key={index}
-                variant="body2"
-                sx={{ color: "#d32f2f", fontWeight: 600 }}
+              <Stack
+                direction="row"
+                spacing={{ xs: 1.5, sm: 2 }}
+                alignItems="center"
+                sx={{ width: "100%" }}
               >
-                • {msg}
-              </Typography>
-            ))}
-          </Stack>
-        </Box>
-      )}
-    </Box>
+                <AccountBalanceIcon
+                  color="primary"
+                  sx={{
+                    fontSize: { xs: 30, sm: 36 },
+                    flexShrink: 0,
+                  }}
+                />
+
+                <Box sx={{ minWidth: 0 }}>
+                  <Typography
+                    variant="subtitle1"
+                    fontWeight={700}
+                    lineHeight={1.2}
+                    sx={{
+                      fontSize: { xs: "0.95rem", sm: "1rem", md: "1.05rem" },
+                    }}
+                  >
+                    Balance Search & Records Enquiry
+                  </Typography>
+
+                  <Typography
+                    variant="body2"
+                    color="text.secondary"
+                    sx={{
+                      mt: 0.2,
+                      fontSize: { xs: "0.75rem", sm: "0.82rem" },
+                    }}
+                  >
+                    Enter the required details below to retrieve and view
+                    Balance records.
+                  </Typography>
+                </Box>
+              </Stack>
+
+              {data && (
+                <StyledButton
+                  variant="contained"
+                  startIcon={<ManageSearchOutlinedIcon />}
+                  onClick={() => setFiltersExpanded((prev) => !prev)}
+                  sx={{
+                    textTransform: "none",
+                    borderRadius: "8px",
+                    fontWeight: 600,
+                    minWidth: { xs: "100%", sm: "140px" },
+                    width: { xs: "100%", sm: "auto" },
+                    height: { xs: 38, sm: 32 },
+                    px: 1.5,
+                    fontSize: { xs: "0.8rem", sm: "0.82rem" },
+                  }}
+                >
+                  {filtersExpanded ? "Hide Filters" : "Edit Search"}
+                </StyledButton>
+              )}
+            </Stack>
+          </Box>
+
+          {data && !filtersExpanded && (
+            <Stack
+              direction="row"
+              spacing={1}
+              sx={{
+                mt: 2,
+                mb: 1,
+                flexWrap: "wrap",
+                rowGap: 1,
+              }}
+            >
+              {[
+                { value: `Branch: ${branch}` },
+                { value: `Currency: ${currency}` },
+                { value: `Cgl: ${cgl}` },
+                {
+                  value: `Date: ${dayjs(start).format(
+                    "DD MMM YYYY",
+                  )} - ${dayjs(end).format("DD MMM YYYY")}`,
+                },
+              ]
+                .filter((item) => item.value)
+                .map((item, index) => (
+                  <Box
+                    key={index}
+                    sx={{
+                      px: { xs: 1.2, sm: 1.5 },
+                      py: 0.45,
+                      borderRadius: "20px",
+                      bgcolor: "rgba(88, 70, 159, 0.08)",
+                      border: "1px solid rgba(88, 70, 159, 0.36)",
+                      maxWidth: "100%",
+                    }}
+                  >
+                    <Typography
+                      sx={{
+                        fontSize: { xs: "0.68rem", sm: "0.72rem" },
+                        fontWeight: 500,
+                        color: "#58469f",
+                        wordBreak: "break-word",
+                      }}
+                    >
+                      {item.value}
+                    </Typography>
+                  </Box>
+                ))}
+            </Stack>
+          )}
+
+          {filtersExpanded && (
+            <>
+              {searchLoading && !data?.length && (
+                <LinearProgress
+                  sx={{
+                    height: 3,
+                    borderRadius: 999,
+                    mb: 2,
+                    bgcolor: "rgba(88,70,159,0.08)",
+                    "& .MuiLinearProgress-bar": {
+                      bgcolor: "#58469f",
+                    },
+                  }}
+                />
+              )}
+
+              <BalanceFilters
+                branch={branch}
+                setBranch={setBranch}
+                currency={currency}
+                setCurrency={setCurrency}
+                cgl={cgl}
+                setCgl={setCgl}
+                start={start}
+                setStart={setStart}
+                end={end}
+                setEnd={setEnd}
+                mode={mode}
+                setMode={setMode}
+                currencies={currencies}
+                branches={branches}
+                cgls={cgls}
+                loading={loading}
+                req={req}
+                handleSearchChange={handleSearchChange}
+                fetchCurrencies={fetchCurrencies}
+                handleSubmit={handleSubmit}
+                resetState={resetState}
+                isNumeric={isNumeric}
+                user={user}
+                permissions={permissions}
+                etlDate={etlDate}
+                glcc={glcc}
+                setGlcc={setGlcc}
+                glccValidated={glccValidated}
+                setGlccValidated={setGlccValidated}
+                validateGlcc={validateGlcc}
+                glccLoading={glccLoading}
+              />
+            </>
+          )}
+        </Paper>
+
+        {data && (
+          <BalanceTable
+            data={data}
+            loading={loading.balance}
+            rowCount={rowCount}
+            paginationModel={paginationModel}
+            setPaginationModel={setPaginationModel}
+            sortModel={sortModel}
+            setSortModel={setSortModel}
+            handleDownloadExcel={handleDownloadExcel}
+            exportLoading={exportLoading}
+          />
+        )}
+      </Box>
+    </>
   );
 }
