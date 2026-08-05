@@ -1,1 +1,125 @@
+...params.inputProps,
+                    maxLength: isNumeric(params.inputProps.value) ? 5 : 15,
+                  },
+                }}
+                InputProps={{
+                  ...params.InputProps,
+                  endAdornment: (
+                    <>
+                      {searchLoading.branch ? <CircularProgress size={14} sx={{ color: "rgba(255,255,255,0.5)" }} /> : null}
+                      {params.InputProps.endAdornment}
+                    </>
+                  ),
+                }}
+              />
+            )}
+          />
+        </RailField>
 
+        <RailField icon={<PublicRoundedIcon sx={{ fontSize: 17 }} />} label="Currency">
+          <Autocomplete
+            {...railAutocompleteProps}
+            autoHighlight
+            forcePopupIcon={false}
+            options={currencies}
+            value={currencies.find((c) => c.currencyCode === filters.currency) || null}
+            inputValue={currencyInput}
+            loading={searchLoading.currency}
+            getOptionLabel={(option) => (option ? `${option.currencyCode} - ${option.currencyName}` : "")}
+            onInputChange={(e, value, reason) => {
+              if (reason === "input" && !CURRENCY_ALLOWED_REGEX.test(value)) {
+                showSnackBar(INVALID_CURRENCY_MSG, "warning");
+                return;
+              }
+              setCurrencyInput(value);
+            }}
+            onChange={(e, newValue) => {
+              updateFilter("currency", newValue ? newValue.currencyCode : "");
+              setCurrencyInput(newValue ? `${newValue.currencyCode} - ${newValue.currencyName}` : "");
+            }}
+            onOpen={fetchCurrencies}
+            renderInput={(params) => (
+              <TextField
+                {...params}
+                placeholder={!filters.currency ? "Please select Currency" : ""}
+                sx={railFieldSx}
+              />
+            )}
+          />
+        </RailField>
+
+        <RailField icon={<NumbersRoundedIcon sx={{ fontSize: 17 }} />} label="CGL number">
+          <Autocomplete
+            {...railAutocompleteProps}
+            freeSolo
+            autoHighlight
+            forcePopupIcon={false}
+            clearIcon={cglInput ? undefined : null}
+            options={cgls}
+            inputValue={cglInput}
+            loading={searchLoading.cgl}
+            noOptionsText={cglInput.length < 3 ? "Please enter at least 3 characters" : "No Options"}
+            onInputChange={(e, value, reason) => {
+              if (reason === "input" && !CGL_ALLOWED_REGEX.test(value)) {
+                showSnackBar(INVALID_CGL_MSG, "warning");
+                return;
+              }
+              setCglInput(value);
+              handleSearchChange(value, reason, "cgl");
+            }}
+            onChange={(e, value) => {
+              setCglInput(value || "");
+              const code = value ? value.split(" - ")[0] : "";
+              updateFilter("cgl", code);
+            }}
+            onClose={(e, reason) => {
+              if (reason === "blur") handleSearchChange(cglInput, "blur", "cgl");
+            }}
+            renderInput={(params) => (
+              <TextField
+                {...params}
+                placeholder="eg. 9999999999"
+                sx={railFieldSx}
+                slotProps={{
+                  htmlInput: {
+                    ...params.inputProps,
+                    maxLength: isNumeric(params.inputProps.value) ? 10 : 30,
+                  },
+                }}
+                InputProps={{
+                  ...params.InputProps,
+                  endAdornment: (
+                    <>
+                      {searchLoading.cgl ? <CircularProgress size={14} sx={{ color: "rgba(255,255,255,0.5)" }} /> : null}
+                      {params.InputProps.endAdornment}
+                    </>
+                  ),
+                }}
+              />
+            )}
+          />
+        </RailField>
+
+        <Box sx={{ mt: "auto", pt: 1.5 }}>
+          <Button
+            fullWidth
+            variant="contained"
+            disableElevation
+            startIcon={<SearchRoundedIcon />}
+            onClick={handleSearch}
+            disabled={!(filters.date && filters.branchCode && filters.currency && filters.cgl)}
+            sx={{ textTransform: "none", fontWeight: 700, borderRadius: "10px", py: 1, bgcolor: ACCENT, mb: 1, "&:hover": { bgcolor: "#4F46E5" }, "&.Mui-disabled": { bgcolor: "rgba(99,102,241,0.35)", color: "rgba(255,255,255,0.5)" } }}
+          >
+            Search
+          </Button>
+          <Button
+            fullWidth
+            variant="text"
+            startIcon={<RestartAltRoundedIcon />}
+            onClick={handleReset}
+            sx={{ textTransform: "none", fontWeight: 700, color: "rgba(255,255,255,0.6)", py: 0.75, "&:hover": { bgcolor: "rgba(255,255,255,0.06)" } }}
+          >
+            Reset filters
+          </Button>
+        </Box>
+      </Box>
