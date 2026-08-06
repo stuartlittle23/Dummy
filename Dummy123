@@ -1,1 +1,17 @@
-
+<RailField icon={<CalendarMonthRoundedIcon sx={{ fontSize: 17 }} />} label="ETL Date">
+  <Box sx={railFieldSx}>
+    <LocalizationProvider dateAdapter={AdapterDayjs}>
+      <DatePicker
+        value={filters.date ? dayjs(filters.date) : null}
+        onChange={(newValue) => {
+          const formatted = newValue ? newValue.format("YYYY-MM-DD") : "";
+          updateFilter("date", formatted);
+        }}
+        slotProps={{
+          textField: { fullWidth: true, size: "small" },
+          popper: { sx: { "& .MuiPaper-root": { bgcolor: RAIL_PAPER_BG, color: "#fff" } } },
+        }}
+      />
+    </LocalizationProvider>
+  </Box>
+</RailField>
