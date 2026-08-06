@@ -1,1 +1,42 @@
+const whiteFieldSx = {
+  bgcolor: "#FFFFFF !important",
+  borderRadius: "10px",
+  "& .MuiInputBase-root": {
+    bgcolor: "#FFFFFF !important",
+    color: "#0F172A !important",
+    borderRadius: "10px",
+    fontFamily: sans,
+    fontSize: 14,
+    fontWeight: 600,
+  },
+  "& .MuiInputBase-input": {
+    color: "#0F172A !important",
+    WebkitTextFillColor: "#0F172A !important",
+  },
+  "& .MuiOutlinedInput-notchedOutline": { border: "none !important" },
+  "& .MuiSvgIcon-root": { color: "#475569 !important" },
+  "& input::placeholder": { color: "#94A3B8 !important", opacity: 1 },
+  "& .MuiFormHelperText-root": { color: "rgba(255,255,255,0.55)", fontSize: 11, mx: 0, mt: 0.5 },
+  "& .MuiFormHelperText-root.Mui-error": { color: "#FCA5A5" },
+  "& .MuiAutocomplete-clearIndicator, & .MuiAutocomplete-popupIndicator": { color: "#475569 !important" },
+};
+
+const whitePopperSx = {
+  bgcolor: "#FFFFFF",
+  color: "#0F172A",
+  "& .MuiAutocomplete-option": { color: "#0F172A" },
+  "& .MuiAutocomplete-option.Mui-focused": { bgcolor: "#EEF2FF" },
+  "& .MuiAutocomplete-noOptions": { color: "#64748B" },
+  "& .MuiAutocomplete-loading": { color: "#64748B" },
+};
+const railAutocompleteProps = { componentsProps: { paper: { sx: whitePopperSx } } };
+
+
+
+textField: { fullWidth: true, size: "small", sx: whiteFieldSx },
+popper: { sx: { "& .MuiPaper-root": { bgcolor: "#FFFFFF", color: "#0F172A" } } },
+
+
+
+
 
