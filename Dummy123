@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useEffect } from "react";
+import React, { useState, useCallback, useEffect, useMemo } from "react";
 import {
   Box,
   Paper,
@@ -7,6 +7,7 @@ import {
   Autocomplete,
   IconButton,
   Button,
+  Avatar,
   Divider,
   Tooltip,
   Dialog,
@@ -14,7 +15,9 @@ import {
   DialogContent,
   DialogActions,
   Grid,
+  Stack,
   LinearProgress,
+  CircularProgress,
 } from "@mui/material";
 import { DataGrid } from "@mui/x-data-grid";
 import { LocalizationProvider, DatePicker } from "@mui/x-date-pickers";
@@ -22,123 +25,310 @@ import { AdapterDayjs } from "@mui/x-date-pickers/AdapterDayjs";
 import dayjs from "dayjs";
 import { useSelector } from "react-redux";
 
-import SearchIcon from "@mui/icons-material/Search";
-import RestartAltIcon from "@mui/icons-material/RestartAlt";
-import VisibilityIcon from "@mui/icons-material/Visibility";
+import SearchRoundedIcon from "@mui/icons-material/SearchRounded";
+import RestartAltRoundedIcon from "@mui/icons-material/RestartAltRounded";
+import SwapHorizRoundedIcon from "@mui/icons-material/SwapHorizRounded";
+import RefreshRoundedIcon from "@mui/icons-material/RefreshRounded";
+import AccountBalanceRoundedIcon from "@mui/icons-material/AccountBalanceRounded";
+import PublicRoundedIcon from "@mui/icons-material/PublicRounded";
+import NumbersRoundedIcon from "@mui/icons-material/NumbersRounded";
+import CalendarMonthRoundedIcon from "@mui/icons-material/CalendarMonthRounded";
+import VisibilityRoundedIcon from "@mui/icons-material/VisibilityRounded";
+import ErrorOutlineRoundedIcon from "@mui/icons-material/ErrorOutlineRounded";
+import CheckCircleRoundedIcon from "@mui/icons-material/CheckCircleRounded";
+import ScaleRoundedIcon from "@mui/icons-material/ScaleRounded";
 
 import useApi from "../../hooks/useApi";
 import useCustomSnackbar from "../../utils/useCustomSnackbar";
 import { getPermissions } from "../../utils/CommonUtilities";
 
-// ─── theme — light violet, matching the app background ────────────────
-const VIOLET = "#6C5CE7";
-const VIOLET_SOFT = "#F1EEFE"; // filter card background
-const CANVAS = "#F7F7FB";
-const INK = "#1E1B2E";
+// ─── design tokens ──────────────────────────────────────────────────────
+const RAIL_BG = "#020003";
+const RAIL_PAPER_BG = "#ecf0f552"; // dropdown/popup background — must contrast with white text
+const ACCENT = "#6366F1";
+const ACCENT_LIGHT = "#818CF8";
+const INK = "#0F172A";
+const SLATE = "#64748B";
+const LINE = "#E7E9F2";
 const POSITIVE = "#0F9D58";
 const NEGATIVE = "#D93025";
-const mono = `"JetBrains Mono", "Roboto Mono", monospace`;
+const CANVAS = "#F5F6FA";
+const mono = `"JetBrains Mono", "Roboto Mono", Menlo, Consolas, monospace`;
+const sans = `"Inter", "Segoe UI", system-ui, sans-serif`;
 
-// ─── validation — same as your reference BalanceFilters ───────────────
+const TABLE_AREA_HEIGHT = 560;
+const ROW_HEIGHT = 50;
+
+// ─── validation — same regex + messages as your BalanceFilters reference ──
 const BRANCH_REGEX = /^[A-Za-z0-9/&(), -]*$/;
-const CURRENCY_REGEX = /^[A-Za-z ()]*$/;
-const CGL_REGEX = /^[A-Za-z0-9._<>/&()= -]*$/;
-const isNumeric = (v) => !!v && /^\d+$/.test(v);
-const fmt = (n) => (n == null || n === "" ? "0.00" : Number(n).toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 }));
+const CURRENCY_ALLOWED_REGEX = /^[A-Za-z ()]*$/;
+const CGL_ALLOWED_REGEX = /^[A-Za-z0-9._<>/&()= -]*$/;
 
-export default function BalanceParticularSearchScreen() {
+const INVALID_BRANCH_MSG =
+  "Invalid Branch Code/Branch Name format. Only letters, numbers, spaces, '/', '&', '(', ')', '-', and ',' are allowed.";
+const INVALID_CURRENCY_MSG =
+  "Invalid Currency format. Only letters, spaces, '(' and ')' are allowed.";
+const INVALID_CGL_MSG =
+  "Invalid CGL format. Only letters, numbers, spaces, '_', '-', '<', '>', '/', '&', '(' and ')' are allowed.";
+
+const isNumeric = (value) => {
+  if (value) {
+    const regex = /^\d+$/;
+    return regex.test(value);
+  }
+  return false;
+};
+
+function fmt(n) {
+  if (n === null || n === undefined || n === "") return "0.00";
+  return Number(n).toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+}
+
+function RailField({ icon, label, children }) {
+  return (
+    <Box sx={{ mb: 2.25 }}>
+      <Stack direction="row" spacing={0.75} alignItems="center" sx={{ mb: 0.75 }}>
+        <Box sx={{ color: ACCENT_LIGHT, display: "flex" }}>{icon}</Box>
+        <Typography sx={{ fontSize: 11.5, fontWeight: 700, color: "rgba(255,255,255,0.6)", letterSpacing: 0.5, textTransform: "uppercase" }}>
+          {label}
+        </Typography>
+      </Stack>
+      {children}
+    </Box>
+  );
+}
+
+const whiteFieldSx = {
+  bgcolor: "#FFFFFF !important",
+  borderRadius: "10px",
+  "& .MuiInputBase-root": {
+    bgcolor: "#FFFFFF !important",
+    color: "#0F172A !important",
+    borderRadius: "10px",
+    fontFamily: sans,
+    fontSize: 14,
+    fontWeight: 600,
+  },
+  "& .MuiInputBase-input": {
+    color: "#0F172A !important",
+    WebkitTextFillColor: "#0F172A !important",
+  },
+  "& .MuiOutlinedInput-notchedOutline": { border: "none !important" },
+  "& .MuiSvgIcon-root": { color: "#475569 !important" },
+  "& input::placeholder": { color: "#94A3B8 !important", opacity: 1 },
+  "& .MuiFormHelperText-root": { color: "rgba(255,255,255,0.55)", fontSize: 11, mx: 0, mt: 0.5 },
+  "& .MuiFormHelperText-root.Mui-error": { color: "#FCA5A5" },
+  "& .MuiAutocomplete-clearIndicator, & .MuiAutocomplete-popupIndicator": { color: "#475569 !important" },
+};
+
+const whitePopperSx = {
+  bgcolor: "#FFFFFF",
+  color: "#0F172A",
+  "& .MuiAutocomplete-option": { color: "#0F172A" },
+  "& .MuiAutocomplete-option.Mui-focused": { bgcolor: "#EEF2FF" },
+  "& .MuiAutocomplete-noOptions": { color: "#64748B" },
+  "& .MuiAutocomplete-loading": { color: "#64748B" },
+};
+const railAutocompleteProps = { componentsProps: { paper: { sx: whitePopperSx } } };
+
+function GridEmptyState() {
+  return (
+    <Paper
+      elevation={0}
+      sx={{
+        border: `1px dashed ${LINE}`,
+        borderRadius: "16px",
+        bgcolor: "#fff",
+        py: 9,
+        display: "flex",
+        flexDirection: "column",
+        alignItems: "center",
+        textAlign: "center",
+      }}
+    >
+      <Avatar sx={{ bgcolor: "#EEF2FF", color: ACCENT, width: 56, height: 56, mb: 2 }}>
+        <SwapHorizRoundedIcon sx={{ fontSize: 28 }} />
+      </Avatar>
+      <Typography sx={{ fontWeight: 700, fontSize: 15, color: INK }}>Ready when you are</Typography>
+      <Typography sx={{ fontSize: 13.5, color: SLATE, mt: 0.5, maxWidth: 340 }}>
+        Set your filters on the left and hit <b style={{ color: ACCENT }}>Search</b>.
+      </Typography>
+    </Paper>
+  );
+}
+
+function GridNoRowsOverlay() {
+  return (
+    <Box sx={{ height: "100%", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", textAlign: "center", px: 3 }}>
+      <Avatar sx={{ bgcolor: "#E6F4EA", color: POSITIVE, width: 56, height: 56, mb: 2 }}>
+        <CheckCircleRoundedIcon sx={{ fontSize: 28 }} />
+      </Avatar>
+      <Typography sx={{ fontWeight: 700, fontSize: 15, color: INK }}>No records match these filters</Typography>
+      <Typography sx={{ fontSize: 13.5, color: SLATE, mt: 0.5, maxWidth: 340 }}>
+        Try a different date, or clear a filter and search again.
+      </Typography>
+    </Box>
+  );
+}
+
+// ─── main component ─────────────────────────────────────────────────────
+const BalanceParticularSearchScreen = () => {
   const { callApi } = useApi();
   const showSnackBar = useCustomSnackbar();
-  const user = useSelector((s) => s.auth.user);
-  const permissions = getPermissions(useSelector((s) => s.menus.selectedMenuItem));
+
+  const user = useSelector((state) => state.auth.user);
+  const selectedMenu = useSelector((state) => state.menus.selectedMenuItem);
+  const permissions = getPermissions(selectedMenu);
 
   const [filters, setFilters] = useState({ date: "", branchCode: "", currency: "", cgl: "" });
+
+  // Autocomplete-facing state — display value vs. the raw value sent to the API
   const [branchInput, setBranchInput] = useState("");
   const [cglInput, setCglInput] = useState("");
   const [currencyInput, setCurrencyInput] = useState("");
   const [branches, setBranches] = useState([]);
   const [cgls, setCgls] = useState([]);
   const [currencies, setCurrencies] = useState([]);
-  const [searching, setSearching] = useState({ branch: false, cgl: false, currency: false });
+  const [searchLoading, setSearchLoading] = useState({ branch: false, cgl: false, currency: false });
+  const [req] = useState({ branch: true, cgl: true });
 
   const [rows, setRows] = useState([]);
   const [loading, setLoading] = useState(false);
   const [totalElements, setTotalElements] = useState(0);
+  const [etlDate, setEtlDate] = useState(null);
   const [hasSearched, setHasSearched] = useState(false);
+
   const [paginationModel, setPaginationModel] = useState({ page: 0, pageSize: 10 });
+  const [openHistory, setOpenHistory] = useState(false);
   const [selectedRow, setSelectedRow] = useState(null);
 
-  const update = (key, value) => setFilters((f) => ({ ...f, [key]: value }));
+  const updateFilter = (key, value) => setFilters((prev) => ({ ...prev, [key]: value }));
 
-  // ETL default date
+  // ── ETL Date default ──
   useEffect(() => {
-    callApi("/PS/file/fincore-date", {}, "GET")
-      .then((res) => {
-        const d = res?.data?.userDate?.split("T")[0];
-        if (d) update("date", d);
-      })
-      .catch((e) => console.error("ETL Date Error:", e));
+    const fetchDefaultETLDate = async () => {
+      try {
+        const response = await callApi("/PS/file/fincore-date", {}, "GET");
+        const raw = response?.data?.userDate;
+        const defaultDate = raw ? raw.split("T")[0] : "";
+        if (defaultDate) {
+          setEtlDate(defaultDate);
+          updateFilter("date", defaultDate);
+        }
+      } catch (err) {
+        console.error("ETL Date Error:", err);
+      }
+    };
+    fetchDefaultETLDate();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Currency list — loaded once, filtered locally (no per-keystroke API, same as reference)
+  // ── Currency list — loaded once + re-fetchable on dropdown open, matching your reference screen ──
   const fetchCurrencies = useCallback(async () => {
-    setSearching((p) => ({ ...p, currency: true }));
+    setSearchLoading((p) => ({ ...p, currency: true }));
     try {
-      const res = await callApi("/CM/common-master/currency-code-name-only", null, "GET");
-      const sorted = (res?.data || []).sort((a, b) =>
-        a.currencyCode === "INR" ? -1 : b.currencyCode === "INR" ? 1 : a.currencyName.localeCompare(b.currencyName)
-      );
+      const result = await callApi("/CM/common-master/currency-code-name-only", null, "GET");
+      const sorted = (result?.data || []).sort((a, b) => {
+        if (a.currencyCode === "INR") return -1;
+        if (b.currencyCode === "INR") return 1;
+        return a.currencyName.localeCompare(b.currencyName);
+      });
       setCurrencies(sorted);
     } catch {
       showSnackBar("Currency data not available", "error");
     } finally {
-      setSearching((p) => ({ ...p, currency: false }));
+      setSearchLoading((p) => ({ ...p, currency: false }));
     }
   }, [callApi, showSnackBar]);
-  useEffect(() => { fetchCurrencies(); }, [fetchCurrencies]);
 
-  // Branch / CGL live search — same endpoints + min-3-char rule as reference
-  const searchList = useCallback(
+  useEffect(() => {
+    fetchCurrencies();
+  }, [fetchCurrencies]);
+
+  // ── Branch / CGL debounced search (min 3 chars) — same endpoints as your reference screen ──
+  // NOTE: Currency intentionally has NO per-keystroke API call, same as your reference —
+  // it's a fixed list loaded once and filtered locally as you type. Only Branch and CGL
+  // hit a live search endpoint.
+  const fetchSearchData = useCallback(
     async (type, term) => {
-      setSearching((p) => ({ ...p, [type]: true }));
       try {
-        const circle = permissions?.wholebank ? "null" : user?.isCircle ? user?.circleCode : "";
+        setSearchLoading((p) => ({ ...p, [type]: true }));
+        let circleValue = "";
+        if (permissions?.wholebank === true) {
+          circleValue = "null";
+        } else if (user?.isCircle === true || permissions?.circle) {
+          circleValue = user?.circleCode;
+        }
+
         const url =
           type === "branch"
-            ? `/CM/common-master/branches-code-name-only?q=${encodeURIComponent(term)}&circleCode=${circle || ""}`
+            ? `/CM/common-master/branches-code-name-only?q=${encodeURIComponent(term)}&circleCode=${circleValue || ""}`
             : `/CM/common-master/cgl-code-description-only?q=${encodeURIComponent(term)}`;
-        const res = await callApi(url, null, "GET");
-        const list = res?.data || [];
-        if (type === "branch") setBranches(list.map((i) => `${i.code}-${i.name}`));
-        else setCgls(list.map((i) => `${i.cglNumber} - ${i.description}`));
+
+        const result = await callApi(url, null, "GET");
+
+        if (result?.data?.length > 0) {
+          if (type === "branch") {
+            setBranches(result.data.map((i) => `${i.code}-${i.name}`));
+          } else {
+            setCgls(result.data.map((i) => `${i.cglNumber} - ${i.description}`));
+          }
+        } else {
+          if (type === "branch") setBranches([]);
+          else setCgls([]);
+        }
       } catch (e) {
         console.error(e);
-        type === "branch" ? setBranches([]) : setCgls([]);
       } finally {
-        setSearching((p) => ({ ...p, [type]: false }));
+        setSearchLoading((p) => ({ ...p, [type]: false }));
       }
     },
     [callApi, permissions, user]
   );
 
-  const onFieldSearch = (value, reason, type) => {
-    if (reason === "input" && value?.length >= 3) searchList(type, value);
-    else if (reason === "clear" || reason === "blur") type === "branch" ? setBranches([]) : setCgls([]);
+  const handleSearchChange = (value, reason, type) => {
+    if (reason === "input") {
+      if (value?.length >= 3) fetchSearchData(type, value);
+    } else if (reason === "clear" || reason === "blur") {
+      if (type === "branch") setBranches([]);
+      if (type === "cgl") setCgls([]);
+    }
   };
 
-  // Main search
+  // ── MAIN API — payload/field names unchanged from your original ──
   const fetchData = useCallback(
-    async (date, page, pageSize) => {
+    async (date, pageIndex, pageSize) => {
       if (!date) return;
       setLoading(true);
       try {
-        const payload = { fromDate: date, toDate: date, branchCode: filters.branchCode || null, currency: filters.currency || null, cgl: filters.cgl || null };
-        const res = await callApi(`/ES/differences/search?page=${page}&size=${pageSize}`, payload, "POST");
-        const content = res?.data?.content || [];
-        setRows(content.map((item, i) => ({ id: `row-${page}-${i}`, ...item, GLCC_VAL: `${item.branchCode} ${item.currency} ${item.cgl}` })));
-        setTotalElements(res?.data?.page?.totalElements ?? 0);
-      } catch (e) {
-        console.error("Search Fail:", e);
+        const payload = {
+          fromDate: date,
+          toDate: date,
+          branchCode: filters.branchCode || null,
+          currency: filters.currency || null,
+          cgl: filters.cgl || null,
+        };
+
+        const response = await callApi(
+          `/ES/differences/search?page=${pageIndex}&size=${pageSize}`,
+          payload,
+          "POST"
+        );
+
+        // Real response shape: { data: { content: [...], page: { totalElements, ... } } }
+        const content = response?.data?.content || [];
+        const mappedRows = content.map((item, index) => ({
+          id: `row-${pageIndex}-${index}`,
+          ...item,
+          GLCC_VAL: `${item.branchCode} ${item.currency} ${item.cgl}`,
+        }));
+
+        setRows(mappedRows);
+        setTotalElements(
+          response?.data?.page?.totalElements ?? response?.data?.totalElements ?? 0
+        );
+      } catch (err) {
+        console.error("Search Fail:", err);
         setRows([]);
         setTotalElements(0);
       } finally {
@@ -149,55 +339,109 @@ export default function BalanceParticularSearchScreen() {
   );
 
   useEffect(() => {
-    if (hasSearched && filters.date) fetchData(filters.date, paginationModel.page, paginationModel.pageSize);
+    if (hasSearched && filters.date) {
+      fetchData(filters.date, paginationModel.page, paginationModel.pageSize);
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [paginationModel.page, paginationModel.pageSize]);
 
   const handleSearch = () => {
-    setPaginationModel((p) => ({ ...p, page: 0 }));
+    setPaginationModel((prev) => ({ ...prev, page: 0 }));
     setHasSearched(true);
     fetchData(filters.date, 0, paginationModel.pageSize);
   };
 
   const handleReset = () => {
-    setFilters((f) => ({ date: f.date, branchCode: "", currency: "", cgl: "" }));
-    setBranchInput(""); setCglInput(""); setCurrencyInput("");
-    setBranches([]); setCgls([]);
-    setRows([]); setTotalElements(0); setHasSearched(false);
+    setFilters({ date: etlDate || "", branchCode: "", currency: "", cgl: "" });
+    setBranchInput("");
+    setCglInput("");
+    setCurrencyInput("");
+    setBranches([]);
+    setCgls([]);
+    setRows([]);
+    setTotalElements(0);
+    setHasSearched(false);
   };
 
+  const pageStart = paginationModel.page * paginationModel.pageSize;
+  const pageEnd = Math.min(pageStart + rows.length, totalElements);
+
+  // ── DataGrid columns ──
   const columns = [
     { field: "reconRunDate", headerName: "Error Date", flex: 1, minWidth: 120 },
     { field: "GLCC_VAL", headerName: "GLCC", flex: 1.3, minWidth: 180 },
-    { field: "cbsBalance", headerName: "CBS Balance", flex: 1, minWidth: 130, align: "right", headerAlign: "right", renderCell: (p) => fmt(p.value) },
-    { field: "glBalance", headerName: "GL Balance", flex: 1, minWidth: 130, align: "right", headerAlign: "right", renderCell: (p) => fmt(p.value) },
     {
-      field: "differenceAmount",
-      headerName: "Difference",
+      field: "cbsBalance",
+      headerName: "CBS Balance",
       flex: 1,
       minWidth: 130,
       align: "right",
       headerAlign: "right",
-      renderCell: (p) => {
-        const diff = Number(p.value) || 0;
+      renderCell: (params) => (
+        <Typography sx={{ fontFamily: mono, fontSize: 13.5, fontVariantNumeric: "tabular-nums" }}>{fmt(params.value)}</Typography>
+      ),
+    },
+    {
+      field: "glBalance",
+      headerName: "GL Balance",
+      flex: 1,
+      minWidth: 130,
+      align: "right",
+      headerAlign: "right",
+      renderCell: (params) => (
+        <Typography sx={{ fontFamily: mono, fontSize: 13.5, fontVariantNumeric: "tabular-nums" }}>{fmt(params.value)}</Typography>
+      ),
+    },
+    {
+      field: "differenceAmount",
+      headerName: "Difference",
+      flex: 1,
+      minWidth: 140,
+      align: "right",
+      headerAlign: "right",
+      renderCell: (params) => {
+        const diff = Number(params.value) || 0;
+        const isMismatch = Math.abs(diff) > 0.001;
         return (
-          <Typography sx={{ fontFamily: mono, fontWeight: 700, fontSize: 13.5, color: diff === 0 ? "text.secondary" : diff < 0 ? NEGATIVE : POSITIVE }}>
-            {diff === 0 ? "0.00" : `${diff > 0 ? "+" : ""}${fmt(diff)}`}
-          </Typography>
+          <Stack direction="row" spacing={0.5} alignItems="center">
+            {isMismatch ? (
+              <ErrorOutlineRoundedIcon sx={{ fontSize: 15, color: diff < 0 ? NEGATIVE : POSITIVE }} />
+            ) : (
+              <CheckCircleRoundedIcon sx={{ fontSize: 15, color: SLATE }} />
+            )}
+            <Typography
+              sx={{
+                fontFamily: mono,
+                fontSize: 13.5,
+                fontWeight: 700,
+                fontVariantNumeric: "tabular-nums",
+                color: !isMismatch ? SLATE : diff < 0 ? NEGATIVE : POSITIVE,
+              }}
+            >
+              {diff === 0 ? "0.00" : `${diff > 0 ? "+" : ""}${fmt(diff)}`}
+            </Typography>
+          </Stack>
         );
       },
     },
     {
       field: "action",
       headerName: "",
-      width: 56,
       sortable: false,
       filterable: false,
       disableColumnMenu: true,
-      renderCell: (p) => (
+      width: 56,
+      renderCell: (params) => (
         <Tooltip title="View details">
-          <IconButton size="small" onClick={() => setSelectedRow(p.row)}>
-            <VisibilityIcon fontSize="small" />
+          <IconButton
+            size="small"
+            onClick={() => {
+              setSelectedRow(params.row);
+              setOpenHistory(true);
+            }}
+            sx={{ color: SLATE, "&:hover": { color: ACCENT, bgcolor: "#EEF2FF" } }}
+          >
+            <VisibilityRoundedIcon sx={{ fontSize: 18 }} />
           </IconButton>
         </Tooltip>
       ),
@@ -205,156 +449,328 @@ export default function BalanceParticularSearchScreen() {
   ];
 
   return (
-    <Box sx={{ bgcolor: CANVAS, minHeight: "100vh", p: 2 }}>
-      <Typography variant="h6" fontWeight={800} color={INK} mb={2}>
-        Balance Search &amp; Comparison
-      </Typography>
+    <Box sx={{ display: "flex", alignItems: "stretch", minHeight: "75vh", bgcolor: CANVAS, fontFamily: sans, borderRadius:2 }}>
+      {/* ── LEFT RAIL — filters. No fixed height: flex-stretch makes it match
+           the content column's real height, so there's never a mismatched gap. ── */}
+      <Box
+        sx={{
+          width: { xs: "100%", md: 300 },
+          flexShrink: 0,
+          bgcolor: RAIL_BG,
+          background: "linear-gradient(180deg, #402a96 0%, #4e1566 50%)",
+          color: "#fff",
+          px: 3,
+          py: 3,
+          display: "flex",
+          flexDirection: "column",
+          borderRadius:2
+        }}
+      >
+        <Stack direction="row" spacing={1.25} alignItems="center" sx={{ mb: 0.5 }}>
+          <Avatar sx={{ bgcolor: ACCENT, width: 34, height: 34 }}>
+            <ScaleRoundedIcon sx={{ fontSize: 18 }} />
+          </Avatar>
+          <Typography sx={{ fontWeight: 800, fontSize: 15 }}>Balance Compare</Typography>
+        </Stack>
+        <Typography sx={{ fontSize: 12, color: "rgba(255,255,255,0.45)", mb: 3 }}>Particular Search</Typography>
 
-      {/* Filter card — light violet, matching the app background */}
-      <Paper elevation={0} sx={{ bgcolor: VIOLET_SOFT, borderRadius: 3, p: 2.5, mb: 3 }}>
-        <Grid container spacing={2}>
-          <Grid item xs={12} sm={6} md={2.5}>
-            <LocalizationProvider dateAdapter={AdapterDayjs}>
-              <DatePicker
-                label="ETL Date"
-                value={filters.date ? dayjs(filters.date) : null}
-                onChange={(v) => update("date", v ? v.format("YYYY-MM-DD") : "")}
-                slotProps={{ textField: { fullWidth: true, size: "small", sx: { bgcolor: "#fff", borderRadius: 1 } } }}
+        <RailField icon={<CalendarMonthRoundedIcon sx={{ fontSize: 17 }} />} label="ETL Date">
+          <LocalizationProvider dateAdapter={AdapterDayjs}>
+            <DatePicker
+              value={filters.date ? dayjs(filters.date) : null}
+              onChange={(newValue) => {
+                const formatted = newValue ? newValue.format("YYYY-MM-DD") : "";
+                updateFilter("date", formatted);
+              }}
+              slotProps={{
+                textField: { fullWidth: true, size: "small", sx: whiteFieldSx },
+                popper: { sx: { "& .MuiPaper-root": { bgcolor: "#FFFFFF", color: "#0F172A" } } },
+              }}
+            />
+          </LocalizationProvider>
+        </RailField>
+
+        <RailField icon={<AccountBalanceRoundedIcon sx={{ fontSize: 17 }} />} label="Branch code or name">
+          <Autocomplete
+            {...railAutocompleteProps}
+            freeSolo
+            autoHighlight
+            forcePopupIcon={false}
+            clearIcon={branchInput ? undefined : null}
+            options={branches}
+            inputValue={branchInput}
+            loading={searchLoading.branch}
+            noOptionsText={req.branch ? "Please enter at least 3 characters" : "No Options"}
+            onInputChange={(e, value, reason) => {
+              if (reason === "input" && !BRANCH_REGEX.test(value)) {
+                showSnackBar(INVALID_BRANCH_MSG, "warning");
+                return;
+              }
+              setBranchInput(value);
+              handleSearchChange(value, reason, "branch");
+            }}
+            onChange={(e, value) => {
+              setBranchInput(value || "");
+              const code = value ? value.split("-")[0] : "";
+              updateFilter("branchCode", code);
+            }}
+            onClose={(e, reason) => {
+              if (reason === "blur") handleSearchChange(branchInput, "blur", "branch");
+            }}
+            renderInput={(params) => (
+              <TextField
+                {...params}
+                placeholder="eg. 12345 or ABC"
+                sx={whiteFieldSx}
+                slotProps={{
+                  htmlInput: {
+                    ...params.inputProps,
+                    ...params.inputProps,
+                    maxLength: isNumeric(params.inputProps.value) ? 5 : 15,
+                  },
+                }}
+                InputProps={{
+                  ...params.InputProps,
+                  endAdornment: (
+                    <>
+                      {searchLoading.branch ? <CircularProgress size={14} sx={{ color: "rgba(255,255,255,0.5)" }} /> : null}
+                      {params.InputProps.endAdornment}
+                    </>
+                  ),
+                }}
               />
-            </LocalizationProvider>
-          </Grid>
-
-          <Grid item xs={12} sm={6} md={3}>
-            <Autocomplete
-              freeSolo
-              autoHighlight
-              options={branches}
-              inputValue={branchInput}
-              loading={searching.branch}
-              noOptionsText={branchInput.length < 3 ? "Please enter at least 3 characters" : "No Options"}
-              onInputChange={(e, v, reason) => {
-                if (reason === "input" && !BRANCH_REGEX.test(v)) return showSnackBar("Only letters, numbers, spaces and / & ( ) - , are allowed.", "warning");
-                setBranchInput(v);
-                onFieldSearch(v, reason, "branch");
-              }}
-              onChange={(e, v) => { setBranchInput(v || ""); update("branchCode", v ? v.split("-")[0] : ""); }}
-              onClose={(e, reason) => reason === "blur" && onFieldSearch(branchInput, "blur", "branch")}
-              renderInput={(params) => (
-                <TextField {...params} label="Branch Code or Name*" placeholder="eg. 12345 or ABC" size="small" fullWidth
-                  sx={{ bgcolor: "#fff", borderRadius: 1 }}
-                  slotProps={{ htmlInput: { ...params.inputProps, maxLength: isNumeric(params.inputProps.value) ? 5 : 15 } }}
-                />
-              )}
-            />
-          </Grid>
-
-          <Grid item xs={12} sm={6} md={2.5}>
-            <Autocomplete
-              autoHighlight
-              options={currencies}
-              value={currencies.find((c) => c.currencyCode === filters.currency) || null}
-              inputValue={currencyInput}
-              loading={searching.currency}
-              getOptionLabel={(o) => (o ? `${o.currencyCode} - ${o.currencyName}` : "")}
-              noOptionsText="No Options"
-              onInputChange={(e, v, reason) => {
-                if (reason === "input" && !CURRENCY_REGEX.test(v)) return showSnackBar("Only letters, spaces, '(' and ')' are allowed.", "warning");
-                setCurrencyInput(v);
-              }}
-              onChange={(e, v) => { update("currency", v ? v.currencyCode : ""); setCurrencyInput(v ? `${v.currencyCode} - ${v.currencyName}` : ""); }}
-              onOpen={fetchCurrencies}
-              renderInput={(params) => (
-                <TextField {...params} label="Currency*" placeholder={!filters.currency ? "Please select Currency" : ""} size="small" fullWidth sx={{ bgcolor: "#fff", borderRadius: 1 }} />
-              )}
-            />
-          </Grid>
-
-          <Grid item xs={12} sm={6} md={2.5}>
-            <Autocomplete
-              freeSolo
-              autoHighlight
-              options={cgls}
-              inputValue={cglInput}
-              loading={searching.cgl}
-              noOptionsText={cglInput.length < 3 ? "Please enter at least 3 characters" : "No Options"}
-              onInputChange={(e, v, reason) => {
-                if (reason === "input" && !CGL_REGEX.test(v)) return showSnackBar("Only letters, numbers and common symbols are allowed.", "warning");
-                setCglInput(v);
-                onFieldSearch(v, reason, "cgl");
-              }}
-              onChange={(e, v) => { setCglInput(v || ""); update("cgl", v ? v.split(" - ")[0] : ""); }}
-              onClose={(e, reason) => reason === "blur" && onFieldSearch(cglInput, "blur", "cgl")}
-              renderInput={(params) => (
-                <TextField {...params} label="CGL*" placeholder="eg. 9999999999" size="small" fullWidth
-                  sx={{ bgcolor: "#fff", borderRadius: 1 }}
-                  slotProps={{ htmlInput: { ...params.inputProps, maxLength: isNumeric(params.inputProps.value) ? 10 : 30 } }}
-                />
-              )}
-            />
-          </Grid>
-
-          <Grid item xs={12} md={1.5} sx={{ display: "flex", gap: 1, alignItems: "center" }}>
-            <Button variant="outlined" startIcon={<RestartAltIcon />} onClick={handleReset} sx={{ borderColor: VIOLET, color: VIOLET }}>
-              Reset
-            </Button>
-            <Button
-              variant="contained"
-              startIcon={<SearchIcon />}
-              onClick={handleSearch}
-              disabled={!(filters.date && filters.branchCode && filters.currency && filters.cgl)}
-              sx={{ bgcolor: VIOLET, "&:hover": { bgcolor: "#5A4BD6" } }}
-            >
-              Search
-            </Button>
-          </Grid>
-        </Grid>
-      </Paper>
-
-      {loading && <LinearProgress sx={{ mb: 2, "& .MuiLinearProgress-bar": { bgcolor: VIOLET } }} />}
-
-      {/* Table only renders after Search is clicked */}
-      {hasSearched && (
-        <Paper elevation={0} sx={{ borderRadius: 3, overflow: "hidden", height: 520 }}>
-          <DataGrid
-            rows={rows}
-            columns={columns}
-            rowCount={totalElements}
-            loading={loading}
-            paginationMode="server"
-            paginationModel={paginationModel}
-            onPaginationModelChange={setPaginationModel}
-            pageSizeOptions={[10, 25, 50]}
-            disableRowSelectionOnClick
+            )}
           />
-        </Paper>
-      )}
+        </RailField>
 
-      {/* Detail dialog */}
-      <Dialog open={!!selectedRow} onClose={() => setSelectedRow(null)} maxWidth="xs" fullWidth>
-        <DialogTitle>Difference Details</DialogTitle>
-        <DialogContent>
+        <RailField icon={<PublicRoundedIcon sx={{ fontSize: 17 }} />} label="Currency">
+          <Autocomplete
+            {...railAutocompleteProps}
+            autoHighlight
+            forcePopupIcon={false}
+            options={currencies}
+            value={currencies.find((c) => c.currencyCode === filters.currency) || null}
+            inputValue={currencyInput}
+            loading={searchLoading.currency}
+            getOptionLabel={(option) => (option ? `${option.currencyCode} - ${option.currencyName}` : "")}
+            onInputChange={(e, value, reason) => {
+              if (reason === "input" && !CURRENCY_ALLOWED_REGEX.test(value)) {
+                showSnackBar(INVALID_CURRENCY_MSG, "warning");
+                return;
+              }
+              setCurrencyInput(value);
+            }}
+            onChange={(e, newValue) => {
+              updateFilter("currency", newValue ? newValue.currencyCode : "");
+              setCurrencyInput(newValue ? `${newValue.currencyCode} - ${newValue.currencyName}` : "");
+            }}
+            onOpen={fetchCurrencies}
+            renderInput={(params) => (
+              <TextField
+                {...params}
+                placeholder={!filters.currency ? "Please select Currency" : ""}
+                sx={whiteFieldSx}
+              />
+            )}
+          />
+        </RailField>
+
+        <RailField icon={<NumbersRoundedIcon sx={{ fontSize: 17 }} />} label="CGL number">
+          <Autocomplete
+            {...railAutocompleteProps}
+            freeSolo
+            autoHighlight
+            forcePopupIcon={false}
+            clearIcon={cglInput ? undefined : null}
+            options={cgls}
+            inputValue={cglInput}
+            loading={searchLoading.cgl}
+            noOptionsText={cglInput.length < 3 ? "Please enter at least 3 characters" : "No Options"}
+            onInputChange={(e, value, reason) => {
+              if (reason === "input" && !CGL_ALLOWED_REGEX.test(value)) {
+                showSnackBar(INVALID_CGL_MSG, "warning");
+                return;
+              }
+              setCglInput(value);
+              handleSearchChange(value, reason, "cgl");
+            }}
+            onChange={(e, value) => {
+              setCglInput(value || "");
+              const code = value ? value.split(" - ")[0] : "";
+              updateFilter("cgl", code);
+            }}
+            onClose={(e, reason) => {
+              if (reason === "blur") handleSearchChange(cglInput, "blur", "cgl");
+            }}
+            renderInput={(params) => (
+              <TextField
+                {...params}
+                placeholder="eg. 9999999999"
+                sx={whiteFieldSx}
+                slotProps={{
+                  htmlInput: {
+                    ...params.inputProps,
+                    maxLength: isNumeric(params.inputProps.value) ? 10 : 30,
+                  },
+                }}
+                InputProps={{
+                  ...params.InputProps,
+                  endAdornment: (
+                    <>
+                      {searchLoading.cgl ? <CircularProgress size={14} sx={{ color: "rgba(255,255,255,0.5)" }} /> : null}
+                      {params.InputProps.endAdornment}
+                    </>
+                  ),
+                }}
+              />
+            )}
+          />
+        </RailField>
+
+        <Box sx={{ mt: "auto", pt: 1.5 }}>
+          <Button
+            fullWidth
+            variant="contained"
+            disableElevation
+            startIcon={<SearchRoundedIcon />}
+            onClick={handleSearch}
+            disabled={!(filters.date && filters.branchCode && filters.currency && filters.cgl)}
+            sx={{ textTransform: "none", fontWeight: 700, borderRadius: "10px", py: 1, bgcolor: ACCENT, mb: 1, "&:hover": { bgcolor: "#4F46E5" }, "&.Mui-disabled": { bgcolor: "rgba(99,102,241,0.35)", color: "rgba(255,255,255,0.5)" } }}
+          >
+            Search
+          </Button>
+          <Button
+            fullWidth
+            variant="text"
+            startIcon={<RestartAltRoundedIcon />}
+            onClick={handleReset}
+            sx={{ textTransform: "none", fontWeight: 700, color: "rgba(255,255,255,0.6)", py: 0.75, "&:hover": { bgcolor: "rgba(255,255,255,0.06)" } }}
+          >
+            Reset filters
+          </Button>
+        </Box>
+      </Box>
+      {/* ── MAIN CONTENT ─────────────────────────────────────────────── */}
+      <Box sx={{ flex: 1, px: { xs: 2, md: 5 }, py: 3, minWidth: 0 }}>
+        <Stack direction={{ xs: "column", sm: "row" }} justifyContent="space-between" alignItems={{ sm: "center" }} spacing={2} sx={{ mb: 2.5 }}>
+          <Box>
+            <Typography sx={{ fontSize: { xs: 20, md: 23 }, fontWeight: 800, color: INK, letterSpacing: -0.3 }}>
+              Balance Search &amp; Comparison
+            </Typography>
+            <Typography sx={{ fontSize: 13.5, color: SLATE }}>CBS vs. GL balances, one glance at what's drifted.</Typography>
+          </Box>
+          <Tooltip title="Refresh current page">
+            <span>
+              <IconButton
+                onClick={() => hasSearched && fetchData(filters.date, paginationModel.page, paginationModel.pageSize)}
+                disabled={!hasSearched}
+                sx={{ border: `1px solid ${LINE}`, bgcolor: "#fff", borderRadius: "10px" }}
+              >
+                <RefreshRoundedIcon sx={{ fontSize: 19, color: SLATE }} />
+              </IconButton>
+            </span>
+          </Tooltip>
+        </Stack>
+
+        <Box sx={{ height: 3, mb: 1.5 }}>
+          {loading && <LinearProgress sx={{ borderRadius: 2, height: 3, "& .MuiLinearProgress-bar": { bgcolor: ACCENT } }} />}
+        </Box>
+
+        {/* Table is NOT mounted at all until a search has run — no headers,
+            no footer, no pagination controls shown prematurely. */}
+        {!hasSearched ? (
+          <GridEmptyState />
+        ) : (
+          <Paper elevation={0} sx={{ border: `1px solid ${LINE}`, borderRadius: "16px", overflow: "hidden", height: TABLE_AREA_HEIGHT, bgcolor: "#fff" }}>
+            <DataGrid
+              rows={rows}
+              columns={columns}
+              rowCount={totalElements}
+              loading={loading}
+              paginationMode="server"
+              paginationModel={paginationModel}
+              onPaginationModelChange={(model) => setPaginationModel(model)}
+              pageSizeOptions={[10, 25, 50]}
+              rowHeight={ROW_HEIGHT}
+              disableRowSelectionOnClick
+              slots={{ noRowsOverlay: GridNoRowsOverlay }}
+              sx={{
+                border: "none",
+                height: "100%",
+                fontFamily: sans,
+                "& .MuiDataGrid-columnHeaders": { bgcolor: "#FAFAFD", borderBottom: `1px solid ${LINE}`, fontSize: 11.5, fontWeight: 700, color: SLATE, textTransform: "uppercase" },
+                "& .MuiDataGrid-cell": { borderBottom: `1px solid ${LINE}`, fontSize: 13.5, color: INK },
+                "& .MuiDataGrid-row:hover": { bgcolor: "#F8FAFF" },
+                "& .MuiDataGrid-footerContainer": { borderTop: `1px solid ${LINE}`, minHeight: 44 },
+                "& .MuiTablePagination-root": { fontSize: 12.5 },
+              }}
+            />
+          </Paper>
+        )}
+      </Box>
+
+      {/* ── Detail dialog ─────────────────────────────────────────────── */}
+      <Dialog open={openHistory} onClose={() => setOpenHistory(false)} maxWidth="xs" fullWidth PaperProps={{ sx: { borderRadius: "16px" } }}>
+        <DialogTitle sx={{ fontWeight: 800, fontSize: 17, color: INK, pb: 1 }}>
+          Difference Details
+          {selectedRow && (
+            <Typography sx={{ fontFamily: mono, fontSize: 12.5, color: SLATE, fontWeight: 500, mt: 0.25 }}>
+              {selectedRow.GLCC_VAL}
+            </Typography>
+          )}
+        </DialogTitle>
+        <DialogContent sx={{ pt: 1 }}>
           {selectedRow && (
             <Grid container spacing={2}>
-              <Grid item xs={6}><Typography variant="caption" color="text.secondary">Date</Typography><Typography fontWeight={700}>{selectedRow.reconRunDate}</Typography></Grid>
-              <Grid item xs={6}><Typography variant="caption" color="text.secondary">Branch</Typography><Typography fontWeight={700}>{selectedRow.branchCode}</Typography></Grid>
-              <Grid item xs={6}><Typography variant="caption" color="text.secondary">Currency</Typography><Typography fontWeight={700}>{selectedRow.currency}</Typography></Grid>
-              <Grid item xs={6}><Typography variant="caption" color="text.secondary">CGL</Typography><Typography fontWeight={700}>{selectedRow.cgl}</Typography></Grid>
-              <Grid item xs={6}><Typography variant="caption" color="text.secondary">CBS Balance</Typography><Typography fontFamily={mono} fontWeight={700}>{fmt(selectedRow.cbsBalance)}</Typography></Grid>
-              <Grid item xs={6}><Typography variant="caption" color="text.secondary">GL Balance</Typography><Typography fontFamily={mono} fontWeight={700}>{fmt(selectedRow.glBalance)}</Typography></Grid>
-              <Grid item xs={12}><Divider sx={{ my: 1 }} /></Grid>
-              <Grid item xs={12}>
-                <Typography variant="caption" color="text.secondary">Difference</Typography>
-                <Typography variant="h5" fontFamily={mono} fontWeight={800} color={Number(selectedRow.differenceAmount) < 0 ? NEGATIVE : POSITIVE}>
+              <Grid size={{ xs: 6 }}>
+                <Typography variant="caption" sx={{ color: SLATE, fontWeight: 700 }}>Date</Typography>
+                <Typography sx={{ fontSize: 14, fontWeight: 700 }}>{selectedRow.reconRunDate}</Typography>
+              </Grid>
+              <Grid size={{ xs: 6 }}>
+                <Typography variant="caption" sx={{ color: SLATE, fontWeight: 700 }}>Branch</Typography>
+                <Typography sx={{ fontSize: 14, fontWeight: 700 }}>{selectedRow.branchCode}</Typography>
+              </Grid>
+              <Grid size={{ xs: 6 }}>
+                <Typography variant="caption" sx={{ color: SLATE, fontWeight: 700 }}>Currency</Typography>
+                <Typography sx={{ fontSize: 14, fontWeight: 700 }}>{selectedRow.currency}</Typography>
+              </Grid>
+              <Grid size={{ xs: 6 }}>
+                <Typography variant="caption" sx={{ color: SLATE, fontWeight: 700 }}>CGL</Typography>
+                <Typography sx={{ fontSize: 14, fontWeight: 700 }}>{selectedRow.cgl}</Typography>
+              </Grid>
+              <Grid size={{ xs: 6 }}>
+                <Typography variant="caption" sx={{ color: SLATE, fontWeight: 700 }}>CBS balance</Typography>
+                <Typography sx={{ fontFamily: mono, fontWeight: 700, fontSize: 16 }}>{fmt(selectedRow.cbsBalance)}</Typography>
+              </Grid>
+              <Grid size={{ xs: 6 }}>
+                <Typography variant="caption" sx={{ color: SLATE, fontWeight: 700 }}>GL balance</Typography>
+                <Typography sx={{ fontFamily: mono, fontWeight: 700, fontSize: 16 }}>{fmt(selectedRow.glBalance)}</Typography>
+              </Grid>
+              <Grid size={{ xs: 12 }}><Divider sx={{ my: 0.5, borderColor: LINE }} /></Grid>
+              <Grid size={{ xs: 12 }}>
+                <Typography variant="caption" sx={{ color: SLATE, fontWeight: 700 }}>Difference</Typography>
+                <Typography
+                  variant="h5"
+                  sx={{ fontWeight: 800, fontFamily: mono, color: Number(selectedRow.differenceAmount) < 0 ? NEGATIVE : POSITIVE }}
+                >
                   {fmt(selectedRow.differenceAmount)}
                 </Typography>
               </Grid>
             </Grid>
           )}
         </DialogContent>
-        <DialogActions>
-          <Button onClick={() => setSelectedRow(null)}>Close</Button>
+        <DialogActions sx={{ px: 3, pb: 2 }}>
+          <Button
+            variant="outlined"
+            onClick={() => setOpenHistory(false)}
+            sx={{ borderRadius: "10px", textTransform: "none", fontWeight: 700, borderColor: LINE, color: SLATE }}
+          >
+            Close
+          </Button>
         </DialogActions>
       </Dialog>
     </Box>
   );
-}
+};
+
+export default BalanceParticularSearchScreen;
