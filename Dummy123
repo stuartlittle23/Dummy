@@ -1,1 +1,225 @@
+import React from "react";
+import {
+  Typography,
+  Chip,
+  IconButton,
+  Tooltip,
+  Stack,
+} from "@mui/material";
+import VisibilityRoundedIcon from "@mui/icons-material/VisibilityRounded";
 
+const formatAmount = (value) => {
+  if (value == null) return "0.00";
+
+  return Number(value).toLocaleString("en-IN", {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  });
+};
+
+const getTypeColor = (type) => {
+  switch (type) {
+    case "Difference Change":
+      return {
+        bg: "#FFF7ED",
+        color: "#EA580C",
+      };
+
+    case "New Entry":
+      return {
+        bg: "#EFF6FF",
+        color: "#2563EB",
+      };
+
+    case "Zero Difference":
+      return {
+        bg: "#ECFDF5",
+        color: "#16A34A",
+      };
+
+    default:
+      return {
+        bg: "#F1F5F9",
+        color: "#475569",
+      };
+  }
+};
+
+export const getBalanceParticularColumns = (handleViewDetails) => [
+  {
+    field: "reconRunDate",
+    headerName: "ERROR DATE",
+    flex: 1,
+    minWidth: 120,
+  },
+
+  {
+    field: "glcc",
+    headerName: "GLCC DETAILS",
+    flex: 1.6,
+    minWidth: 220,
+
+    renderCell: ({ row }) => (
+      <Stack spacing={0.3}>
+        <Typography
+          fontWeight={700}
+          fontSize={13}
+        >
+          {row.branchCode} • {row.currency}
+        </Typography>
+
+        <Typography
+          variant="caption"
+          color="text.secondary"
+        >
+          {row.cgl}
+        </Typography>
+      </Stack>
+    ),
+  },
+
+  {
+    field: "head",
+    headerName: "HEAD",
+    flex: 0.8,
+    minWidth: 100,
+
+    renderCell: ({ value }) => (
+      <Chip
+        label={value || "-"}
+        size="small"
+        sx={{
+          bgcolor: "#EEF2FF",
+          color: "#4F46E5",
+          fontWeight: 600,
+        }}
+      />
+    ),
+  },
+
+  {
+    field: "cbsBalance",
+    headerName: "CBS BALANCE",
+    flex: 1,
+    minWidth: 140,
+    align: "right",
+    headerAlign: "right",
+
+    renderCell: ({ value }) => (
+      <Typography
+        fontFamily="monospace"
+        fontWeight={600}
+      >
+        ₹ {formatAmount(value)}
+      </Typography>
+    ),
+  },
+
+  {
+    field: "glBalance",
+    headerName: "GL BALANCE",
+    flex: 1,
+    minWidth: 140,
+    align: "right",
+    headerAlign: "right",
+
+    renderCell: ({ value }) => (
+      <Typography
+        fontFamily="monospace"
+        fontWeight={600}
+      >
+        ₹ {formatAmount(value)}
+      </Typography>
+    ),
+  },
+
+  {
+    field: "differenceAmount",
+    headerName: "DIFFERENCE",
+    flex: 1,
+    minWidth: 150,
+    align: "right",
+    headerAlign: "right",
+
+    renderCell: ({ value }) => {
+      const negative = Number(value) < 0;
+
+      return (
+        <Chip
+          label={`₹ ${formatAmount(value)}`}
+          size="small"
+          sx={{
+            bgcolor: negative ? "#FEF2F2" : "#ECFDF5",
+            color: negative ? "#DC2626" : "#16A34A",
+            fontWeight: 700,
+          }}
+        />
+      );
+    },
+  },
+
+  {
+    field: "diffBwYesterday",
+    headerName: "YESTERDAY DIFF",
+    flex: 1,
+    minWidth: 150,
+    align: "right",
+    headerAlign: "right",
+
+    renderCell: ({ value }) => (
+      <Typography
+        fontFamily="monospace"
+        fontWeight={600}
+      >
+        ₹ {formatAmount(value)}
+      </Typography>
+    ),
+  },
+
+  {
+    field: "type",
+    headerName: "TYPE",
+    flex: 1,
+    minWidth: 170,
+
+    renderCell: ({ value }) => {
+      const style = getTypeColor(value);
+
+      return (
+        <Chip
+          label={value}
+          size="small"
+          sx={{
+            bgcolor: style.bg,
+            color: style.color,
+            fontWeight: 600,
+          }}
+        />
+      );
+    },
+  },
+
+  {
+    field: "action",
+    headerName: "",
+    width: 70,
+    sortable: false,
+
+    renderCell: ({ row }) => (
+      <Tooltip title="View Details">
+        <IconButton
+          onClick={() => handleViewDetails(row)}
+          sx={{
+            bgcolor: "#EEF2FF",
+            color: "#4F46E5",
+            "&:hover": {
+              bgcolor: "#E0E7FF",
+            },
+          }}
+        >
+          <VisibilityRoundedIcon fontSize="small" />
+        </IconButton>
+      </Tooltip>
+    ),
+  },
+];
