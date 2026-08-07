@@ -1,1 +1,163 @@
 
+import React from "react";
+import {
+  Grid,
+  Card,
+  CardContent,
+  TextField,
+  Button,
+  InputAdornment,
+} from "@mui/material";
+import SearchIcon from "@mui/icons-material/Search";
+import FilterListIcon from "@mui/icons-material/FilterList";
+import dayjs from "dayjs";
+import { LocalizationProvider, DatePicker } from "@mui/x-date-pickers";
+import { AdapterDayjs } from "@mui/x-date-pickers/AdapterDayjs";
+
+const customInputStyles = {
+  "& .MuiOutlinedInput-root": {
+    borderRadius: "24px",
+    backgroundColor: "#ffffff",
+    fontSize: "0.875rem",
+    boxShadow: "0px 2px 4px rgba(0, 0, 0, 0.02)",
+    transition: "all 0.2s ease-in-out",
+    "& fieldset": {
+      borderColor: "#e2e8f0",
+    },
+    "&:hover fieldset": {
+      borderColor: "#cbd5e1",
+    },
+    "&.Mui-focused fieldset": {
+      borderColor: "#818cf8",
+      borderWidth: "1.5px",
+    },
+  },
+  "& .MuiInputLabel-root": {
+    fontSize: "0.85rem",
+    color: "#64748b",
+  },
+};
+
+const BalanceParticularSearchFilters = ({
+  filters,
+  etlDate,
+  setEtlDate,
+  updateFilter,
+  onSearch,
+  validateBranchCode,
+  validateCurrency,
+  validateCGL,
+}) => {
+  return (
+    <Card
+      elevation={0}
+      sx={{
+        mb: 3,
+        borderRadius: "16px",
+        border: "1px solid #e2e8f0",
+        backgroundColor: "#ffffff",
+        boxShadow: "0px 4px 20px rgba(0, 0, 0, 0.02)",
+      }}
+    >
+      <CardContent sx={{ p: 2.5, "&:last-child": { pb: 2.5 } }}>
+        <Grid container spacing={2} alignItems="center">
+          {/* ETL DATE */}
+          <Grid item xs={12} sm={6} md={2.5}>
+            <LocalizationProvider dateAdapter={AdapterDayjs}>
+              <DatePicker
+                label="ETL Date"
+                value={etlDate ? dayjs(etlDate) : null}
+                onChange={(newValue) => {
+                  const formattedDate = newValue ? newValue.format("YYYY-MM-DD") : "";
+                  setEtlDate(formattedDate);
+                  updateFilter("date", formattedDate);
+                }}
+                slotProps={{
+                  textField: {
+                    fullWidth: true,
+                    size: "small",
+                    sx: customInputStyles,
+                  },
+                }}
+              />
+            </LocalizationProvider>
+          </Grid>
+
+          {/* BRANCH CODE */}
+          <Grid item xs={12} sm={6} md={2}>
+            <TextField
+              fullWidth
+              label="Branch Code"
+              size="small"
+              value={filters.branchCode}
+              onChange={(e) =>
+                updateFilter("branchCode", validateBranchCode(e.target.value))
+              }
+              sx={customInputStyles}
+            />
+          </Grid>
+
+          {/* CURRENCY */}
+          <Grid item xs={12} sm={6} md={2}>
+            <TextField
+              fullWidth
+              label="Currency"
+              size="small"
+              value={filters.currency}
+              onChange={(e) =>
+                updateFilter("currency", validateCurrency(e.target.value))
+              }
+              sx={customInputStyles}
+            />
+          </Grid>
+
+          {/* CGL NUMBER */}
+          <Grid item xs={12} sm={6} md={3.5}>
+            <TextField
+              fullWidth
+              label="CGL Number"
+              size="small"
+              value={filters.cgl}
+              onChange={(e) => updateFilter("cgl", validateCGL(e.target.value))}
+              InputProps={{
+                startAdornment: (
+                  <InputAdornment position="start">
+                    <SearchIcon fontSize="small" sx={{ color: "#94a3b8" }} />
+                  </InputAdornment>
+                ),
+              }}
+              sx={customInputStyles}
+            />
+          </Grid>
+
+          {/* SEARCH BUTTON */}
+          <Grid item xs={12} md={2}>
+            <Button
+              fullWidth
+              variant="contained"
+              disableElevation
+              startIcon={<FilterListIcon />}
+              onClick={onSearch}
+              sx={{
+                height: "40px",
+                borderRadius: "24px",
+                textTransform: "none",
+                fontWeight: 700,
+                fontSize: "0.875rem",
+                background: "linear-gradient(135deg, #6366f1 0%, #4f46e5 100%)",
+                boxShadow: "0px 4px 12px rgba(99, 102, 241, 0.25)",
+                "&:hover": {
+                  background: "linear-gradient(135deg, #4f46e5 0%, #4338ca 100%)",
+                },
+              }}
+            >
+              Search
+            </Button>
+          </Grid>
+        </Grid>
+      </CardContent>
+    </Card>
+  );
+};
+
+export default BalanceParticularSearchFilters;
