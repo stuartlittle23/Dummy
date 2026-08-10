@@ -1,1 +1,240 @@
+import React, { useState, useCallback, useEffect } from "react";
+import { TextField, Button, Box, Paper, Typography, IconButton, Grid, Stack, Chip, Dialog, DialogTitle, DialogContent, DialogActions, InputAdornment } from "@mui/material";
+import { DataGrid } from "@mui/x-data-grid";
+import CalendarMonthIcon from "@mui/icons-material/CalendarMonth";
+import HistoryIcon from "@mui/icons-material/History";
+import CloseIcon from "@mui/icons-material/Close";
+import SearchIcon from "@mui/icons-material/Search";
+import useApi from "../../hooks/useApi";
+import useValidation from "./Validation";
+import dayjs from "dayjs";
+import { LocalizationProvider, DatePicker } from "@mui/x-date-pickers";
+import { AdapterDayjs } from "@mui/x-date-pickers/AdapterDayjs";
 
+const BalanceParticularSearchScreen = () => {
+  const { callApi } = useApi();
+  const { validateBranchCode, validateCurrency, validateCGL } = useValidation();
+
+  const [filters, setFilters] = useState({ date: "", branchCode: "", currency: "", cgl: "" });
+  const [rows, setRows] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [totalElements, setTotalElements] = useState(0);
+  const [etlDate, setEtlDate] = useState("");
+  const [searched, setSearched] = useState(false);
+  const [openHistory, setOpenHistory] = useState(false);
+  const [selectedRow, setSelectedRow] = useState(null);
+  const [paginationModel, setPaginationModel] = useState({ page: 0, pageSize: 25 });
+
+  const updateFilter = (key, value) => setFilters((prev) => ({ ...prev, [key]: value }));
+
+  const fetchData = useCallback(async (date, pageIndex, pageSize) => {
+    if (!date) return;
+    setLoading(true);
+    try {
+      const payload = { fromDate: date, toDate: date, branchCode: filters.branchCode || null, currency: filters.currency || null, cgl: filters.cgl || null };
+      const response = await callApi(`/ES/differences/search?page=${pageIndex}&size=${pageSize}`, payload, "POST");
+      const content = response?.data?.content || response?.content || [];
+      setRows(content.map((item, index) => ({ id: item.id || `row-${pageIndex}-${index}`, ...item, GLCC_VAL: `${item.branchCode || "-"} ${item.currency || "-"} ${item.cgl || "-"}` })));
+      setTotalElements(response?.data?.totalElements || response?.totalElements || 0);
+    } catch (err) {
+      console.error("Search Fail:", err);
+      setRows([]);
+      setTotalElements(0);
+    } finally {
+      setLoading(false);
+    }
+  }, [callApi, filters]);
+
+  useEffect(() => {
+    const fetchETLDate = async () => {
+      try {
+        const response = await callApi("/PS/file/fincore-date", {}, "GET");
+        const date = response?.data?.etlDate || response?.data?.userDate?.split("T")[0] || response?.date || "";
+        if (date) {
+          setEtlDate(date);
+          updateFilter("date", date);
+        }
+      } catch (err) {
+        console.error("ETL Date Error:", err);
+      }
+    };
+    fetchETLDate();
+  }, [callApi]);
+
+  useEffect(() => {
+    if (searched && filters.date) fetchData(filters.date, paginationModel.page, paginationModel.pageSize);
+  }, [paginationModel.page, paginationModel.pageSize]);
+
+  const handleSearch = () => {
+    setSearched(true);
+    if (paginationModel.page !== 0) setPaginationModel((prev) => ({ ...prev, page: 0 }));
+    else fetchData(filters.date, 0, paginationModel.pageSize);
+  };
+
+  const columns = [
+    { field: "reconRunDate", headerName: "Error Date", flex: 0.9, minWidth: 130 },
+    {
+      field: "GLCC_VAL",
+      headerName: "GLCC",
+      flex: 1.2,
+      minWidth: 180,
+      renderCell: (params) => (
+        <Box sx={{ lineHeight: 1.2, py: 0.5 }}>
+          <Typography variant="body2" sx={{ fontWeight: 700, fontSize: "0.8rem" }}>{params.row.branchCode || "-"} {params.row.currency || "-"}</Typography>
+          <Typography variant="caption" sx={{ color: "text.secondary", fontSize: "0.7rem" }}>{params.row.cgl || "-"}</Typography>
+        </Box>
+      ),
+    },
+    {
+      field: "cbsBalance",
+      headerName: "CBS Balance",
+      flex: 1,
+      minWidth: 150,
+      headerAlign: "right",
+      align: "right",
+      renderCell: ({ value }) => <Typography sx={{ width: "100%", textAlign: "right", fontWeight: 600 }}>{Number(value || 0).toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</Typography>,
+    },
+    {
+      field: "glBalance",
+      headerName: "GL Balance",
+      flex: 1,
+      minWidth: 150,
+      headerAlign: "right",
+      align: "right",
+      renderCell: ({ value }) => <Typography sx={{ width: "100%", textAlign: "right", fontWeight: 600 }}>{Number(value || 0).toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</Typography>,
+    },
+    {
+      field: "differenceAmount",
+      headerName: "Difference",
+      flex: 1,
+      minWidth: 150,
+      headerAlign: "right",
+      align: "right",
+      renderCell: ({ value }) => {
+        const number = Number(value || 0);
+        return <Typography sx={{ width: "100%", textAlign: "right", fontWeight: 700, color: number < 0 ? "#d32f2f" : number > 0 ? "#2e7d32" : "text.secondary" }}>{number.toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</Typography>;
+      },
+    },
+    {
+      field: "action",
+      headerName: "History",
+      flex: 0.6,
+      minWidth: 100,
+      sortable: false,
+      filterable: false,
+      renderCell: (params) => <IconButton color="primary" onClick={() => { setSelectedRow(params.row); setOpenHistory(true); }}><HistoryIcon fontSize="small" /></IconButton>,
+    },
+  ];
+
+  return (
+    <Box sx={{ width: "100%", p: 2 }}>
+      <Paper elevation={0} sx={{ p: { xs: 1.5, sm: 2, md: 2.5 }, mb: 3, bgcolor: "rgba(255,255,255,0.4)", backdropFilter: "blur(5px)", border: "1px solid", borderColor: "divider", borderRadius: 3 }}>
+        <Box sx={{ mb: 1.5, p: { xs: 1, sm: 1.2 }, borderRadius: 2, bgcolor: "background.paper", boxShadow: 2, borderLeft: "6px solid", borderColor: "secondary.main" }}>
+          <Stack direction="row" alignItems="center" spacing={1.5}>
+            <CalendarMonthIcon color="secondary" sx={{ fontSize: { xs: 30, sm: 36 } }} />
+            <Box>
+              <Stack direction="row" alignItems="center" spacing={1}>
+                <Typography variant="subtitle1" fontWeight={700} sx={{ fontSize: { xs: "0.95rem", sm: "1rem", md: "1.05rem" } }}>
+                  Date Wise Balance Search
+                </Typography>
+                <Chip label="Date Wise" size="small" sx={{ height: 22, fontSize: "0.7rem", fontWeight: 700, color: "#58469f", bgcolor: "rgba(88,70,159,0.1)" }} />
+              </Stack>
+              <Typography variant="body2" color="text.secondary" sx={{ mt: 0.2, fontSize: { xs: "0.75rem", sm: "0.82rem" } }}>
+                View balance differences for a selected date and track reconciliation history.
+              </Typography>
+            </Box>
+          </Stack>
+        </Box>
+
+        <Grid container spacing={2} alignItems="center">
+          <Grid item xs={12} sm={6} md={2.4}>
+            <LocalizationProvider dateAdapter={AdapterDayjs}>
+              <DatePicker
+                label="ETL Date*"
+                value={etlDate ? dayjs(etlDate) : null}
+                maxDate={dayjs()}
+                onChange={(newValue) => {
+                  const value = newValue ? newValue.format("YYYY-MM-DD") : "";
+                  setEtlDate(value);
+                  updateFilter("date", value);
+                }}
+                slotProps={{ textField: { fullWidth: true, size: "small", placeholder: "DD-MM-YYYY", InputLabelProps: { shrink: true } } }}
+              />
+            </LocalizationProvider>
+          </Grid>
+
+          <Grid item xs={12} sm={6} md={2.4}>
+            <TextField fullWidth label="Branch Code*" size="small" value={filters.branchCode} placeholder="eg. 12345 or ABC" InputLabelProps={{ shrink: true }} onChange={(e) => updateFilter("branchCode", validateBranchCode(e.target.value))} />
+          </Grid>
+
+          <Grid item xs={12} sm={6} md={2.4}>
+            <TextField fullWidth label="Currency*" size="small" value={filters.currency} placeholder="Please select Currency" InputLabelProps={{ shrink: true }} onChange={(e) => updateFilter("currency", validateCurrency(e.target.value))} />
+          </Grid>
+
+          <Grid item xs={12} sm={6} md={2.4}>
+            <TextField fullWidth label="CGL*" size="small" value={filters.cgl} placeholder="eg. 9999999999" InputLabelProps={{ shrink: true }} onChange={(e) => updateFilter("cgl", validateCGL(e.target.value))} InputProps={{ startAdornment: <InputAdornment position="start"><SearchIcon fontSize="small" color="action" /></InputAdornment> }} />
+          </Grid>
+
+          <Grid item xs={12} md={2.4}>
+            <Box sx={{ display: "flex", justifyContent: { xs: "stretch", md: "flex-end" } }}>
+              <Button fullWidth variant="contained" startIcon={<SearchIcon />} disabled={!filters.date || loading} onClick={handleSearch} sx={{ height: 40, borderRadius: 1, textTransform: "none", fontWeight: 600, minWidth: 130 }}>
+                {loading ? "Searching..." : "Search"}
+              </Button>
+            </Box>
+          </Grid>
+        </Grid>
+      </Paper>
+
+      {searched && (
+        <Paper sx={{ width: "100%", borderRadius: 3, overflow: "hidden", bgcolor: "rgba(255,255,255,0.4)", backdropFilter: "blur(10px)", border: "1px solid rgba(255,255,255,0.3)" }}>
+          <Box sx={{ p: 2, borderBottom: "1px solid", borderColor: "divider", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+            <Typography variant="subtitle2" color="text.secondary">{loading ? "Loading..." : `${totalElements.toLocaleString("en-IN")} record(s) found`}</Typography>
+          </Box>
+          <Box sx={{ width: "100%", overflowX: "auto", height: { xs: "55vh", sm: "60vh", md: 470 } }}>
+            <DataGrid
+              rows={rows}
+              columns={columns}
+              rowCount={totalElements}
+              loading={loading}
+              paginationMode="server"
+              paginationModel={paginationModel}
+              onPaginationModelChange={setPaginationModel}
+              pageSizeOptions={[10, 25, 50]}
+              disableRowSelectionOnClick
+              rowHeight={45}
+              sx={{
+                border: "none",
+                "& .MuiDataGrid-columnHeaders": { bgcolor: "#f8f9fa", fontWeight: 700 },
+                "& .MuiDataGrid-row:hover": { backgroundColor: "#f0f4ff" },
+                "& .MuiDataGrid-cell": { fontSize: "0.82rem" },
+              }}
+            />
+          </Box>
+        </Paper>
+      )}
+
+      <Dialog open={openHistory} onClose={() => setOpenHistory(false)} fullWidth maxWidth="md">
+        <DialogTitle>
+          Difference Details
+          <IconButton onClick={() => setOpenHistory(false)} sx={{ position: "absolute", right: 8, top: 8 }}><CloseIcon /></IconButton>
+        </DialogTitle>
+        <DialogContent dividers>
+          {selectedRow && (
+            <Grid container spacing={2}>
+              <Grid item xs={12} sm={6}><Typography>Date: {selectedRow.reconRunDate || "-"}</Typography></Grid>
+              <Grid item xs={12} sm={6}><Typography>Branch: {selectedRow.branchCode || "-"}</Typography></Grid>
+              <Grid item xs={12} sm={6}><Typography>Currency: {selectedRow.currency || "-"}</Typography></Grid>
+              <Grid item xs={12} sm={6}><Typography>CGL: {selectedRow.cgl || "-"}</Typography></Grid>
+              <Grid item xs={12} sm={6}><Typography>CBS: {selectedRow.cbsBalance ?? "-"}</Typography></Grid>
+              <Grid item xs={12} sm={6}><Typography>GL: {selectedRow.glBalance ?? "-"}</Typography></Grid>
+              <Grid item xs={12}><Typography sx={{ color: selectedRow.differenceAmount < 0 ? "#d32f2f" : "#2e7d32", fontWeight: 700 }}>Difference: {selectedRow.differenceAmount ?? "-"}</Typography></Grid>
+            </Grid>
+          )}
+        </DialogContent>
+        <DialogActions><Button onClick={() => setOpenHistory(false)}>Close</Button></DialogActions>
+      </Dialog>
+    </Box>
+  );
+};
+
+export default BalanceParticularSearchScreen;
