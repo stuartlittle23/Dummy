@@ -2,17 +2,16 @@ import React from "react";
 import { Box, Typography, Chip } from "@mui/material";
 import { DataGrid } from "@mui/x-data-grid";
 import ErrorOutlineOutlinedIcon from "@mui/icons-material/ErrorOutlineOutlined";
-import MoreVertIcon from "@mui/icons-material/MoreVert";
 
 const columns = [
   { field: "errorDate", headerName: "Error Date", flex: 1 },
   { field: "branchCode", headerName: "Branch", flex: 1 },
-  { field: "currency", headerName: "Currency", flex: 0.9 },
+  { field: "currency", headerName: "Currency", flex: 1 },
   { field: "cgl", headerName: "CGL", flex: 1 },
-  { field: "cbsBalance", headerName: "CBS Balance", flex: 1.1 },
-  { field: "glBalance", headerName: "GL Balance", flex: 1.1 },
-  { field: "differenceAmount", headerName: "Difference Amount", flex: 1.2 },
-  { field: "diffYesterday", headerName: "Diff. Yesterday", flex: 1.1 },
+  { field: "cbsBalance", headerName: "CBS Balance", flex: 1.2 },
+  { field: "glBalance", headerName: "GL Balance", flex: 1.2 },
+  { field: "differenceAmount", headerName: "Difference Amount", flex: 1.3 },
+  { field: "diffYesterday", headerName: "Diff. Yesterday", flex: 1.2 },
   { field: "type", headerName: "Type", flex: 0.8 },
   { field: "head", headerName: "Head", flex: 0.8 },
 ];
@@ -24,179 +23,173 @@ export default function BalanceDateWiseTable({
   paginationModel,
   setPaginationModel,
 }) {
-  const tableRows = rows.map((row, index) => ({
-    ...row,
-    id: row.id || `date-wise-${index}`,
-    errorDate: row.errorDate || row.etlDate || row.date || "-",
-    branchCode: row.branchCode || row.branch || "-",
-    currency: row.currency || "-",
-    cgl: row.cgl || row.cglNumber || "-",
-    cbsBalance: row.cbsBalance ?? "-",
-    glBalance: row.glBalance ?? "-",
-    differenceAmount: row.differenceAmount ?? row.difference ?? "-",
-    diffYesterday: row.diffYesterday ?? "-",
-    type: row.type || "-",
-    head: row.head || "-",
+  const tableRows = rows.map((r, i) => ({
+    ...r,
+    id: r.id || `date-${i}`,
+    errorDate: r.errorDate || r.etlDate || r.date || "-",
+    branchCode: r.branchCode || r.branch || "-",
+    currency: r.currency || "-",
+    cgl: r.cgl || r.cglNumber || "-",
+    cbsBalance: r.cbsBalance ?? "-",
+    glBalance: r.glBalance ?? "-",
+    differenceAmount: r.differenceAmount ?? r.difference ?? "-",
+    diffYesterday: r.diffYesterday ?? "-",
+    type: r.type || "-",
+    head: r.head || "-",
   }));
 
   return (
-    <Box
-      sx={{
-        width: "100%",
-        mt: 2,
-        bgcolor: "background.paper",
-        borderRadius: 3,
-        border: "1px solid",
-        borderColor: "divider",
-        overflow: "hidden",
-        height: 430,
-      }}
-    >
-      {/* SAME TABLE HEADER */}
+    <Box sx={{ mt: 2.5, width: "100%" }}>
       <Box
         sx={{
-          height: 58,
-          px: 2.5,
-          display: "flex",
-          alignItems: "center",
-          gap: 1.5,
-          borderBottom: "1px solid",
+          width: "100%",
+          height: 470,
+          p: 1.2,
+          borderRadius: 3,
+          bgcolor: "rgba(255,255,255,.45)",
+          border: "1px solid",
           borderColor: "divider",
+          overflow: "hidden",
         }}
       >
-        <Typography fontWeight={700} fontSize="1.05rem">
-          Balance Difference Records
-        </Typography>
-
-        <Chip
-          label={totalElements ? `${totalElements} Records` : "No Records"}
-          size="small"
+        <Box
           sx={{
-            height: 24,
-            fontSize: ".7rem",
-            fontWeight: 700,
-            color: "primary.main",
-            bgcolor: "rgba(88,70,159,.08)",
+            width: "100%",
+            height: "100%",
+            bgcolor: "background.paper",
+            borderRadius: 2.5,
+            border: "1px solid",
+            borderColor: "divider",
+            overflow: "hidden",
           }}
-        />
+        >
+          <Box
+            sx={{
+              height: 62,
+              px: 2.5,
+              display: "flex",
+              alignItems: "center",
+              gap: 1.5,
+            }}
+          >
+            <Typography
+              sx={{
+                fontSize: "1.05rem",
+                fontWeight: 700,
+              }}
+            >
+              Balance Difference Records
+            </Typography>
+
+            <Chip
+              label={totalElements ? `${totalElements} Records` : "No Records"}
+              size="small"
+              sx={{
+                height: 25,
+                bgcolor: "rgba(88,70,159,.08)",
+                color: "primary.main",
+                fontSize: ".7rem",
+                fontWeight: 700,
+              }}
+            />
+          </Box>
+
+          <DataGrid
+            rows={tableRows}
+            columns={columns}
+            loading={loading}
+            rowCount={totalElements}
+            pagination
+            paginationMode="server"
+            paginationModel={paginationModel}
+            onPaginationModelChange={setPaginationModel}
+            pageSizeOptions={[25, 50, 100]}
+            disableRowSelectionOnClick
+            hideFooterSelectedRowCount
+            slots={{
+              noRowsOverlay: () => (
+                <Box
+                  sx={{
+                    height: "100%",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    gap: 1,
+                  }}
+                >
+                  <ErrorOutlineOutlinedIcon
+                    sx={{ fontSize: 23, color: "text.secondary" }}
+                  />
+                  <Typography
+                    sx={{
+                      fontSize: ".9rem",
+                      fontWeight: 600,
+                      color: "text.secondary",
+                    }}
+                  >
+                    No difference records available for the selected criteria
+                  </Typography>
+                </Box>
+              ),
+            }}
+            sx={{
+              height: "calc(100% - 62px)",
+              border: 0,
+
+              "& .MuiDataGrid-columnHeaders": {
+                height: 55,
+                minHeight: 55,
+                bgcolor: "rgba(88,70,159,.035)",
+                borderTop: "1px solid",
+                borderBottom: "1px solid",
+                borderColor: "divider",
+              },
+
+              "& .MuiDataGrid-columnHeader": {
+                px: 1.5,
+                outline: "none",
+              },
+
+              "& .MuiDataGrid-columnHeaderTitle": {
+                fontSize: ".78rem",
+                fontWeight: 700,
+                color: "primary.dark",
+              },
+
+              "& .MuiDataGrid-cell": {
+                px: 1.5,
+                fontSize: ".8rem",
+                borderBottom: "1px solid",
+                borderColor: "rgba(0,0,0,.05)",
+                outline: "none",
+              },
+
+              "& .MuiDataGrid-row:hover": {
+                bgcolor: "rgba(88,70,159,.025)",
+              },
+
+              "& .MuiDataGrid-virtualScroller": {
+                minHeight: 250,
+              },
+
+              "& .MuiDataGrid-footerContainer": {
+                height: 52,
+                minHeight: 52,
+                borderTop: "1px solid",
+                borderColor: "divider",
+              },
+
+              "& .MuiTablePagination-root": {
+                fontSize: ".8rem",
+              },
+
+              "& .MuiDataGrid-overlay": {
+                bgcolor: "transparent",
+              },
+            }}
+          />
+        </Box>
       </Box>
-
-      <DataGrid
-        rows={tableRows}
-        columns={columns.map((column) => ({
-          ...column,
-          renderHeader: (params) => (
-            <Box
-              sx={{
-                width: "100%",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "space-between",
-              }}
-            >
-              <Typography
-                sx={{
-                  fontSize: ".8rem",
-                  fontWeight: 700,
-                }}
-              >
-                {params.colDef.headerName}
-              </Typography>
-
-              <MoreVertIcon
-                sx={{
-                  fontSize: 17,
-                  color: "text.secondary",
-                }}
-              />
-            </Box>
-          ),
-        }))}
-        loading={loading}
-        rowCount={totalElements}
-        pagination
-        paginationMode="server"
-        paginationModel={paginationModel}
-        onPaginationModelChange={setPaginationModel}
-        pageSizeOptions={[25, 50, 100]}
-        disableRowSelectionOnClick
-        hideFooterSelectedRowCount
-        slots={{
-          noRowsOverlay: () => (
-            <Box
-              sx={{
-                height: "100%",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                flexDirection: "row",
-                gap: 1,
-              }}
-            >
-              <ErrorOutlineOutlinedIcon
-                sx={{
-                  fontSize: 24,
-                  color: "text.secondary",
-                }}
-              />
-
-              <Typography
-                sx={{
-                  fontSize: ".9rem",
-                  fontWeight: 600,
-                  color: "text.secondary",
-                }}
-              >
-                No difference records available for the selected criteria
-              </Typography>
-            </Box>
-          ),
-        }}
-        sx={{
-          height: 372,
-          border: 0,
-
-          "& .MuiDataGrid-columnHeaders": {
-            height: 52,
-            minHeight: 52,
-            bgcolor: "rgba(88,70,159,.04)",
-            borderBottom: "1px solid",
-            borderColor: "divider",
-          },
-
-          "& .MuiDataGrid-columnHeader": {
-            px: 1.5,
-            outline: "none",
-          },
-
-          "& .MuiDataGrid-columnHeaderTitle": {
-            fontWeight: 700,
-            fontSize: ".8rem",
-          },
-
-          "& .MuiDataGrid-cell": {
-            px: 1.5,
-            fontSize: ".8rem",
-            borderBottom: "1px solid rgba(0,0,0,.06)",
-            outline: "none",
-          },
-
-          "& .MuiDataGrid-row:hover": {
-            bgcolor: "rgba(88,70,159,.03)",
-          },
-
-          "& .MuiDataGrid-footerContainer": {
-            height: 52,
-            minHeight: 52,
-            borderTop: "1px solid",
-            borderColor: "divider",
-          },
-
-          "& .MuiDataGrid-overlay": {
-            bgcolor: "transparent",
-          },
-        }}
-      />
     </Box>
   );
 }
