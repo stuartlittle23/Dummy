@@ -1,1 +1,216 @@
+import React, { useCallback, useEffect, useState } from "react";
+import { Autocomplete, Box, Card, CardContent, Stack, TextField, Typography } from "@mui/material";
+import CalendarMonthOutlinedIcon from "@mui/icons-material/CalendarMonthOutlined";
+import SearchIcon from "@mui/icons-material/Search";
+import { DatePicker, LocalizationProvider } from "@mui/x-date-pickers";
+import { AdapterDayjs } from "@mui/x-date-pickers/AdapterDayjs";
+import dayjs from "dayjs";
+import useApi from "../../hooks/useApi";
+import useValidation from "./Validation";
+import { StyledButton } from "./Components/BalanceDifferenceStyles";
 
+const BalanceParticularSearchScreen = () => {
+  const { callApi } = useApi();
+  const { validateBranchCode, validateCurrency, validateCGL } = useValidation();
+
+  const [filters, setFilters] = useState({ date: "", branchCode: "", currency: "", cgl: "" });
+  const [rows, setRows] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [totalElements, setTotalElements] = useState(0);
+  const [etlDate, setEtlDate] = useState(null);
+
+  const updateFilter = (key, value) => setFilters((prev) => ({ ...prev, [key]: value }));
+
+  const fetchData = useCallback(async (date) => {
+    if (!date) return;
+    setLoading(true);
+    try {
+      const payload = { fromDate: date, toDate: date, branchCode: filters.branchCode || null, currency: filters.currency || null, cgl: filters.cgl || null };
+      const response = await callApi("/ES/differences/search?page=0&size=25", payload, "POST");
+      const content = response?.data?.content || response?.content || [];
+      setRows(content.map((item, index) => ({ id: item.id || `row-${index}`, ...item, GLCC_VAL: `${item.branchCode} ${item.currency} ${item.cgl}` })));
+      setTotalElements(response?.data?.totalElements || response?.totalElements || 0);
+    } catch {
+      setRows([]);
+      setTotalElements(0);
+    } finally {
+      setLoading(false);
+    }
+  }, [callApi, filters]);
+
+  useEffect(() => {
+    const fetchETLDate = async () => {
+      try {
+        const response = await callApi("/PS/file/fincore-date", {}, "GET");
+        const value = response?.data?.etlDate || response?.data?.userDate || response?.date || "";
+        if (value) {
+          const date = dayjs(value);
+          const formatted = date.format("YYYY-MM-DD");
+          setEtlDate(formatted);
+          updateFilter("date", formatted);
+        }
+      } catch (error) {
+        console.error("ETL Date Error:", error);
+      }
+    };
+    fetchETLDate();
+  }, [callApi]);
+
+  return (
+    <Box sx={{ width: "100%", p: { xs: 1, sm: 2 } }}>
+      <Card
+        elevation={0}
+        sx={{
+          borderRadius: 3,
+          bgcolor: "rgba(255,255,255,0.42)",
+          backdropFilter: "blur(8px)",
+          border: "1px solid",
+          borderColor: "divider",
+          overflow: "hidden",
+        }}
+      >
+        <Box
+          sx={{
+            px: { xs: 2, sm: 2.5 },
+            py: 1.6,
+            borderLeft: "6px solid",
+            borderColor: "primary.main",
+            bgcolor: "rgba(255,255,255,0.55)",
+          }}
+        >
+          <Stack direction="row" spacing={1.5} alignItems="center">
+            <Box
+              sx={{
+                width: 38,
+                height: 38,
+                borderRadius: 2,
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                bgcolor: "rgba(88,70,159,0.1)",
+                color: "primary.main",
+                flexShrink: 0,
+              }}
+            >
+              <CalendarMonthOutlinedIcon />
+            </Box>
+            <Box>
+              <Stack direction="row" spacing={1} alignItems="center" flexWrap="wrap">
+                <Typography sx={{ fontWeight: 800, fontSize: { xs: "0.95rem", sm: "1.05rem" } }}>
+                  Date Wise Balance Search
+                </Typography>
+                <Typography
+                  sx={{
+                    fontSize: "0.7rem",
+                    fontWeight: 700,
+                    px: 1,
+                    py: 0.25,
+                    borderRadius: 1,
+                    color: "primary.main",
+                    bgcolor: "rgba(88,70,159,0.08)",
+                  }}
+                >
+                  Date Wise
+                </Typography>
+              </Stack>
+              <Typography color="text.secondary" sx={{ fontSize: { xs: "0.72rem", sm: "0.8rem" }, mt: 0.25 }}>
+                View balance differences for a selected date and track reconciliation history.
+              </Typography>
+            </Box>
+          </Stack>
+        </Box>
+
+        <CardContent sx={{ p: { xs: 1.5, sm: 2 }, "&:last-child": { pb: 2 } }}>
+          <LocalizationProvider dateAdapter={AdapterDayjs}>
+            <Box
+              sx={{
+                display: "grid",
+                gridTemplateColumns: {
+                  xs: "1fr",
+                  sm: "repeat(2, minmax(0, 1fr))",
+                  md: "1.1fr 1.2fr 1.2fr 1.2fr auto",
+                },
+                gap: { xs: 2, sm: 2, md: 2.2 },
+                alignItems: "end",
+              }}
+            >
+              <DatePicker
+                label="ETL Date*"
+                value={etlDate ? dayjs(etlDate) : null}
+                maxDate={dayjs()}
+                onChange={(value) => {
+                  const formatted = value ? value.format("YYYY-MM-DD") : "";
+                  setEtlDate(formatted);
+                  updateFilter("date", formatted);
+                }}
+                slotProps={{
+                  textField: {
+                    fullWidth: true,
+                    size: "small",
+                    InputLabelProps: { shrink: true },
+                    placeholder: "DD-MM-YYYY",
+                  },
+                }}
+              />
+
+              <TextField
+                fullWidth
+                size="small"
+                label="Branch Code*"
+                placeholder="eg. 12345 or ABC"
+                value={filters.branchCode}
+                InputLabelProps={{ shrink: true }}
+                onChange={(e) => updateFilter("branchCode", validateBranchCode(e.target.value))}
+              />
+
+              <TextField
+                fullWidth
+                size="small"
+                label="Currency*"
+                placeholder="Please select Currency"
+                value={filters.currency}
+                InputLabelProps={{ shrink: true }}
+                onChange={(e) => updateFilter("currency", validateCurrency(e.target.value))}
+              />
+
+              <TextField
+                fullWidth
+                size="small"
+                label="CGL*"
+                placeholder="eg. 9999999999"
+                value={filters.cgl}
+                InputLabelProps={{ shrink: true }}
+                onChange={(e) => updateFilter("cgl", validateCGL(e.target.value))}
+                InputProps={{
+                  startAdornment: (
+                    <Box sx={{ display: "flex", mr: 0.8 }}>
+                      <SearchIcon sx={{ fontSize: 19, color: "text.secondary" }} />
+                    </Box>
+                  ),
+                }}
+              />
+
+              <StyledButton
+                variant="contained"
+                startIcon={<SearchIcon />}
+                disabled={!filters.date || !filters.branchCode || !filters.currency || !filters.cgl || loading}
+                onClick={() => fetchData(filters.date)}
+                sx={{
+                  minWidth: { xs: "100%", md: 120 },
+                  height: 40,
+                  borderRadius: "9px",
+                  textTransform: "none",
+                  fontWeight: 700,
+                }}
+              >
+                {loading ? "Searching..." : "Search"}
+              </StyledButton>
+            </Box>
+          </LocalizationProvider>
+        </CardContent>
+      </Card>
+    </Box>
+  );
+};
+
+export default BalanceParticularSearchScreen;
