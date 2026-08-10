@@ -1,1 +1,306 @@
+import React from "react";
+import { Box, Typography } from "@mui/material";
+import CustomChip from "../../../utils/CustomChip";
 
+const formatAmount = (value) => {
+  const number = Number(value);
+
+  if (Number.isNaN(number)) {
+    return "-";
+  }
+
+  return new Intl.NumberFormat("en-IN", {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  }).format(Math.abs(number));
+};
+
+const AmountCell = ({ value, difference = false }) => {
+  const number = Number(value);
+
+  if (Number.isNaN(number)) {
+    return (
+      <Typography
+        variant="body2"
+        sx={{
+          fontWeight: 600,
+          textAlign: "right",
+          width: "100%",
+        }}
+      >
+        -
+      </Typography>
+    );
+  }
+
+  const isNegative = number < 0;
+
+  return (
+    <Box
+      sx={{
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "flex-end",
+        height: "100%",
+        width: "100%",
+        pr: 1.5,
+      }}
+    >
+      <Typography
+        variant="body2"
+        sx={{
+          fontWeight: 600,
+          color: isNegative ? "#d32f2f" : "#2e7d32",
+          fontFeatureSettings: '"tnum"',
+          mr: 1,
+        }}
+      >
+        {formatAmount(number)}
+      </Typography>
+
+      <CustomChip
+        label={isNegative ? "Dr" : "Cr"}
+        size="small"
+        sx={{
+          height: 20,
+          fontSize: "0.68rem",
+          fontWeight: 700,
+          bgcolor: isNegative
+            ? "rgba(211, 47, 47, 0.08)"
+            : "rgba(46, 125, 50, 0.08)",
+          color: isNegative ? "#d32f2f" : "#2e7d32",
+          border: `1px solid ${
+            isNegative
+              ? "rgba(211, 47, 47, 0.2)"
+              : "rgba(46, 125, 50, 0.2)"
+          }`,
+        }}
+      />
+    </Box>
+  );
+};
+
+const DifferenceAmountCell = ({ value }) => {
+  const number = Number(value);
+
+  if (Number.isNaN(number)) {
+    return (
+      <Typography
+        variant="body2"
+        sx={{
+          fontWeight: 600,
+          textAlign: "right",
+          width: "100%",
+        }}
+      >
+        -
+      </Typography>
+    );
+  }
+
+  return (
+    <Typography
+      variant="body2"
+      sx={{
+        fontWeight: 700,
+        textAlign: "right",
+        width: "100%",
+        pr: 1.5,
+        color:
+          number < 0
+            ? "#d32f2f"
+            : number > 0
+              ? "#2e7d32"
+              : "text.secondary",
+        fontFeatureSettings: '"tnum"',
+      }}
+    >
+      {new Intl.NumberFormat("en-IN", {
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 2,
+      }).format(number)}
+    </Typography>
+  );
+};
+
+export const balanceDifferenceColumns = [
+  {
+    field: "errorDate",
+    headerName: "Error Date",
+    flex: 0.8,
+    minWidth: 130,
+    filterable: false,
+    sortingOrder: ["asc", "desc"],
+    sortable: true,
+  },
+
+  {
+    field: "branch",
+    headerName: "Branch",
+    flex: 1,
+    minWidth: 170,
+    filterable: false,
+    sortable: false,
+    renderCell: (params) => (
+      <Box sx={{ lineHeight: "1.2", py: 0.5 }}>
+        <Typography
+          variant="body2"
+          sx={{
+            fontWeight: 700,
+            fontSize: "0.8rem",
+          }}
+        >
+          {params.row.branch || "NA"}
+        </Typography>
+
+        <Typography
+          variant="caption"
+          sx={{
+            color: "text.secondary",
+            fontSize: "0.7rem",
+          }}
+        >
+          {params.row.branchName || "NA"}
+        </Typography>
+      </Box>
+    ),
+  },
+
+  {
+    field: "currency",
+    headerName: "Currency",
+    flex: 0.9,
+    minWidth: 140,
+    filterable: false,
+    sortable: false,
+    renderCell: (params) => (
+      <Box sx={{ lineHeight: "1.2", py: 0.5 }}>
+        <Typography
+          variant="body2"
+          sx={{
+            fontWeight: 700,
+            fontSize: "0.8rem",
+          }}
+        >
+          {params.row.currency || "NA"}
+        </Typography>
+
+        <Typography
+          variant="caption"
+          sx={{
+            color: "text.secondary",
+            fontSize: "0.7rem",
+          }}
+        >
+          {params.row.currencyName || "NA"}
+        </Typography>
+      </Box>
+    ),
+  },
+
+  {
+    field: "cgl",
+    headerName: "CGL",
+    flex: 1,
+    minWidth: 150,
+    filterable: false,
+    sortable: false,
+    renderCell: (params) => (
+      <Box sx={{ lineHeight: "1.2", py: 0.5 }}>
+        <Typography
+          variant="body2"
+          sx={{
+            fontWeight: 700,
+            fontSize: "0.8rem",
+          }}
+        >
+          {params.row.cgl || "NA"}
+        </Typography>
+
+        <Typography
+          variant="caption"
+          sx={{
+            color: "text.secondary",
+            fontSize: "0.7rem",
+          }}
+        >
+          {params.row.cglDescription || "NA"}
+        </Typography>
+      </Box>
+    ),
+  },
+
+  {
+    field: "cbsBalance",
+    headerName: "CBS Balance",
+    flex: 1,
+    minWidth: 180,
+    headerAlign: "right",
+    align: "right",
+    filterable: false,
+    sortable: false,
+    renderCell: (params) => (
+      <AmountCell value={params.value} />
+    ),
+  },
+
+  {
+    field: "glBalance",
+    headerName: "GL Balance",
+    flex: 1,
+    minWidth: 180,
+    headerAlign: "right",
+    align: "right",
+    filterable: false,
+    sortable: false,
+    renderCell: (params) => (
+      <AmountCell value={params.value} />
+    ),
+  },
+
+  {
+    field: "differenceAmount",
+    headerName: "Difference Amount",
+    flex: 1,
+    minWidth: 200,
+    headerAlign: "right",
+    align: "right",
+    filterable: false,
+    sortable: false,
+    renderCell: (params) => (
+      <DifferenceAmountCell value={params.value} />
+    ),
+  },
+
+  {
+    field: "diffYesterday",
+    headerName: "Diff. Yesterday",
+    flex: 1,
+    minWidth: 180,
+    headerAlign: "right",
+    align: "right",
+    filterable: false,
+    sortable: false,
+    renderCell: (params) => (
+      <DifferenceAmountCell value={params.value} />
+    ),
+  },
+
+  {
+    field: "type",
+    headerName: "Type",
+    flex: 0.7,
+    minWidth: 100,
+    filterable: false,
+    sortable: false,
+  },
+
+  {
+    field: "head",
+    headerName: "Head",
+    flex: 0.8,
+    minWidth: 120,
+    filterable: false,
+    sortable: false,
+  },
+];
