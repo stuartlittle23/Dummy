@@ -1,1 +1,100 @@
+<Box
+  sx={{
+    mb: filtersExpanded ? 1 : 0.5,
+    p: { xs: 1.5, sm: 2 },
+    borderRadius: 2,
+    bgcolor: "background.paper",
+    boxShadow: 2,
+    border: "1px solid",
+    borderColor: "divider",
+  }}
+>
+  <Stack
+    direction={{ xs: "column", sm: "row" }}
+    alignItems={{ xs: "flex-start", sm: "center" }}
+    justifyContent="space-between"
+    spacing={2}
+  >
+    <Stack direction="row" spacing={2} alignItems="center">
+      <Box
+        sx={{
+          width: 44,
+          height: 44,
+          borderRadius: 2,
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          bgcolor: "rgba(88, 70, 159, 0.1)",
+          border: "1px solid rgba(88, 70, 159, 0.2)",
+          flexShrink: 0,
+        }}
+      >
+        <CompareArrowsIcon
+          sx={{
+            fontSize: 30,
+            color: "#58469f",
+          }}
+        />
+      </Box>
 
+      <Box>
+        <Stack direction="row" spacing={1} alignItems="center" flexWrap="wrap">
+          <Typography
+            variant="subtitle1"
+            fontWeight={700}
+            lineHeight={1.2}
+            sx={{
+              fontSize: { xs: "0.95rem", sm: "1rem", md: "1.05rem" },
+            }}
+          >
+            Balance Comparison
+          </Typography>
+
+          <Chip
+            label="CBS ↔ GL"
+            size="small"
+            sx={{
+              height: 22,
+              fontSize: "0.68rem",
+              fontWeight: 700,
+              color: "#58469f",
+              bgcolor: "rgba(88, 70, 159, 0.08)",
+              border: "1px solid rgba(88, 70, 159, 0.2)",
+            }}
+          />
+        </Stack>
+
+        <Typography
+          variant="body2"
+          color="text.secondary"
+          sx={{
+            mt: 0.3,
+            fontSize: { xs: "0.75rem", sm: "0.82rem" },
+          }}
+        >
+          Compare CBS and GL balances to identify differences and discrepancies.
+        </Typography>
+      </Box>
+    </Stack>
+
+    {data && (
+      <StyledButton
+        variant="contained"
+        startIcon={<ManageSearchOutlinedIcon />}
+        onClick={() => setFiltersExpanded((prev) => !prev)}
+        sx={{
+          textTransform: "none",
+          borderRadius: "8px",
+          fontWeight: 600,
+          minWidth: { xs: "100%", sm: "140px" },
+          width: { xs: "100%", sm: "auto" },
+          height: { xs: 38, sm: 32 },
+          px: 1.5,
+          fontSize: { xs: "0.8rem", sm: "0.82rem" },
+        }}
+      >
+        {filtersExpanded ? "Hide Filters" : "Edit Search"}
+      </StyledButton>
+    )}
+  </Stack>
+</Box>
