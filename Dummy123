@@ -1,1 +1,209 @@
+import React from "react";
+import { Box, Typography } from "@mui/material";
+import CustomChip from "../../../utils/CustomChip";
 
+const formatAmount = (value) =>
+  value != null
+    ? Number(value).toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+    : "-";
+
+export const balanceDifferenceColumns = [
+  {
+    field: "errorDate",
+    headerName: "Error Date",
+    flex: 0.8,
+    minWidth: 125,
+    sortable: true,
+    filterable: false,
+  },
+  {
+    field: "branch",
+    headerName: "Branch",
+    flex: 1,
+    minWidth: 170,
+    sortable: false,
+    filterable: false,
+    renderCell: (params) => (
+      <Box sx={{ lineHeight: 1.2, py: 0.5 }}>
+        <Typography variant="body2" sx={{ fontWeight: 700, fontSize: "0.8rem" }}>
+          {params.row.branch}
+        </Typography>
+        <Typography variant="caption" sx={{ color: "text.secondary", fontSize: "0.7rem" }}>
+          {params.row.branchName || "NA"}
+        </Typography>
+      </Box>
+    ),
+  },
+  {
+    field: "currency",
+    headerName: "Currency",
+    flex: 0.9,
+    minWidth: 140,
+    sortable: false,
+    filterable: false,
+    renderCell: (params) => (
+      <Box sx={{ lineHeight: 1.2, py: 0.5 }}>
+        <Typography variant="body2" sx={{ fontWeight: 700, fontSize: "0.8rem" }}>
+          {params.row.currency}
+        </Typography>
+        <Typography variant="caption" sx={{ color: "text.secondary", fontSize: "0.7rem" }}>
+          {params.row.currencyName || "NA"}
+        </Typography>
+      </Box>
+    ),
+  },
+  {
+    field: "cgl",
+    headerName: "CGL",
+    flex: 1,
+    minWidth: 150,
+    sortable: false,
+    filterable: false,
+    renderCell: (params) => (
+      <Box sx={{ lineHeight: 1.2, py: 0.5 }}>
+        <Typography variant="body2" sx={{ fontWeight: 700, fontSize: "0.8rem" }}>
+          {params.row.cgl}
+        </Typography>
+        <Typography variant="caption" sx={{ color: "text.secondary", fontSize: "0.7rem" }}>
+          {params.row.cglDescription || "NA"}
+        </Typography>
+      </Box>
+    ),
+  },
+  {
+    field: "cbsBalance",
+    headerName: "CBS Balance",
+    flex: 1,
+    minWidth: 180,
+    headerAlign: "right",
+    align: "right",
+    sortable: false,
+    renderCell: (params) => {
+      const value = Number(params.value);
+      const negative = value < 0;
+
+      return (
+        <Box sx={{ display: "flex", alignItems: "center", justifyContent: "flex-end", width: "100%", pr: 1 }}>
+          <Typography sx={{ fontSize: "0.8rem", fontWeight: 600, color: negative ? "#d32f2f" : "#2e7d32", mr: 1 }}>
+            {formatAmount(value)}
+          </Typography>
+          <CustomChip
+            label={negative ? "Dr" : "Cr"}
+            size="small"
+            sx={{
+              height: 20,
+              fontSize: "0.68rem",
+              fontWeight: 700,
+              bgcolor: negative ? "rgba(211,47,47,.08)" : "rgba(46,125,50,.08)",
+              color: negative ? "#d32f2f" : "#2e7d32",
+              border: `1px solid ${negative ? "rgba(211,47,47,.2)" : "rgba(46,125,50,.2)"}`,
+            }}
+          />
+        </Box>
+      );
+    },
+  },
+  {
+    field: "glBalance",
+    headerName: "GL Balance",
+    flex: 1,
+    minWidth: 180,
+    headerAlign: "right",
+    align: "right",
+    sortable: false,
+    renderCell: (params) => {
+      const value = Number(params.value);
+      const negative = value < 0;
+
+      return (
+        <Box sx={{ display: "flex", alignItems: "center", justifyContent: "flex-end", width: "100%", pr: 1 }}>
+          <Typography sx={{ fontSize: "0.8rem", fontWeight: 600, color: negative ? "#d32f2f" : "#2e7d32", mr: 1 }}>
+            {formatAmount(value)}
+          </Typography>
+          <CustomChip
+            label={negative ? "Dr" : "Cr"}
+            size="small"
+            sx={{
+              height: 20,
+              fontSize: "0.68rem",
+              fontWeight: 700,
+              bgcolor: negative ? "rgba(211,47,47,.08)" : "rgba(46,125,50,.08)",
+              color: negative ? "#d32f2f" : "#2e7d32",
+              border: `1px solid ${negative ? "rgba(211,47,47,.2)" : "rgba(46,125,50,.2)"}`,
+            }}
+          />
+        </Box>
+      );
+    },
+  },
+  {
+    field: "differenceAmount",
+    headerName: "Difference Amount",
+    flex: 1,
+    minWidth: 190,
+    headerAlign: "right",
+    align: "right",
+    sortable: false,
+    renderCell: (params) => {
+      const value = Number(params.value);
+
+      return (
+        <Typography
+          variant="body2"
+          sx={{
+            width: "100%",
+            textAlign: "right",
+            fontWeight: 600,
+            fontSize: "0.8rem",
+            color: value < 0 ? "#d32f2f" : value > 0 ? "#2e7d32" : "text.secondary",
+          }}
+        >
+          {formatAmount(value)}
+        </Typography>
+      );
+    },
+  },
+  {
+    field: "diffYesterday",
+    headerName: "Diff. Yesterday",
+    flex: 1,
+    minWidth: 170,
+    headerAlign: "right",
+    align: "right",
+    sortable: false,
+    renderCell: (params) => {
+      const value = Number(params.value);
+
+      return (
+        <Typography
+          variant="body2"
+          sx={{
+            width: "100%",
+            textAlign: "right",
+            fontWeight: 600,
+            fontSize: "0.8rem",
+            color: value < 0 ? "#d32f2f" : value > 0 ? "#2e7d32" : "text.secondary",
+          }}
+        >
+          {formatAmount(value)}
+        </Typography>
+      );
+    },
+  },
+  {
+    field: "type",
+    headerName: "Type",
+    flex: 0.7,
+    minWidth: 100,
+    sortable: false,
+    filterable: false,
+  },
+  {
+    field: "head",
+    headerName: "Head",
+    flex: 0.8,
+    minWidth: 120,
+    sortable: false,
+    filterable: false,
+  },
+];
