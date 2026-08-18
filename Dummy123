@@ -1,1 +1,171 @@
 
+About this Document
+Purpose
+The document gives a brief description of the functional specifications, technical solution, assumptions and estimated efforts as per the specific requirement raised by the bank under this Change Request.
+Intended Audience
+    • Finance One Core Banking Team (F1 Group GITC)
+    • FRT Department Corporate Center
+    • FinCore TCS Development and Support Team
+    • SIT Team GITC
+    • UAT Team GITC
+    • ISD Team for Application Security Review
+
+Contents
+Contents	5
+1	CR Details & Scope	8
+1.1	Scope of change	8
+1.2	Executive Summary	8
+2	Solution	9
+2.1	Technical Feasibility of the Proposed Solution	9
+2.2	Summary	9
+2.3	Access	9
+2.3.1	General Ledger Enquiry	9
+3	Proposed Flow	13
+4	Existing Functionality	14
+5	Assumptions	15
+6	Limitations	16
+7	Out of Scope	17
+
+
+
+
+
+	
+List of Abbreviations
+Abbreviation	Expanded Form
+Requestor	Requestor is a user having access of module. Work as a Maker of request.
+Approver	Approver is a user having access of module. Work as a Checker of request.
+Bank Level	Consolidation of data
+DR/CR	DR – Debit / CR- Credit
+CGL	Corporate General Ledger
+Currency	INR and Other foreign currency used for transaction
+Branch	Entity of bank.  Refer as Branch code
+GL	General Ledger
+Enquiry	Searching GL Balances or Transactions based on user input
+GLCC	General Ledger Classification Code total 18 character. GLCC is combination of Branch, currency and CGL. First 5 Digit Branch Code next 3 Letter Currency Code and Last 10 Digit CGL Number.
+	
+
+
+
+
+
+Functional Specifications
+
+
+
+
+
+
+	
+	
+
+
+
+
+
+
+
+
+
+	
+1 CR Details & Scope
+    • Enquiry Screen to be developed in FinCore application
+
+
+
+1.1 Scope of change
+    • Enquiry Screen to be developed in FinCore application
+
+1.2 Executive Summary
+    • (Please refer to the Solution Details and other sections for the detailed changes)
+
+
+
+
+
+2 Solution
+2.1 Technical Feasibility of the Proposed Solution
+The solution proposed in this document is technically feasible subject to assumption and limitation. The following changes are required, based on the requirement shared by Business unit and the subsequent discussions:
+2.2 Summary
+Enquiry Screen to be developed in FinCore application
+2.3 Access 
+    • General Ledger Enquiry
+2.3.1 General Ledger Enquiry
+There are 4 Main Enquiry screen
+    1. GLCC Balance Enquiry.
+    a. GLCC (Optional) User can directly input GLCC. Or user can provide values individually. 
+    b. Input Details: Branch Code or Name, Currency and CGL using the search and select from drop-down menus.
+    c. User can use Reset button to clear all selection to default page.
+    d. Date Range: Select from drop down.  In case of Custom Range user need to select/enter From Date and To Date.
+    e. Search: Fill in all mandatory fields to enable the Search button and generate data.
+    f. View Results: The application will display the required data if available, or show message “No balance records available for the selected criteria”.
+    g. Export: Click the Export button to save the data as an Excel file.
+    h. Sample Excel report.
+
+
+
+    2. GLCC Transaction Enquiry
+    a. GLCC (Optional) User can directly input GLCC. Or user can provide values individually. 
+    b. Enter Details: Input Details: Branch Code or Name, Currency, CGL and Transaction Type (Default All Selection) using the search and drop-down menus.
+    c. User can use Reset button to clear all selection to default page.
+    d. Date Range: Select from drop down. In case of Custom Range user need to select/enter From Date and To Date.
+    e. Additionally filter From Amount and To Amount (In Case user required specific amount range) this optional.
+    f. Search: Fill in all mandatory fields to enable the Search button and generate data.
+    g. View Results: The application will display the required data if available, or show message “No transactions available for the selected criteria”
+    h. Export: Click the Export button to save the data as an Excel file. 
+
+    3. GL Account Enquiry
+    a. Enter Details: Select Circles (Default All Circles), Select Branches (Default All Branches), CGL, Currency (Default All Currencies) and Transaction Type (Default All Transaction Types) using the search and drop-down menus.
+    b. User can use Reset button to clear all selection to default page.
+    c. Date Range: Select from drop down. In case of Custom Range user need to select/enter From Date and To Date.
+    d. User can use Reset button to clear all selection including default branch. Reset button will set Transaction Type, Select Circle and Currency to Default option.
+    e. Search: Fill in all mandatory fields to enable the Search button and generate data.
+    f. View Results: The application will display the required data if available, or show message “No transactions available for the selected criteria”
+    g. Table filtering to be enabled for data visible on the screen.
+    h. Export: Click the Export button to save the data as an Excel file. 
+    i. Sample Excel report
+
+
+
+
+    4. GL Balance Enquiry
+    a. Enter Details: Select Circles (Default All Circles), Select Branches (Default All Branches in case of Collation), CGL (Default All CGLs), Currency (Default All Currencies) using the search and drop-down menus. Default Enquiry Type is Collation.
+    b. In case of Enquiry Type is Consolidation then user can have Select Circle option (Select Branches will not be available).
+    c. User can use Reset button to clear all selection and set to default.
+    d. Balance Date: User can select single date for Collation or Consolidation data.
+    e. Search: Fill in all mandatory fields to enable the Search button and generate data.
+    f. View Results: The application will display the required data if available, or show message “No balances available for the selected criteria”
+    g. Table filtering to be enabled for data visible on the screen.
+    h. Export: Click the Export button to save the data as an Excel file. 
+    i. Sample Excel report
+
+
+
+
+3 Proposed Flow
+    • There is no flow involved in the enquiry.
+
+4 Existing Functionality 
+    • Not Applicable. FinCore is new application.
+
+
+
+
+5 Assumptions
+1	Assigning of role/screen as mentioned above is out of scope this change request.
+2	There is no transaction posting involved in this change request.
+6 Limitations
+1	Not applicable
+
+7 Out of Scope
+
+
+
+
+
+
+
+
+
+
+--------- End of the Document ----------
