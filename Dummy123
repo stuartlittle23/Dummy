@@ -7,7 +7,7 @@ const handleExport = async () => {
     const payload = {
       reconRunDate: etlDate.format("YYYY-MM-DD"),
       branchCode: branch?.split("-")[0] || null,
-      currency: currency || null,
+      currency,
       cgl: cgl?.split(" - ")[0] || null,
     };
 
@@ -18,11 +18,21 @@ const handleExport = async () => {
       "arraybuffer"
     );
 
-    const fileName = `Balance_Difference_${payload.branchCode}_${payload.currency}_${payload.cgl}`;
+    if (downloadResponse?.byteLength > 0) {
+      const blob = new Blob([downloadResponse], {
+        type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+      });
 
-    if (downloadResponse && downloadResponse.byteLength > 0) {
-      downloadFile(downloadResponse, "excel", fileName);
-      return;
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement("a");
+
+      link.href = url;
+      link.download = `Balance_Difference_${payload.branchCode}_${payload.currency}_${payload.cgl}.xlsx`;
+
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.URL.revokeObjectURL(url);
     }
   } catch (error) {
     console.error("Export Error:", error);
