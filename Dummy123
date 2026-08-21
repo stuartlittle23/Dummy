@@ -1,488 +1,526 @@
-import React,{useState,useEffect,useCallback}from"react";
-import{Box,Paper,Typography,Stack,Autocomplete,TextField,Chip}from"@mui/material";
-import{DatePicker,LocalizationProvider}from"@mui/x-date-pickers";
-import{AdapterDayjs}from"@mui/x-date-pickers/AdapterDayjs";
-import CalendarMonthIcon from"@mui/icons-material/CalendarMonth";
-import ManageSearchOutlinedIcon from"@mui/icons-material/ManageSearchOutlined";
-import SearchIcon from"@mui/icons-material/Search";
-import RestartAltIcon from"@mui/icons-material/RestartAlt";
-import {useSelector}from"react-redux";
-import dayjs from"dayjs";
-import useApi from"../../hooks/useApi";
-import useCustomSnackbar from"../../utils/useCustomSnackbar";
-import{getPermissions}from"../../utils/CommonUtilities";
-import BalanceDateWiseTable from"./Components/BalanceDateWiseTable";
-import{StyledButton}from"./Components/BalanceDifferenceStyles";
+import React, { useEffect, useState, useCallback } from "react";
+import useApi from "../../hooks/useApi";
+import useCustomSnackbar from "../../utils/useCustomSnackbar";
+import dayjs from "dayjs";
+import { Box, Paper, Typography, Stack, LinearProgress ,Chip} from "@mui/material";
+import CompareArrowsIcon from "@mui/icons-material/CompareArrows";
+import ManageSearchOutlinedIcon from "@mui/icons-material/ManageSearchOutlined";
+import { useSelector } from "react-redux";
+import { getPermissions } from "../../utils/CommonUtilities";
+import BalanceDifferenceFilters from "./Components/BalanceDifferenceFilters";
+import BalanceDifferenceTable from "./Components/BalanceDifferenceTable";
+import { StyledButton } from "./Components/BalanceDifferenceStyles";
 import downloadFile from "../../utils/DownloadUtils";
 
-export default function BalanceParticularSearchScreen(){
- const{callApi}=useApi(),showSnackBar=useCustomSnackbar();
- const user=useSelector(s=>s.auth.user),selectedMenu=useSelector(s=>s.menus.selectedMenuItem),permissions=getPermissions(selectedMenu);
- const[rows,setRows]=useState([]),[rowCount,setRowCount]=useState(0),[loading,setLoading]=useState(false),[searched,setSearched]=useState(false),[filtersExpanded,setFiltersExpanded]=useState(true);
- const [exportLoading,setExportLoading] =useState(true);
- const[etlDate,setEtlDate]=useState(null),[glcc,setGlcc]=useState(""),[glccValidated,setGlccValidated]=useState(false),[glccLoading,setGlccLoading]=useState(false);
- const[branch,setBranch]=useState(""),[branchInput,setBranchInput]=useState(""),[branches,setBranches]=useState([]);
- const[currency,setCurrency]=useState(""),[currencyInput,setCurrencyInput]=useState(""),[currencies,setCurrencies]=useState([]);
- const[cgl,setCgl]=useState(""),[cglInput,setCglInput]=useState(""),[cgls,setCgls]=useState([]);
- const[paginationModel,setPaginationModel]=useState({page:0,pageSize:25});
+export default function BalanceRengeSearchScreen() {
+  const { callApi } = useApi();
+  const showSnackBar = useCustomSnackbar();
+  const user = useSelector((state) => state.auth.user);
+  const selectedMenu = useSelector((state) => state.menus.selectedMenuItem);
+  const permissions = getPermissions(selectedMenu);
 
+  const [data, setData] = useState(null);
+  const [branches, setBranches] = useState([]);
+  const [cgls, setCgls] = useState([]);
+  const [currencies, setCurrencies] = useState([]);
+  const [start, setStart] = useState(null);
+  const [end, setEnd] = useState(null);
+  const [currency, setCurrency] = useState("");
+  const [cgl, setCgl] = useState(null);
+   const [exportLoading,setExportLoading] =useState(true);
+  const branchCodeStr = String(user?.branch || "").padStart(5, "0");
+  const [branch, setBranch] = useState(
+    user?.isCircle === false ? `${branchCodeStr}-${user?.branchName || ""}` : ""
+  );
+  const [etlDate, setEtlDate] = useState(null);
+  const [searchLoading, setSearchLoading] = useState(false);
+  const [glcc, setGlcc] = useState("");
+  const [glccValidated, setGlccValidated] = useState(false);
+  const [glccLoading, setGlccLoading] = useState(false);
+  const [loading, setLoading] = useState({
+    branch: false,
+    cgl: false,
+    currency: false,
+    balance: false,
+  });
+  const [rowCount, setRowCount] = useState(0);
+  const [req] = useState({ branch: true, cgl: true });
+  const [filtersExpanded, setFiltersExpanded] = useState(true);
+  const [paginationModel, setPaginationModel] = useState({
+    page: 0,
+    pageSize: 25,
+  });
 
- const fetchCurrencies=useCallback(async()=>{
-  try{
-   const res=await callApi("/CM/common-master/currency-code-name-only",null,"GET");
-   setCurrencies((res?.data||[]).sort((a,b)=>a.currencyCode==="INR"?-1:b.currencyCode==="INR"?1:a.currencyName.localeCompare(b.currencyName)));
-  }catch{showSnackBar("Currency data not available","error")}
- },[callApi,showSnackBar]);
+  const isNumeric = (value) => (value ? /^\d+$/.test(value) : false);
 
- const fetchSearchData=useCallback(async(type,term)=>{
-  if(!term||term.length<3)return;
-  try{
-   let circleValue="";
-   if(permissions?.wholebank===true)circleValue="null";
-   else if(user?.isCircle===true||permissions?.circle)circleValue=user?.circleCode;
-   const url=type==="branch"
-    ?`/CM/common-master/branches-code-name-only?q=${encodeURIComponent(term)}&circleCode=${circleValue||""}`
-    :`/CM/common-master/cgl-code-description-only?q=${encodeURIComponent(term)}`;
-   const res=await callApi(url,null,"GET");
-   if(type==="branch")setBranches((res?.data||[]).map(i=>`${i.code}-${i.name}`));
-   else setCgls((res?.data||[]).map(i=>`${i.cglNumber} - ${i.description}`));
-  }catch(e){console.error(e)}
- },[callApi,permissions,user]);
+  const fetchDifferences = useCallback(async () => {
+    try {
+      setLoading((prev) => ({ ...prev, balance: true }));
 
- const validateGlcc=async(value)=>{
-  try{
-   setGlccLoading(true);
-   const response=await callApi("/CM/common-master/validate-glcc",{glcc:value},"POST");
-   const data=response?.data;
-   if(data?.valid){
-    setBranch(`${data.branchCode}-${data.branchName?.trim()||""}`);
-    setBranchInput(`${data.branchCode}-${data.branchName?.trim()||""}`);
-    setCurrency(data.currencyCode);
-    setCurrencyInput(data.currencyCode);
-    setCgl(`${data.cglNumber} - ${data.cglDescription}`);
-    setCglInput(`${data.cglNumber} - ${data.cglDescription}`);
-    setGlccValidated(true);
-   }else{
-    setGlccValidated(false);setBranch("");setBranchInput("");setCurrency("");setCurrencyInput("");setCgl("");setCglInput("");
-    showSnackBar(data?.errors?.join(", ")||"Invalid GLCC","error");
-   }
-  }catch(error){
-   setGlccValidated(false);setBranch("");setBranchInput("");setCurrency("");setCurrencyInput("");setCgl("");setCglInput("");
-   const errors=error?.response?.data?.data?.errors||error?.response?.data?.errors;
-   showSnackBar(errors?.join(", ")||"Invalid GLCC","error");
-  }finally{setGlccLoading(false)}
- };
+      const matched = branch?.match(/^(\d{5})-/);
+      if (!matched || !start || !end) return;
 
- useEffect(()=>{fetchCurrencies()},[fetchCurrencies]);
+      const payload = {
+        fromDate: start.format("YYYY-MM-DD"),
+        toDate: end.format("YYYY-MM-DD"),
+        branchCode: matched[1],
+        currency: currency || null,
+        cgl: cgl?.split(" - ")[0] || null,
+      };
 
- useEffect(()=>{
-  (async()=>{
-   try{
-    const res=await callApi("/PS/file/fincore-date",{},"GET");
-    const raw=res?.data?.userDate||res?.data?.etlDate||res?.date||"";
-    if(raw)setEtlDate(dayjs(raw.split("T")[0]));
-   }catch(e){console.error("ETL Date Error:",e)}
-  })();
- },[callApi]);
+      const response = await callApi(
+        `/ES/differences/search?page=${paginationModel.page}&size=${paginationModel.pageSize}`,
+        payload,
+        "POST"
+      );
 
- const fetchData=useCallback(async(page=0,size=25)=>{
-  if(!etlDate)return;
-  try{
-   setLoading(true);
-   const payload={fromDate:etlDate.format("YYYY-MM-DD"),toDate:etlDate.format("YYYY-MM-DD"),branchCode:branch?.split("-")[0]||null,currency:currency||null,cgl:cgl?.split(" - ")[0]||null};
-   const res=await callApi(`/ES/differences/search?page=${page}&size=${size}`,payload,"POST");
-   const content=res?.data?.content||res?.content||[];
-   setRows(content.map((item,index)=>({...item,id:item.id||`row-${page}-${index}`,GLCC_VAL:`${item.branchCode||""} ${item.currency||""} ${item.cgl||""}`})));
-   setRowCount(res?.data?.totalElements||res?.totalElements||0);
-  }catch(e){
-   setRows([]);setRowCount(0);showSnackBar("No records found","error");
-  }finally{setLoading(false)}
- },[callApi,etlDate,branch,currency,cgl,showSnackBar]);
+      const content = response?.data?.content ?? response?.content ?? [];
+      const totalElements =
+        response?.data?.totalElements ?? response?.totalElements ?? 0;
 
- const handleExport = async () => {
-  try {
-    setExportLoading(true);
+      if (!Array.isArray(content)) {
+        throw new Error("Unexpected response format");
+      }
 
-    const payload = {
-      reconRunDate: etlDate.format("DD-MM-YYYY"),
-      branchCode: branch?.split("-")[0],
-      currency: currency,
-      cgl: cgl?.split(" - ")[0],
+      const mappedData = content.map((item, index) => ({
+        id: item.id ?? `difference-${paginationModel.page}-${index}`,
+        errorDate: item.FIRST_ERROR_DATE || "-",
+        reconDate: item.reconRunDate || "-",
+        branch: item.branchCode || "-",
+        branchName: item.branchName || "NA",
+        currency: item.currency || "-",
+        currencyName: item.currencyName || "NA",
+        cgl: item.cgl || "-",
+        cglDescription: item.cglDescription || item.description || "NA",
+        cbsBalance: item.cbsBalance ?? 0,
+        glBalance: item.glBalance ?? 0,
+        differenceAmount: item.differenceAmount ?? 0,
+        diffYesterday: item.diffBwYesterday ?? item.diffYesterday ?? 0,
+        type: item.type || "-",
+        head: item.head || "-",
+      }));
+
+      setData(mappedData);
+      setRowCount(totalElements);
+      setFiltersExpanded(false);
+
+      if (mappedData.length === 0) {
+        showSnackBar("No records found", "info");
+      }
+    } catch (error) {
+      console.error("Balance Difference API Error:", error);
+      setData([]);
+      setRowCount(0);
+      showSnackBar(
+        error?.message || "Failed to fetch balance difference records.",
+        "error"
+      );
+    } finally {
+      setLoading((prev) => ({ ...prev, balance: false }));
+      setSearchLoading(false);
+    }
+  }, [
+    callApi,
+    branch,
+    currency,
+    cgl,
+    start,
+    end,
+    paginationModel,
+    showSnackBar,
+  ]);
+
+  const validateGlcc = async (value) => {
+    try {
+      setGlccLoading(true);
+
+      const response = await callApi(
+        "/CM/common-master/validate-glcc",
+        { glcc: value },
+        "POST"
+      );
+
+      const glccData = response?.data;
+
+      if (glccData?.valid) {
+        setBranch(
+          `${glccData.branchCode}-${glccData.branchName?.trim() || ""}`
+        );
+        setCurrency(glccData.currencyCode);
+        setCgl(`${glccData.cglNumber} - ${glccData.cglDescription}`);
+        setGlccValidated(true);
+      } else {
+        setGlccValidated(false);
+        setBranch("");
+        setCurrency("");
+        setCgl("");
+        showSnackBar(
+          glccData?.errors?.join(", ") || "Invalid GLCC",
+          "error"
+        );
+      }
+    } catch (error) {
+      setGlccValidated(false);
+      setBranch("");
+      setCurrency("");
+      setCgl("");
+
+      const errors =
+        error?.response?.data?.data?.errors ||
+        error?.response?.data?.errors;
+
+      showSnackBar(errors?.join(", ") || "Invalid GLCC", "error");
+    } finally {
+      setGlccLoading(false);
+    }
+  };
+
+  const fetchCurrencies = async () => {
+    setLoading((prev) => ({ ...prev, currency: true }));
+
+    try {
+      const response = await callApi(
+        "/CM/common-master/currency-code-name-only",
+        null,
+        "GET"
+      );
+
+      const sortedData = (response?.data || []).sort((a, b) => {
+        if (a.currencyCode === "INR") return -1;
+        if (b.currencyCode === "INR") return 1;
+        return a.currencyName.localeCompare(b.currencyName);
+      });
+
+      setCurrencies(sortedData);
+    } catch {
+      showSnackBar("Currency data not available", "error");
+    } finally {
+      setLoading((prev) => ({ ...prev, currency: false }));
+    }
+  };
+
+  const fetchSearchData = useCallback(
+    async (type, term) => {
+      try {
+        setLoading((prev) => ({ ...prev, [type]: true }));
+
+        let circleValue = "";
+
+        if (permissions?.wholebank === true) {
+          circleValue = "null";
+        } else if (user?.isCircle === true || permissions?.circle) {
+          circleValue = user?.circleCode;
+        }
+
+        const url =
+          type === "branch"
+            ? `/CM/common-master/branches-code-name-only?q=${encodeURIComponent(
+                term
+              )}&circleCode=${circleValue || ""}`
+            : `/CM/common-master/cgl-code-description-only?q=${encodeURIComponent(
+                term
+              )}`;
+
+        const response = await callApi(url, null, "GET");
+
+        if (response?.data?.length > 0) {
+          if (type === "branch") {
+            setBranches(
+              response.data.map((item) => `${item.code}-${item.name}`)
+            );
+          } else {
+            setCgls(
+              response.data.map(
+                (item) => `${item.cglNumber} - ${item.description}`
+              )
+            );
+          }
+        } else {
+          showSnackBar("Data not available", "error");
+        }
+      } catch (error) {
+        console.error(error);
+      } finally {
+        setLoading((prev) => ({ ...prev, [type]: false }));
+      }
+    },
+    [callApi, permissions, user, showSnackBar]
+  );
+
+  const handleSearchChange = (value, reason, type) => {
+    if (reason === "input" && value?.length >= 3) {
+      fetchSearchData(type, value);
+    } else if (reason === "clear" || reason === "blur") {
+      if (type === "branch") setBranches([]);
+      if (type === "cgl") setCgls([]);
+    }
+  };
+
+  const handleSubmit = () => {
+    setSearchLoading(true);
+
+    if (paginationModel.page === 0) {
+      fetchDifferences();
+    } else {
+      setPaginationModel((prev) => ({ ...prev, page: 0 }));
+    }
+  };
+
+  const handleExport = async () => {
+    try {
+      setExportLoading(true);
+  
+      const payload = {
+        fromDate: start.format("DD-MM-YYYY"),
+        endDate: end.format("DD-MM-YYYY"),
+        branchCode: branch?.split("-")[0],
+        currency:currency,
+        cgl: cgl?.split(" - ")[0],
+      };
+  
+      const downloadResponse = await callApi(
+        "/ES/differences/export",
+        payload,
+        "POST",
+        "arraybuffer",
+      );
+  
+      const fileName = `Balance_Difference_${payload.reconRunDate}`;
+  
+      if (downloadResponse && downloadResponse?.byteLength > 0) {
+        downloadFile(downloadResponse, "excel", fileName);
+        return;
+      }
+    } catch (error) {
+      console.error("Something Went Wrong!!", error);
+      showSnackBar("Download Failed", "error");
+    } finally {
+      setExportLoading(false);
+    }
+  };
+
+  const resetState = () => {
+    setData(null);
+    setCgl(null);
+    setCgls([]);
+    setBranch(
+      user?.isCircle === false
+        ? `${branchCodeStr}-${user?.branchName || ""}`
+        : ""
+    );
+    setCurrency("");
+    setStart(null);
+    setEnd(null);
+    setBranches([]);
+    setGlcc("");
+    setGlccValidated(false);
+    setFiltersExpanded(true);
+    setPaginationModel({ page: 0, pageSize: 25 });
+  };
+
+  useEffect(() => {
+    if (data) {
+      fetchDifferences();
+    }
+  }, [paginationModel.page, paginationModel.pageSize]);
+
+  useEffect(() => {
+    fetchCurrencies();
+  }, []);
+
+  useEffect(() => {
+    const fetchSystemDate = async () => {
+      try {
+        const response = await callApi(
+          "/PS/file/fincore-date",
+          {},
+          "GET"
+        );
+        const etlRaw = response?.data?.userDate;
+        setEtlDate(
+          etlRaw ? dayjs(etlRaw.split("T")[0]) : dayjs()
+        );
+      } catch {
+        setEtlDate(dayjs());
+      }
     };
 
-    const downloadResponse = await callApi(
-      "/ES/differences/export",
-      payload,
-      "POST",
-      "arraybuffer",
-    );
-
-    const fileName = `Balance_Difference_${payload.reconRunDate}`;
-
-    if (downloadResponse && downloadResponse?.byteLength > 0) {
-      downloadFile(downloadResponse, "excel", fileName);
-      return;
-    }
-  } catch (error) {
-    console.error("Something Went Wrong!!", error);
-    showSnackBar("Download Failed", "error");
-  } finally {
-    setExportLoading(false);
-  }
-};
- const handleSearch=()=>{
-  setSearched(true);setFiltersExpanded(false);
-  setPaginationModel(p=>({...p,page:0}));
- };
-
- useEffect(()=>{
-  if(searched&&!filtersExpanded)fetchData(paginationModel.page,paginationModel.pageSize);
- },[searched,filtersExpanded,paginationModel.page,paginationModel.pageSize,fetchData]);
-
- const handleReset=()=>{
-  setRows([]);setRowCount(0);setGlcc("");setGlccValidated(false);setGlccLoading(false);
-  setBranch("");setBranchInput("");setCurrency("");setCurrencyInput("");setCgl("");setCglInput("");
-  setBranches([]);setCgls([]);setSearched(false);setFiltersExpanded(true);setPaginationModel({page:0,pageSize:25});
- };
-
- const chipSx={height:28,borderRadius:1.5,fontSize:"11px",fontWeight:600,color:"#58469f",borderColor:"rgba(88,70,159,.28)",bgcolor:"rgba(88,70,159,.035)"};
-
- return(
-  <Box sx={{p:{xs:1,sm:2}}}>
-   <Paper elevation={0} sx={{p:{xs:1.5,sm:2.5},mt:{xs:-1,sm:-2},mb:3,bgcolor:"rgba(255,255,255,.4)",backdropFilter:"blur(4px)",border:"1px solid",borderColor:"divider",borderRadius:{xs:2,sm:3},overflow:"hidden"}}>
-    <Box sx={{p:{xs:1.5,sm:2},borderRadius:2,bgcolor:"background.paper",boxShadow:2,border:"1px solid",borderColor:"divider",borderLeft:"6px solid",borderLeftColor:"primary.main"}}>
-     <Stack direction={{xs:"column",sm:"row"}} alignItems={{xs:"flex-start",sm:"center"}} justifyContent="space-between" spacing={2}>
-      <Stack direction="row" spacing={2} alignItems="center">
-       <CalendarMonthIcon color="primary" sx={{fontSize:{xs:30,sm:36},flexShrink:0}}/>
-       <Box sx={{minWidth:0}}>
-        <Stack direction="row" spacing={1} alignItems="center">
-         <Typography variant="subtitle1" fontWeight={700} sx={{fontSize:{xs:".95rem",sm:"1rem",md:"1.05rem"}}}>Date Wise Balance Search</Typography>
-         <Typography sx={{px:1,py:.25,borderRadius:1.5,bgcolor:"rgba(88,70,159,.08)",color:"primary.main",fontSize:".7rem",fontWeight:700}}>Date Wise</Typography>
-        </Stack>
-        <Typography variant="body2" color="text.secondary" sx={{mt:.3,fontSize:{xs:".75rem",sm:".82rem"}}}>View balance differences for a selected date and track reconciliation history.</Typography>
-       </Box>
-      </Stack>
-
-      {searched&&<StyledButton variant="contained" startIcon={<ManageSearchOutlinedIcon/>} onClick={()=>setFiltersExpanded(true)} sx={{textTransform:"none",borderRadius:"8px",fontWeight:600,minWidth:{xs:"100%",sm:140},width:{xs:"100%",sm:"auto"},height:{xs:38,sm:32}}}>Edit Filters</StyledButton>}
-     </Stack>
-    </Box>
-
-    {searched&&
-     <Stack direction="row" spacing={.8} flexWrap="wrap" useFlexGap sx={{mt:1.5,px:.5}}>
-      <Chip label={`Date: ${etlDate?.format("DD-MM-YYYY")||"-"}`} variant="outlined" size="small" sx={chipSx}/>
-      {glcc&&<Chip label={`GLCC: ${glcc}`} variant="outlined" size="small" sx={chipSx}/>}
-      <Chip label={`Branch: ${branch||"-"}`} variant="outlined" size="small" sx={chipSx}/>
-      <Chip label={`Currency: ${currency||"-"}`} variant="outlined" size="small" sx={chipSx}/>
-      <Chip label={`CGL: ${cgl||"-"}`} variant="outlined" size="small" sx={chipSx}/>
-     </Stack>
-    }
-
-    {filtersExpanded&&
-     <Box sx={{mt:3}}>
-      <Box sx={{display:"grid",gridTemplateColumns:{xs:"1fr",sm:"repeat(2,1fr)",md:"repeat(4,1fr)"},gap:2}}>
-
-       {(permissions?.wholebank||user?.isCircle===true)&&
-        <TextField label="GLCC (Optional)" fullWidth value={glcc} placeholder="Enter 18 Characters GLCC" InputLabelProps={{shrink:true}} inputProps={{maxLength:18}} disabled={glccLoading} onChange={e=>{
-         const value=e.target.value.toUpperCase();
-         if(!/^[A-Z0-9]*$/.test(value)){showSnackBar("Invalid GLCC format. Only letters and numbers are allowed.","warning");return}
-         if(value.length<=5&&!/^\d*$/.test(value)){showSnackBar("Invalid GLCC format. Enter 5 digits, followed by 3 letters, and then 10 digits.","warning");return}
-         if(value.length>5&&value.length<=8&&!/^\d{5}[A-Z]*$/.test(value)){showSnackBar("Invalid GLCC format. Enter 5 digits, followed by 3 letters, and then 10 digits.","warning");return}
-         if(value.length>8&&!/^\d{5}[A-Z]{3}\d*$/.test(value)){showSnackBar("Invalid GLCC format. Enter 5 digits, followed by 3 letters, and then 10 digits.","warning");return}
-         setGlcc(value);setGlccValidated(false);setBranch("");setBranchInput("");setCurrency("");setCurrencyInput("");setCgl("");setCglInput("");
-         if(value.length===18)validateGlcc(value);
-        }}/>
-       }
-
-       <Autocomplete autoHighlight forcePopupIcon={false} disabled={glccValidated||(!permissions?.wholebank&&(user?.isCircle===false||permissions?.branch))} value={branch} inputValue={branchInput} options={branches} noOptionsText={branchInput.length<3?"Please enter at least 3 characters":"No Options"} onInputChange={(e,value,reason)=>{setBranchInput(value);if(reason==="input"&&value.length>=3)fetchSearchData("branch",value)}} onChange={(e,value)=>setBranch(value||"")} renderInput={params=><TextField {...params} label="Branch Code or Name*" placeholder="eg. 12345 or ABC" fullWidth InputLabelProps={{shrink:true}}/>}/>
-
-       <Autocomplete autoHighlight disabled={glccValidated} options={currencies} value={currencies.find(c=>c.currencyCode===currency)||null} inputValue={currencyInput} getOptionLabel={o=>o?`${o.currencyCode} (${o.currencyName})`:""} onInputChange={(e,value)=>setCurrencyInput(value)} onChange={(e,value)=>{setCurrency(value?.currencyCode||"");setCurrencyInput(value?`${value.currencyCode} - ${value.currencyName}`:"")}} onOpen={fetchCurrencies} renderInput={params=><TextField {...params} label="Currency*" placeholder="Please select Currency" fullWidth InputLabelProps={{shrink:true}}/>}/>
-
-       <Autocomplete autoHighlight forcePopupIcon={false} disabled={glccValidated} value={cgl} inputValue={cglInput} options={cgls} noOptionsText={cglInput.length<3?"Please enter at least 3 characters":"No Options"} onInputChange={(e,value,reason)=>{setCglInput(value);if(reason==="input"&&value.length>=3)fetchSearchData("cgl",value)}} onChange={(e,value)=>{setCgl(value||"");setCglInput(value||"")}} renderInput={params=><TextField {...params} label="CGL*" placeholder="eg. 9999999999" fullWidth InputLabelProps={{shrink:true}}/>}/>
-
-       <LocalizationProvider dateAdapter={AdapterDayjs}>
-        <DatePicker value={etlDate} format="DD-MM-YYYY" maxDate={etlDate} onChange={setEtlDate} slotProps={{textField:{label:"ETL Date*",fullWidth:true,InputLabelProps:{shrink:true},placeholder:"DD-MM-YYYY"}}}/>
-       </LocalizationProvider>
-       
-      </Box>
-
-      <Box sx={{display:"flex",justifyContent:{xs:"stretch",sm:"flex-end"},gap:1.5,mt:-5}}>
-       <StyledButton variant="contained" startIcon={<RestartAltIcon/>} onClick={handleReset} sx={{flex:{xs:1,sm:"unset"},textTransform:"none"}}>Reset</StyledButton>
-       <StyledButton variant="contained" startIcon={<SearchIcon/>} disabled={!etlDate||!branch||!currency||!cgl} onClick={handleSearch} sx={{flex:{xs:1,sm:"unset"},textTransform:"none"}}>Search</StyledButton>
-      </Box>
-     </Box>
-    }
-   </Paper>
-
-   {searched&&
-    <BalanceDateWiseTable
-     rows={rows}
-     loading={loading}
-     totalElements={rowCount}
-     paginationModel={paginationModel}
-     setPaginationModel={setPaginationModel}
-     onHistory={()=>{}}
-     onExport={handleExport}
-     exportLoading={exportLoading}
-    />
-   }
-  </Box>
- );
-}
-import React from "react";
-import { Box, Typography, Chip, Button } from "@mui/material";
-import { DataGrid } from "@mui/x-data-grid";
-import FileDownloadOutlinedIcon from "@mui/icons-material/FileDownloadOutlined";
-import ErrorOutlineOutlinedIcon from "@mui/icons-material/ErrorOutlineOutlined";
-
-const columns = [
-  { field: "errorDate", headerName: "Date", flex: 1 },
-  { field: "branchCode", headerName: "Branch", flex: 1 },
-  { field: "currency", headerName: "Currency", flex: 0.9 },
-  { field: "cgl", headerName: "CGL", flex: 1 },
-  { field: "cbsBalance", headerName: "CBS Balance", flex: 1.1 },
-  { field: "glBalance", headerName: "GL Balance", flex: 1.1 },
-  { field: "differenceAmount", headerName: "Difference Amount", flex: 1.2 },
-  { field: "diffYesterday", headerName: "Diff. Yesterday", flex: 1.1 },
-  { field: "type", headerName: "Type", flex: 0.8 },
-  { field: "head", headerName: "Head", flex: 0.8 },
-  { field: "firstErrorDate", headerName: "Error Date", flex: 1 },
-];
-
-export default function BalanceDateWiseTable({
-  rows = [],
-  loading = false,
-  totalElements = 0,
-  paginationModel,
-  setPaginationModel,
-  onExport,
-}) {
-  const data = rows.map((r, i) => ({
-    ...r,
-    id: r.id || `row-${i}`,
-    errorDate: r.reconRunDate ?? "-",
-    branchCode: r.branchCode || r.branch || "-",
-    currency: r.currency || "-",
-    cgl: r.cgl || r.cglNumber || "-",
-    cbsBalance: r.cbsBalance ?? "-",
-    glBalance: r.glBalance ?? "-",
-    differenceAmount: r.differenceAmount ?? r.difference ?? "-",
-    diffYesterday: r.diffBwYesterday ?? "-",
-    type: r.type || "-",
-    head: r.head || "-",
-    firstErrorDate: r.FIRST_ERROR_DATE || "-",
-  }));
+    fetchSystemDate();
+  }, [callApi]);
 
   return (
-    <Box sx={{ mt: 2.5, width: "100%" }}>
-      {/* OUTER BOX */}
-      <Box
+    <Box sx={{ p: 1 }}>
+      <Paper
+        elevation={0}
         sx={{
-          width: "100%",
-          height: 470,
-          p: 2,
-          borderRadius: 3,
-          bgcolor: "rgba(255,255,255,.45)",
+          p: { xs: 1.5, sm: 2, md: 2.5 },
+          mt: { xs: -1, sm: -2 },
+          mb: 3,
+          bgcolor: "rgba(255,255,255,0.4)",
+          backdropFilter: "blur(4px)",
           border: "1px solid",
           borderColor: "divider",
+          borderRadius: { xs: 2, sm: 3 },
           overflow: "hidden",
         }}
       >
-        {/* TABLE HEADING */}
-        <Box
+       <Box
+  sx={{
+    mb: filtersExpanded ? 1 : 0.5,
+    p: { xs: 1.5, sm: 2 },
+    borderRadius: 2,
+    bgcolor: "background.paper",
+    boxShadow: 2,
+    border: "1px solid",
+    borderColor: "divider",
+  }}
+>
+  <Stack
+    direction={{ xs: "column", sm: "row" }}
+    alignItems={{ xs: "flex-start", sm: "center" }}
+    justifyContent="space-between"
+    spacing={2}
+  >
+    <Stack direction="row" spacing={2} alignItems="center">
+      <Box
+        sx={{
+          width: 44,
+          height: 44,
+          borderRadius: 2,
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          bgcolor: "rgba(88, 70, 159, 0.1)",
+          border: "1px solid rgba(88, 70, 159, 0.2)",
+          flexShrink: 0,
+        }}
+      >
+        <CompareArrowsIcon
           sx={{
-            height: 48,
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "space-between",
-            px: 0.5,
+            fontSize: 30,
+            color: "#58469f",
           }}
-        >
-          <Box
+        />
+      </Box>
+
+      <Box>
+        <Stack direction="row" spacing={1} alignItems="center" flexWrap="wrap">
+          <Typography
+            variant="subtitle1"
+            fontWeight={700}
+            lineHeight={1.2}
             sx={{
-              display: "flex",
-              alignItems: "center",
-              gap: 1.5,
+              fontSize: { xs: "0.95rem", sm: "1rem", md: "1.05rem" },
             }}
           >
-            <Typography
-              sx={{
-                fontSize: "1.05rem",
-                fontWeight: 700,
-                color: "text.primary",
-              }}
-            >
-              Balance Difference Records
-            </Typography>
+            Balance Comparison
+          </Typography>
 
-            <Chip
-              label={
-                totalElements
-                  ? `${totalElements} Records`
-                  : "No Records"
-              }
-              size="small"
-              sx={{
-                height: 24,
-                fontSize: ".7rem",
-                fontWeight: 700,
-                color: "primary.main",
-                bgcolor: "rgba(88,70,159,.08)",
-                borderRadius: 1.5,
-              }}
-            />
-          </Box>
-
-          <Button
+          <Chip
+            label="CBS ↔ GL"
             size="small"
-            variant="contained"
-            disabled={!data.length}
-            startIcon={<FileDownloadOutlinedIcon />}
-            onClick={onExport}
             sx={{
-              textTransform: "none",
-              fontSize: ".75rem",
-              fontWeight: 600,
-              borderRadius: "8px",
-              boxShadow: "none",
-              minWidth: 82,
-              height: 32,
-            }}
-          >
-            Export
-          </Button>
-        </Box>
-
-        {/* INNER TABLE BOX */}
-        <Box
-          sx={{
-            width: "100%",
-            height: 390,
-            bgcolor: "background.paper",
-            borderRadius: 2.5,
-            border: "1px solid",
-            borderColor: "divider",
-            overflow: "hidden",
-          }}
-        >
-          <DataGrid
-            rows={data}
-            columns={columns}
-            loading={loading}
-            rowCount={totalElements}
-            paginationMode="server"
-            paginationModel={paginationModel}
-            onPaginationModelChange={setPaginationModel}
-            pageSizeOptions={[25, 50, 100]}
-            disableRowSelectionOnClick
-            hideFooterSelectedRowCount
-            rowHeight={45}
-            columnHeaderHeight={52}
-            slots={{
-              noRowsOverlay: () => (
-                <Box
-                  sx={{
-                    height: "100%",
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    gap: 1,
-                  }}
-                >
-                  <ErrorOutlineOutlinedIcon
-                    sx={{
-                      fontSize: 24,
-                      color: "text.secondary",
-                    }}
-                  />
-
-                  <Typography
-                    sx={{
-                      fontSize: ".9rem",
-                      fontWeight: 600,
-                      color: "text.secondary",
-                    }}
-                  >
-                    No difference records available for the selected criteria
-                  </Typography>
-                </Box>
-              ),
-            }}
-            sx={{
-              width: "100%",
-              height: "100%",
-              border: 0,
-
-              /* COLUMN HEADER */
-              "& .MuiDataGrid-columnHeaders": {
-                height: 52,
-                minHeight: 52,
-                bgcolor: "rgba(88,70,159,.035)",
-                borderBottom: "1px solid",
-                borderColor: "divider",
-              },
-
-              "& .MuiDataGrid-columnHeader": {
-                px: 1.5,
-                outline: "none",
-              },
-
-              "& .MuiDataGrid-columnHeaderTitle": {
-                fontSize: ".8rem",
-                fontWeight: 700,
-                color: "primary.dark",
-              },
-
-              /* SINGLE DEFAULT 3-DOT MENU */
-              "& .MuiDataGrid-menuIconButton": {
-                opacity: 1,
-                visibility: "visible",
-                width: 28,
-                height: 28,
-              },
-
-              /* TABLE CELLS */
-              "& .MuiDataGrid-cell": {
-                px: 1.5,
-                fontSize: ".8rem",
-                color: "text.primary",
-                borderBottom: "1px solid rgba(0,0,0,.06)",
-                outline: "none",
-              },
-
-              "& .MuiDataGrid-row:hover": {
-                bgcolor: "rgba(88,70,159,.025)",
-              },
-
-              /* NO RECORDS */
-              "& .MuiDataGrid-overlay": {
-                bgcolor: "transparent",
-              },
-
-              /* FOOTER */
-              "& .MuiDataGrid-footerContainer": {
-                height: 52,
-                minHeight: 52,
-                borderTop: "1px solid",
-                borderColor: "divider",
-                bgcolor: "background.paper",
-              },
-
-              "& .MuiTablePagination-root": {
-                fontSize: ".8rem",
-              },
-
-              "& .MuiTablePagination-selectLabel": {
-                fontSize: ".8rem",
-              },
-
-              "& .MuiTablePagination-displayedRows": {
-                fontSize: ".8rem",
-              },
+              height: 22,
+              fontSize: "0.68rem",
+              fontWeight: 700,
+              color: "#58469f",
+              bgcolor: "rgba(88, 70, 159, 0.08)",
+              border: "1px solid rgba(88, 70, 159, 0.2)",
             }}
           />
-        </Box>
+        </Stack>
+
+        <Typography
+          variant="body2"
+          color="text.secondary"
+          sx={{
+            mt: 0.3,
+            fontSize: { xs: "0.75rem", sm: "0.82rem" },
+          }}
+        >
+          Compare CBS and GL balances to identify differences and discrepancies.
+        </Typography>
       </Box>
+    </Stack>
+
+    {data && (
+      <StyledButton
+        variant="contained"
+        startIcon={<ManageSearchOutlinedIcon />}
+        onClick={() => setFiltersExpanded((prev) => !prev)}
+        sx={{
+          textTransform: "none",
+          borderRadius: "8px",
+          fontWeight: 600,
+          minWidth: { xs: "100%", sm: "140px" },
+          width: { xs: "100%", sm: "auto" },
+          height: { xs: 38, sm: 32 },
+          px: 1.5,
+          fontSize: { xs: "0.8rem", sm: "0.82rem" },
+        }}
+      >
+        {filtersExpanded ? "Hide Filters" : "Edit Search"}
+      </StyledButton>
+    )}
+  </Stack>
+</Box>
+
+        {filtersExpanded && searchLoading && !data?.length && (
+          <LinearProgress
+            sx={{
+              height: 3,
+              borderRadius: 999,
+              mb: 2,
+            }}
+          />
+        )}
+
+        {filtersExpanded && (
+          <BalanceDifferenceFilters
+            branch={branch}
+            setBranch={setBranch}
+            currency={currency}
+            setCurrency={setCurrency}
+            cgl={cgl}
+            setCgl={setCgl}
+            start={start}
+            setStart={setStart}
+            end={end}
+            setEnd={setEnd}
+            currencies={currencies}
+            branches={branches}
+            cgls={cgls}
+            loading={loading}
+            req={req}
+            handleSearchChange={handleSearchChange}
+            fetchCurrencies={fetchCurrencies}
+            handleSubmit={handleSubmit}
+            resetState={resetState}
+            isNumeric={isNumeric}
+            user={user}
+            permissions={permissions}
+            etlDate={etlDate}
+            glcc={glcc}
+            setGlcc={setGlcc}
+            glccValidated={glccValidated}
+            setGlccValidated={setGlccValidated}
+            validateGlcc={validateGlcc}
+            glccLoading={glccLoading}
+          />
+        )}
+      </Paper>
+
+      {data && (
+        <BalanceDifferenceTable
+          data={data}
+          loading={loading.balance}
+          rowCount={rowCount}
+          paginationModel={paginationModel}
+          setPaginationModel={setPaginationModel}
+          exportLoading={exportLoading}
+          handleDownloadExcel={handleExport}
+        />
+      )}
     </Box>
   );
 }
-
