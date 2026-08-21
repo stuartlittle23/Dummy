@@ -1,1 +1,80 @@
 
+const chipSx = {
+  height: 28,
+  borderRadius: 1.5,
+  fontSize: "11px",
+  fontWeight: 600,
+  color: "#58469f",
+  borderColor: "rgba(88,70,159,.28)",
+  bgcolor: "rgba(88,70,159,.035)",
+};
+
+
+{data && (
+  <StyledButton
+    variant="contained"
+    startIcon={<ManageSearchOutlinedIcon />}
+    onClick={() => setFiltersExpanded(true)}
+    sx={{
+      textTransform: "none",
+      borderRadius: "8px",
+      fontWeight: 600,
+      minWidth: { xs: "100%", sm: 140 },
+      width: { xs: "100%", sm: "auto" },
+      height: { xs: 38, sm: 32 },
+      px: 1.5,
+      fontSize: { xs: "0.8rem", sm: "0.82rem" },
+    }}
+  >
+    Edit Filters
+  </StyledButton>
+)}
+</Box>
+
+{data && (
+  <Stack
+    direction="row"
+    spacing={0.8}
+    flexWrap="wrap"
+    useFlexGap
+    sx={{
+      mt: 1.5,
+      px: 0.5,
+    }}
+  >
+    <Chip
+      label={`Branch: ${branch || "-"}`}
+      variant="outlined"
+      size="small"
+      sx={chipSx}
+    />
+
+    <Chip
+      label={`Currency: ${currency || "-"}`}
+      variant="outlined"
+      size="small"
+      sx={chipSx}
+    />
+
+    <Chip
+      label={`CGL: ${cgl || "-"}`}
+      variant="outlined"
+      size="small"
+      sx={chipSx}
+    />
+
+    <Chip
+      label={`Date: ${start?.format("DD MMM YYYY") || "-"} - ${
+        end?.format("DD MMM YYYY") || "-"
+      }`}
+      variant="outlined"
+      size="small"
+      sx={chipSx}
+    />
+  </Stack>
+)}
+
+{filtersExpanded && searchLoading && !data?.length && (
+
+import { Box, Paper, Typography, Stack, LinearProgress, Chip } from "@mui/material";
+
