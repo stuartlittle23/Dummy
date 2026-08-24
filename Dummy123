@@ -1,1 +1,344 @@
+import React,{useCallback,useEffect,useState} from "react";
+import {Box,Paper,Typography,Grid,Divider,Tabs,Tab,Button,Dialog,DialogTitle,DialogContent,Stack,Chip} from "@mui/material";
+import {LocalizationProvider} from "@mui/x-date-pickers/LocalizationProvider";
+import {DesktopDatePicker} from "@mui/x-date-pickers/DesktopDatePicker";
+import {AdapterDayjs} from "@mui/x-date-pickers/AdapterDayjs";
+import dayjs from "dayjs";
+import {AccountBalance,Public,CalendarMonth,Download,Description,Storage} from "@mui/icons-material";
+import debounce from "lodash/debounce";
+import DisplayTab from "./DisplayTab";
+import Filter from "./Filter";
+import useApi from "../../hooks/useApi";
+import useCustomSnackbar from "../../utils/useCustomSnackbar";
+import downloadFile from "../../utils/DownloadUtils";
+import styles from "./BranchPosition.module.css";
 
+const alterDateFormat=(date)=>{
+    if(!date)return date;
+    if(/^\d{4}-\d{2}-\d{2}$/.test(date))return dayjs(date).format("DD-MM-YYYY");
+    const m=date.match(/^(\d{2})[-/.](\d{2})[-/.](\d{4})$/);
+    return m?`${m[3]}-${m[2]}-${m[1]}`:date;
+};
+
+export default function BranchPosition(){
+    const user=JSON.parse(localStorage.getItem("user")||"{}");
+    const {callApi}=useApi();
+    const snack=useCustomSnackbar();
+
+    const [userDate,setUserDate]=useState(null);
+    const [dataRows,setDataRows]=useState({});
+    const [breakupDataRows,setBreakupDataRows]=useState({});
+    const [glifDataFilter,setGlifDataFilter]=useState({});
+    const [loading,setLoading]=useState("N");
+    const [mode,setMode]=useState("DD");
+    const [isDialogOpen,setIsDialogOpen]=useState(false);
+
+    const branch=String(user?.branch||"").padStart(5,"0");
+
+    const fetchDifference=useCallback(async()=>{
+        if(!userDate)return;
+        try{
+            setLoading("Y");
+            const res=await callApi("/ES/branch-position/get-difference",{
+                date:userDate,branch,paginationModel:{page:0,pageSize:100}
+            },"POST");
+            if(res?.success)setDataRows(res.data||{});
+            else{setDataRows({});snack(res?.message,"error");}
+        }catch(e){snack(e.message,"error");}
+        finally{setLoading("N");}
+    },[userDate]);
+
+    const debouncedFetchDifference=useCallback(debounce(fetchDifference,100),[fetchDifference]);
+
+    const fetchIndividualDifference=async(type,paginationModel)=>{
+        try{
+            setLoading(type);
+            const res=await callApi("/ES/branch-position/get-difference",{
+                date:userDate,branch,differenceType:type,paginationModel
+            },"POST");
+            if(res?.success)setDataRows(p=>({...p,[type]:res.data?.[type]||[]}));
+            else snack(res?.message,"error");
+        }catch(e){snack(e.message,"error");}
+        finally{setLoading("N");}
+    };
+
+    const fetchDetailedData=async(type,{cgl,currency,firstErrorDate})=>{
+        try{
+            const res=await callApi("/ES/branch-position/get-detailed-difference",{
+                branch,cgl,currency,startDate:alterDateFormat(firstErrorDate),
+                endDate:userDate,differenceType:type
+            },"POST");
+            if(res?.success)setBreakupDataRows({type,content:res.data||[]});
+            else snack(res?.message,"error");
+        }catch(e){snack(e.message,"error");}
+    };
+
+    const blobErrorHandler=e=>{
+        if(e instanceof Blob){
+            e.text().then(t=>{
+                try{snack(JSON.parse(t)?.message,"error");}
+                catch{snack(t,"error");}
+            });
+        }else snack(e?.message||"Download failed","error");
+    };
+
+    const exportData=async(filePref,differenceType)=>{
+        try{
+            const res=await callApi("/ES/branch-position/export-difference",{
+                branch,date:userDate,differenceType
+            },"POST","blob","application/octet-stream");
+            if(!res)throw new Error("Failed to download file!");
+            downloadFile(new Blob([res]),"xlsx",
+                `${filePref}_${branch}_${alterDateFormat(userDate)}`,false);
+        }catch(e){blobErrorHandler(e);}
+    };
+
+    const exportDetailedData=async()=>{
+        const content=breakupDataRows?.content||[];
+        if(!content.length){snack("No Rows to download!","error");return;}
+        const {cgl,currency,firstErrorDate}=content[0];
+        try{
+            const res=await callApi("/ES/branch-position/export-detailed-difference",{
+                branch,cgl,currency,startDate:alterDateFormat(firstErrorDate),
+                endDate:userDate,differenceType:breakupDataRows.type
+            },"POST","blob","application/octet-stream");
+            if(!res)throw new Error("Failed to download file!");
+            downloadFile(new Blob([res]),"xlsx",
+                `${breakupDataRows.type}_${branch}_${currency}_${cgl}_${alterDateFormat(userDate)}`,false);
+        }catch(e){blobErrorHandler(e);}
+    };
+
+    const exportGlifData=async()=>{
+        try{
+            const filters=[
+                {field:"BRANCH_CODE",operator:"EQUALS",value:branch},
+                {field:"TRANS_DATE",operator:"EQUALS",value:userDate},
+                ...Object.entries(glifDataFilter).map(([field,v])=>({
+                    field,operator:v.operator,value:v.value
+                }))
+            ];
+            const res=await callApi("/ES/branch-position/export-glif-data",{
+                branch,date:userDate,filters
+            },"POST","blob","application/octet-stream");
+            if(!res)throw new Error("Failed to download file!");
+            downloadFile(new Blob([res]),"xlsx",
+                `glif_${branch}_${alterDateFormat(userDate)}${Object.keys(glifDataFilter).length?"_filtered":""}`,false);
+        }catch(e){blobErrorHandler(e);}
+    };
+
+    useEffect(()=>{
+        (async()=>{
+            try{
+                const res=await callApi("/ES/branch-position/user-date");
+                if(res?.success)setUserDate(res.data.substring(0,10));
+                else snack(res?.message,"error");
+            }catch(e){snack(e.message,"error");}
+        })();
+        return()=>debouncedFetchDifference.cancel();
+    },[]);
+
+    useEffect(()=>{
+        if(userDate){
+            setBreakupDataRows({});
+            debouncedFetchDifference();
+        }
+    },[userDate,debouncedFetchDifference]);
+
+    useEffect(()=>{
+        if(breakupDataRows?.content)setIsDialogOpen(true);
+    },[breakupDataRows]);
+
+    const handleFilter=filter=>{
+        if(!filter.multiValue){
+            setGlifDataFilter(p=>({...p,[filter.field]:{operator:"EQUALS",value:filter.value}}));
+            return;
+        }
+        const old=glifDataFilter[filter.field]?.value||[];
+        if(old.length>=10){snack("Only 10 filter values allowed!","error");return;}
+        if(old.includes(filter.value)){snack("Value already present in the filter!","error");return;}
+        setGlifDataFilter(p=>({...p,[filter.field]:{operator:"IN",value:[...old,filter.value]}}));
+    };
+
+    const deleteFilter=key=>{
+        setGlifDataFilter(p=>{
+            const n={...p};delete n[key];return n;
+        });
+    };
+
+    const deleteFilterValue=(key,value)=>{
+        const values=(glifDataFilter[key]?.value||[]).filter(v=>v!==value);
+        if(values.length)setGlifDataFilter(p=>({...p,[key]:{...p[key],value:values}}));
+        else deleteFilter(key);
+    };
+
+    const getFilterData=field=>glifDataFilter[field]?.value||[];
+
+    const counts={
+        TSD:dataRows?.TSD?.content?.length||0,
+        CSD:dataRows?.CSD?.content?.length||0,
+        BCD:dataRows?.BCD?.content?.length||0
+    };
+
+    const cards=[
+        {type:"TSD",title:"Technical suspense",count:counts.TSD,icon:<Description/>,color:"purple"},
+        {type:"CSD",title:"CGL suspense",count:counts.CSD,icon:<AccountBalance/>,color:"green"},
+        {type:"BCD",title:"Balance compare",count:counts.BCD,icon:<AccountBalance/>,color:"orange"}
+    ];
+
+    return(
+        <Box className={styles.page}>
+            <Box className={styles.layout}>
+
+                <Paper className={styles.leftPanel}>
+                    <Box className={styles.brand}>
+                        <Box className={styles.brandIcon}><AccountBalance/></Box>
+                        <Box>
+                            <Typography className={styles.brandTitle}>Branch position</Typography>
+                            <Box className={styles.brandLine}/>
+                        </Box>
+                    </Box>
+
+                    <Paper className={styles.infoCard}>
+                        <Box className={styles.infoBlock}>
+                            <Box className={styles.infoIcon}><AccountBalance/></Box>
+                            <Box><Typography className={styles.infoLabel}>BRANCH</Typography>
+                            <Typography className={styles.infoValue}>{branch}</Typography>
+                            <Typography className={styles.infoSub}>{user?.branchName||"-"}</Typography></Box>
+                        </Box>
+                        <Divider/>
+                        <Box className={styles.infoBlock}>
+                            <Box className={styles.infoIcon}><Public/></Box>
+                            <Box><Typography className={styles.infoLabel}>CIRCLE</Typography>
+                            <Typography className={styles.infoValue}>{user?.circleCode||"-"}</Typography>
+                            <Typography className={styles.infoSub}>{user?.circleName||"-"}</Typography></Box>
+                        </Box>
+                        <Divider/>
+                        <Box className={styles.infoBlock}>
+                            <Box className={styles.infoIcon}><CalendarMonth/></Box>
+                            <Box className={styles.dateInfo}>
+                                <Typography className={styles.infoLabel}>REPORT DATE</Typography>
+                                <LocalizationProvider dateAdapter={AdapterDayjs}>
+                                    <DesktopDatePicker
+                                        value={userDate?dayjs(userDate):null}
+                                        onChange={v=>v&&setUserDate(v.format("YYYY-MM-DD"))}
+                                        maxDate={dayjs()}
+                                        format="DD-MM-YYYY"
+                                        slots={{actionBar:()=>null}}
+                                        slotProps={{textField:{size:"small",fullWidth:true}}}
+                                    />
+                                </LocalizationProvider>
+                            </Box>
+                        </Box>
+                    </Paper>
+
+                    <Box className={styles.navigation}>
+                        <Button className={`${styles.navItem} ${mode==="DD"?styles.activeNav:""}`} onClick={()=>{setMode("DD");setGlifDataFilter({})}}>
+                            <Description/> Difference data
+                        </Button>
+                        <Button className={`${styles.navItem} ${mode==="GE"?styles.activeNav:""}`} onClick={()=>setMode("GE")}>
+                            <Storage/> GLIF data
+                        </Button>
+                    </Box>
+
+                    <Box className={styles.leftDecoration}>
+                        <AccountBalance/>
+                    </Box>
+                </Paper>
+
+                <Paper className={styles.mainPanel}>
+                    <Box className={styles.mainHeader}>
+                        <Box>
+                            <Typography className={styles.pageTitle}>{mode==="DD"?"Difference data":"GLIF data"}</Typography>
+                            <Typography className={styles.pageSubtitle}>
+                                {mode==="DD"?"Reconciliation status":"Download GLIF data"} for {alterDateFormat(userDate)}
+                            </Typography>
+                        </Box>
+                    </Box>
+
+                    {mode==="DD"&&<>
+                        <Grid container spacing={2} className={styles.summaryGrid}>
+                            {cards.map(card=>(
+                                <Grid item xs={12} sm={4} key={card.type}>
+                                    <Paper className={`${styles.summaryCard} ${styles[card.color]}`}>
+                                        <Box className={styles.cardTop}>
+                                            <Box className={styles.cardIcon}>{card.icon}</Box>
+                                            <Typography className={styles.cardTitle}>{card.title}</Typography>
+                                        </Box>
+                                        <Typography className={styles.cardCount}>{card.count}</Typography>
+                                        <Typography className={styles.cardText}>Records found</Typography>
+                                        <Button className={styles.cardDownload} onClick={()=>exportData(card.type,card.type)} startIcon={<Download/>}>Download</Button>
+                                    </Paper>
+                                </Grid>
+                            ))}
+                        </Grid>
+
+                        <Box className={styles.tables}>
+                            <DisplayTab category="Technical suspense" type="TSD" level={1}
+                                data={dataRows.TSD||[]} clickHandler={fetchDetailedData}
+                                downloadHandler={exportData} loading={loading==="Y"||loading==="TSD"}
+                                requestData={fetchIndividualDifference}/>
+                            <DisplayTab category="CGL suspense" type="CSD" level={1}
+                                data={dataRows.CSD||[]} clickHandler={fetchDetailedData}
+                                downloadHandler={exportData} loading={loading==="Y"||loading==="CSD"}
+                                requestData={fetchIndividualDifference}/>
+                            <DisplayTab category="Balance compare" type="BCD" level={1}
+                                data={dataRows.BCD||[]} clickHandler={fetchDetailedData}
+                                downloadHandler={exportData} loading={loading==="Y"||loading==="BCD"}
+                                requestData={fetchIndividualDifference}/>
+                        </Box>
+                    </>}
+
+                    {mode==="GE"&&
+                        <Paper className={styles.glifPanel}>
+                            <Typography className={styles.glifTitle}>GLIF data</Typography>
+                            <Typography className={styles.glifSubtitle}>Apply filters to download branch GLIF data.</Typography>
+                            <Divider/>
+                            <Grid container spacing={2} sx={{mt:1}}>
+                                <Grid item xs={12} md={6}>
+                                    <Paper className={styles.filterCard}>
+                                        <Typography className={styles.filterTitle}>Add filters</Typography>
+                                        <Filter handleFilter={handleFilter} getValues={getFilterData}/>
+                                    </Paper>
+                                </Grid>
+                                <Grid item xs={12} md={6}>
+                                    <Paper className={styles.filterCard}>
+                                        <Typography className={styles.filterTitle}>Applied filters</Typography>
+                                        {Object.keys(glifDataFilter).length===0?
+                                            <Typography className={styles.emptyFilter}>No filters applied</Typography>:
+                                            <Stack spacing={1}>
+                                                {Object.entries(glifDataFilter).map(([key,val])=>
+                                                    <Box className={styles.appliedFilter} key={key}>
+                                                        <Typography>{key.replaceAll("_"," ")}</Typography>
+                                                        <Box>
+                                                            {(Array.isArray(val.value)?val.value:[val.value]).map(v=>
+                                                                <Chip key={v} label={v} onDelete={()=>deleteFilterValue(key,v)} size="small"/>
+                                                            )}
+                                                        </Box>
+                                                    </Box>
+                                                )}
+                                            </Stack>
+                                        }
+                                    </Paper>
+                                </Grid>
+                            </Grid>
+                            <Button className={styles.primaryButton} variant="contained" startIcon={<Download/>} onClick={exportGlifData}>Download GLIF Data</Button>
+                        </Paper>
+                    }
+                </Paper>
+            </Box>
+
+            <Dialog open={isDialogOpen} onClose={()=>{setIsDialogOpen(false);setBreakupDataRows({})}} fullWidth maxWidth={false}>
+                <DialogTitle className={styles.dialogTitle}>
+                    Difference Break-up
+                    <Box>
+                        <Button size="small" variant="contained" startIcon={<Download/>} onClick={exportDetailedData}>Download</Button>
+                        <Button size="small" onClick={()=>{setIsDialogOpen(false);setBreakupDataRows({})}}>Close</Button>
+                    </Box>
+                </DialogTitle>
+                <DialogContent>
+                    <DisplayTab data={breakupDataRows||{}} category="Difference Breakup" type={breakupDataRows?.type} level={2}/>
+                </DialogContent>
+            </Dialog>
+        </Box>
+    );
+}
