@@ -1,183 +1,325 @@
-.uniformPaddedContainer{
-    padding: 5px;
-    height: 100%
+import styled from '@emotion/styled';
+import { Download } from '@mui/icons-material';
+import { Box, Button, Chip, Paper, Typography } from '@mui/material';
+import { DataGrid, GridOverlay, GridToolbarExportContainer, Toolbar } from '@mui/x-data-grid'
+import { GridToolbar } from '@mui/x-data-grid/internals';
+import React, { useMemo, useState } from 'react'
+import { string } from 'zod';
+
+function camelToTitleCase(str) {
+
+    let spaced = str.replace(/([a-z0-9])([A-Z])/g, '$1 $2');
+    spaced = spaced.replace(/([A-Z]+)([A-Z][a-z])/g, '$1 $2');
+    return spaced
+        .split(' ')
+        .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+        .join(' ');
 }
 
-.outerGridContainer{
-    align-items: flex-start;
-    height:100%
-}
+// function filePref() {
 
-.datePickerContainer{
-    flex-grow: 1;
-    height: auto;
-    align-self: stretch 
-}
+// }
+const StyledBox = styled(Box)(({ theme }) => ({
+    textAlign: 'center',
+    padding: "5px"
+}));
 
-.typographyHeader{
-    font-size: 16;
-    font-weight:100 ;
-      overflow-wrap: break-word;
-}
+const HeaderBox = styled(Box)(({ theme }) => ({
+    display: "flex", alignItems: "center"
+}));
 
-.typographyHeaderCenter{
-    font-size: 16;
-    font-weight:100 ;
-    overflow-wrap: break-word;
-    text-align: center;
-}
+const HeaderTypography = styled(Typography)(({ theme }) => ({
+    flexGrow: 1
+}));
 
-.typographyLabel{
-    font-size: 14;
-    overflow-wrap: break-word;
-    flex-grow: 1;
-}
-.dividerMargin{
-    margin-bottom: 5px;
-}
+const MainPaper = styled(Paper)(({ theme }) => ({
+    // minHeight: "200px",
+    marginTop: "5px",
+    marginBottom: "5px"
+}));
 
-.contentPaper{
-    margin-top: 10px;
-    /* margin-bottom: 5px; */
-    /* padding: 5px; */
-}
+const DownloadButton = styled(Button)(({ theme }) => ({
+    flexGrow: 0,
+    margin: "3px"
+}));
 
-.buttonBox{
- display: flex;
- justify-content: flex-end;
- flex-grow: 1;
- align-content: center;
- align-items: center;
- margin: 2px;
-}
+const StyledDataGrid = styled(DataGrid)(({ theme }) => ({
+    maxHeight: "400px",
+    minHeight: "100px",
+    '& .MuiDataGrid-cell:focus, & .MuiDataGrid-columnHeader:focus': {
+        outline: 'none',
+    },
+    '& .MuiDataGrid-cell:focus-within, & .MuiDataGrid-columnHeader:focus-within': {
+        outline: 'none',
+    },
+    '& .MuiDataGrid-columnHeader': {
+        backgroundColor: '#ffffff',
+    }
+}))
+
+const rawColumns = [
+    {
+        field: "reconRunDate",
+        headerName: "Report Date",
+        width: 100,
+        headerAlign: 'center',
+        align: 'center',
+        disableColumnMenu: true,
+        sortable: false,
+        filterable: false,
+        // flex: 1
+    },
+    {
+        field: "date",
+        headerName: "Report Date",
+        width: 120,
+        headerAlign: 'center',
+        align: 'center',
+        disableColumnMenu: true,
+        sortable: false,
+        filterable: false,
+        // flex: 1
+    },
+    {
+        field: "firstErrorDate",
+        headerName: "First Error Date",
+        width: 120,
+        disableColumnMenu: true,
+        headerAlign: 'center',
+        align: 'center',
+        sortable: true,
+        filterable: true,
+        // flex: 1
+    },
+    {
+        field: "branchCode",
+        headerName: "Branch Code",
+        width: 100,
+        disableColumnMenu: true,
+        headerAlign: 'center',
+        align: 'center',
+        // flex: 1
+    },
+    {
+        field: "currency",
+        headerName: "Currency",
+        width: 80,
+        headerAlign: 'center',
+        align: 'center',
+        disableColumnMenu: true,
+        sortable: true,
+        filterable: true,
+        // flex: 1
+    },
+    {
+        field: "cgl",
+        headerName: "CGL",
+        width: 120,
+        headerAlign: 'center',
+        align: 'center',
+        sortable: true,
+        filterable: true,
+        // flex: 1
+    },
+    {
+        field: "balance",
+        headerName: "Amount",
+        // width: 180,
+        align: 'right',
+        headerAlign: 'center',
+        sortable: true,
+        filterable: true,
+        flex: 2
+    },
+    {
+        field: "inrBalance",
+        headerName: "INR Balance",
+        // minWidth: 180,
+        align: 'right',
+        headerAlign: 'center',
+        sortable: true,
+        filterable: true,
+        flex: 2
+    },
+    {
+        field: "cbsBalance",
+        headerName: "CBS Balance",
+        // minWidth: 180,
+        align: 'right',
+        headerAlign: 'center',
+        sortable: false,
+        filterable: false,
+        flex: 2
+    },
+    {
+        field: "glBalance",
+        headerName: " GL Balance",
+        // minWidth: 180,
+        align: 'right',
+        headerAlign: 'center',
+        sortable: false,
+        filterable: false,
+        flex: 2
+    },
+    {
+        field: "differenceAmount",
+        headerName: "Difference Amount",
+        // minWidth: 180,
+        align: 'right',
+        headerAlign: 'center',
+        sortable: false,
+        filterable: false,
+        flex: 2
+    },
+    {
+        field: "diffBwYesterday",
+        headerName: "Diff Bw Yesterday",
+        // minWidth: 180,
+        align: 'right',
+        headerAlign: 'center',
+        sortable: false,
+        filterable: false,
+        flex: 2
+    },
+    {
+        field: "type",
+        headerName: "Type",
+        // maxWidth: 100,
+        sortable: true,
+        filterable: true,
+        flex: 1
+    },
+    {
+        field: "head",
+        headerName: "Head",
+        // minWidth: 100,
+        sortable: true,
+        filterable: true,
+        flex: 1
+    },
+]
+
+export default function DisplayTab({ level, type, data = {}, category, clickHandler = () => { }, downloadHandler = () => { }, requestData = () => { }, loading = false }) {
+    const [paginationModel, setPaginationModel] = useState({
+        page: 0,
+        pageSize: 100,
+    });
+    const rows = data?.content || [];
+
+    //Dynamic Columns Mapper
+    const columns = useMemo(() => {
+        if (!rows || rows.length === 0) return [];
+
+        // let cols = Object.entries(rows[0]).reduce((acc, entry) => {
+        //     if (entry[0].toLowerCase() == "id") {
+        //         return acc
+        //     }
+        //     let isNumericValue = typeof entry[1] === 'number';
+        //     acc.push({
+        //         field: entry[0],
+        //         // headerName: entry[0].charAt(0).toUpperCase() + entry[0].slice(1), // Capitalize header
+        //         headerName: camelToTitleCase(entry[0]),
+        //         maxWidth: 100,
+        //         // Handle nested objects if necessary
+        //         renderCell: (params) => {
+        //             const value = params.value;
+        //             return typeof value === 'object' && value !== null
+        //                 ? JSON.stringify(value)
+        //                 : value;
+        //         },
+        //         type: isNumericValue ? 'number' : string,
+        //         align: isNumericValue ? 'right' : 'center',
+        //         headerAlign: isNumericValue ? 'right' : 'center',
+        //         sortable: false,
+        //         filterable: true,
+        //         flex: 1
+        //     });
+        //     return acc
+        // }, []);
+        const fields = Object.keys(rows[0]);
+        let cols = rawColumns.filter((field) => fields.includes(field.field));
+
+        if (level && level == 1) {
+            const actions = {
+                field: "action",
+                headerName: 'Actions',
+                headerAlign: 'center',
+                align: 'center',
+                width: 100,
+                renderCell: (params) => (
+                    <Button variant="text" size="small" variant="contained" onClick={() =>
+                        // alert(`View details for ${params.row.cgl}`)
+                        clickHandler(type, params.row)
+
+                    }>
+                        Details
+                    </Button>)
+            }
+            return [...cols, actions]
+        }
+        return cols;
+    }, [rows]);
 
 
-.centeredButtonBox{
- display: flex;
- justify-content: center;
- flex-grow: 1;
- align-content: center;
- align-items: center;
- margin: 2px;
-}
+    const handlePaginationModelChange = (newModel) => {
+        setPaginationModel(newModel);
+        requestData(type, { ...newModel });
+    };
 
-.flexiBox{
-    display:flex;
-    padding: 2px;
-    width:100%;
-}
+    const CustomNoRowsOverlay = () => (
+        <GridOverlay>
+            <StyledBox>
+                <Typography variant="h6">No Difference</Typography>
+            </StyledBox>
+        </GridOverlay>
+    );
+    const CustomNoDataOverlay = () => (
+        <GridOverlay>
+            <StyledBox>
+                <Typography variant="h5" color="text.secondary">
+                    No Data found for the applied filters.
+                </Typography>
+            </StyledBox>
+        </GridOverlay>
+    );
 
-.chipStack{
-    margin: 2px;
-    display: flex;
-    flex-wrap: wrap;
-    align-items: center
-}
+    const handleDownload = () => {
+        downloadHandler(`${type || "no_name"}`, type);
+    }
 
-.chipDivider{
-margin: 2px;
-}
-
-.boundedGrid{
-    padding: 2px;
-    border: 1px solid var(--template-palette-secondary-dark);
-    border-radius: 5px;
-    margin: 3px;
-    background-color: var(--template-palette-primary-light) ;
-}
-
-.filterBox{
-    border: 1px solid var(--template-palette-secondary-dark);
-    border-radius: 5px;
-}
-
-.formButton{
-    flex-grow: 0;
-}
-
-.contentBox{
-    padding: 2px;
-    margin-top: 5px;
-    margin-bottom: 5px;
-    border-radius: 15px;
-    background-color: "rgba(255,255,255,0.0)";
-}
-
-.noBg{
-     background-color: "rgba(255,255,255,0.0)";
-}
-
-.tabs{
-    background-color: var(--template-palette-primary-light);
-    border-top-left-radius: 10px;
-    border-top-right-radius: 10px;
-}
-
-.tab{
-    color:white ;
-}
-
-.dialog{
- height: 100%;
- width: 100%; 
-}
-
-.dialogPaper{
-   max-width: none; 
-}
-
-.filterPaper{
-     min-height:150px;
-     padding:10px; 
-     height: 100%;
-}
-
-.filterBgSuccess{
-    background-color: var(--template-palette-success-light);
-}
-
-.filterBgInfo{
-    background-color: var(--template-palette-info-light);
-}
-
-.filterContainer{
-    height: auto;
-    align-self: stretch
-}
-
-.glifPaper{
-    border-top-left-radius: 0px;
-    border-top-right-radius: 0px;
-    margin-top:0px 
-}
-
-.dialogButton{
-    flex-grow: 0;
-    margin: 5px
-}
-
-.dialogTitle{
-    display:flex;
-    align-items: center;
-}
-
-.chipBg{
-    background-color: var(--template-palette-primary-light);
-}
-
-.chipValues{
-    display: flex;
-    row-gap: 3px;
-    flex-wrap: wrap
-}
-.filterLabel{
-    border: 1px solid;
-    border-radius: 3px;
-    border-color: var(--template-palette-primary-dark);
-    align-content: center
-}
-.filterDisplay{
-    background-color: rgba(255, 255, 255, 0.5);
-    border-radius: 3px;
-    padding: 3px
+    return (
+        <MainPaper >
+            {level == 1 &&
+                <HeaderBox>
+                    <HeaderTypography variant='h7'>
+                        {category || "Data"}
+                    </HeaderTypography >
+                    <DownloadButton onClick={handleDownload} disabled={!rows || rows.length == 0} variant="contained" size='small' endIcon={<Download />}>Download</DownloadButton>
+                </HeaderBox>
+            }
+            <StyledDataGrid
+                rows={rows || []}
+                columns={columns || []}
+                pagination={level === 1}
+                paginationMode='server'
+                paginationModel={paginationModel}
+                rowCount={data?.page?.totalElements || 0}
+                // autosizeOnMount
+                getRowId={(row) => row?.id || `${row.head}-${row.cgl}`}
+                pageSizeOptions={[100]}
+                columnHeaderHeight={rows.length == 0 ? 0 : 56}
+                // showToolbar={level === 2 && rows.length > 0}
+                onPaginationModelChange={handlePaginationModelChange}
+                hideFooter={rows.length == 0}
+                hideFooterPagination={level === 2}
+                slots={{
+                    columnHeaders: rows.length == 0 ? () => null : undefined,
+                    noRowsOverlay: CustomNoRowsOverlay,
+                    noResultsOverlay: CustomNoRowsOverlay,
+                    noColumnsOverlay: CustomNoRowsOverlay,
+                }}
+                loading={loading || false}
+            />
+        </MainPaper>
+    )
 }
