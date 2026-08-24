@@ -1,9 +1,1 @@
-const validateCgl=v=>/^\d{10}$/.test(String(v))?null:"CGL must be of 10 digits!";
-const validateCurrency=v=>/^[A-Z]{3}$/.test(String(v))?null:"Currency Code must be of 3 Capital letters!";
-const validateBranchCode=v=>/^\d{5}$/.test(String(v))?null:"Branch code must be of 5 digits!";
-const validateJrnNo=v=>/^\d+$/.test(String(v))?null:"Journal Number must be numeric only!";
-const validateAccNo=v=>/^\d{10}$/.test(String(v))?null:"Account Number must be 10 digits only!";
-const validateTxnCode=v=>/^\d{5}$/.test(String(v))?null:"Transaction code must be 5 digits only!";
-const validateBatchId=()=>null;
 
-export default{validateCgl,validateCurrency,validateBranchCode,validateJrnNo,validateAccNo,validateTxnCode,validateBatchId};
