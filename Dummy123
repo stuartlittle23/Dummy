@@ -1,1 +1,30 @@
+import React,{useMemo,useState} from "react";
+import {Box,Paper,Button,Typography,IconButton} from "@mui/material";
+import {DataGrid,GridOverlay} from "@mui/x-data-grid";
+import {Download,Visibility,ExpandMore,ExpandLess} from "@mui/icons-material";
+import styles from "./BranchPosition.module.css";
 
+const title=k=>k.replace(/([a-z])([A-Z])/g,"$1 $2").replace(/^./,x=>x.toUpperCase());
+
+export default function DisplayTab({level,type,data={},category,clickHandler=()=>{},downloadHandler=()=>{},requestData=()=>{},loading=false}){
+ const [paginationModel,setPaginationModel]=useState({page:0,pageSize:100});
+ const [expanded,setExpanded]=useState(false);
+ const rows=data?.content||[];
+ const columns=useMemo(()=>{
+  if(!rows.length)return[];
+  const cols=Object.keys(rows[0]).filter(x=>x!=="id").map(x=>({field:x,headerName:title(x),flex:1,minWidth:100,headerAlign:"center",align:typeof rows[0][x]==="number"?"right":"center",sortable:true,filterable:true}));
+  if(level===1)cols.push({field:"action",headerName:"Action",width:75,sortable:false,filterable:false,headerAlign:"center",align:"center",renderCell:p=><IconButton size="small" onClick={()=>clickHandler(type,p.row)}><Visibility fontSize="small"/></IconButton>});
+  return cols;
+ },[rows,level,type]);
+ const count=data?.page?.totalElements??rows.length;
+ const download=e=>{e.stopPropagation();downloadHandler(type,type)};
+ return <Paper className={styles.differenceSection}>
+  {level===1&&<Box className={styles.sectionHeader} onClick={()=>setExpanded(x=>!x)}>
+   <Box className={styles.sectionHeaderLeft}><Box className={styles.sectionIcon}>{type==="TSD"?<Description/>:type==="CSD"?<Security/>:<Balance/>}</Box><Typography className={styles.sectionTitleText}>{category}</Typography></Box>
+   <Box className={styles.sectionHeaderRight}><Typography className={styles.rowCount}>{count} rows</Typography><Button className={styles.sectionDownload} variant="outlined" startIcon={<Download/>} disabled={!count} onClick={download}>Download</Button><IconButton size="small">{expanded?<ExpandLess/>:<ExpandMore/>}</IconButton></Box>
+  </Box>}
+  {(level===2||expanded)&&<Box className={styles.tableWrapper}>
+   <DataGrid rows={rows} columns={columns} getRowId={r=>r.id||`${r.head||""}-${r.cgl||""}-${r.currency||""}-${r.date||r.reconRunDate||""}`} pagination={level===1} paginationMode="server" paginationModel={paginationModel} onPaginationModelChange={m=>{setPaginationModel(m);requestData(type,m)}} rowCount={data?.page?.totalElements||rows.length} pageSizeOptions={[100]} loading={loading} hideFooter={!rows.length} hideFooterPagination={level===2} disableRowSelectionOnClick rowHeight={42} columnHeaderHeight={rows.length?42:0} sx={{border:0,"& .MuiDataGrid-columnHeaders":{background:"rgba(247,245,252,.7)"},"& .MuiDataGrid-cell":{fontSize:11},"& .MuiDataGrid-columnHeaderTitle":{fontSize:11,fontWeight:600},"& .MuiDataGrid-cell:focus,& .MuiDataGrid-columnHeader:focus":{outline:"none"}}} slots={{noRowsOverlay:()=> <GridOverlay><Typography fontSize={12} color="text.secondary">No records found</Typography></GridOverlay>}}/>
+  </Box>}
+ </Paper>;
+}
