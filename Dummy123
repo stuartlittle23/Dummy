@@ -1,1 +1,825 @@
+import React, { useCallback, useEffect, useState } from "react";
+import {
+  Box,
+  Button,
+  Divider,
+  Grid,
+  Paper,
+  Typography,
+  Dialog,
+  DialogContent,
+  DialogTitle,
+  Stack,
+  Chip
+} from "@mui/material";
+import {
+  AccountBalance,
+  Public,
+  Download,
+  EventAvailable,
+  Storage,
+  Business,
+  CalendarMonth,
+  AutoAwesome
+} from "@mui/icons-material";
+import { LocalizationProvider } from "@mui/x-date-pickers/LocalizationProvider";
+import { DesktopDatePicker } from "@mui/x-date-pickers/DesktopDatePicker";
+import { AdapterDayjs } from "@mui/x-date-pickers/AdapterDayjs";
+import dayjs from "dayjs";
+import debounce from "lodash/debounce";
+import { useCallback as useCb } from "react";
+import DisplayTab from "./DisplayTab";
+import Filter from "./Filter";
+import useApi from "../../hooks/useApi";
+import useCustomSnackbar from "../../utils/useCustomSnackbar";
+import downloadFile from "../../utils/DownloadUtils";
+import styles from "./BranchPosition.module.css";
 
+const alterDateFormat = (date) => {
+  const dateRegex = /^(0[1-9]|[12][0-9]|3[01])([-/.])(0[1-9]|1[0-2])\2(\d{4})$/;
+  return date.replace(dateRegex, "$4$2$3$2$1");
+};
+
+export default function BranchPosition() {
+  const [userDate, setUserDate] = useState(null);
+  const [dataRows, setDataRows] = useState({});
+  const [breakupDataRows, setBreakupDataRows] = useState({});
+  const [glifDataFilter, setGlifDataFilter] = useState({});
+  const [loading, setLoading] = useState("N");
+  const [mode, setMode] = useState("DD");
+  const [isDialogOpen, setIsDialogOpen] = useState(false);
+
+  const { callApi } = useApi();
+  const showSnackBar = useCustomSnackbar();
+  const user = JSON.parse(localStorage.getItem("user"));
+
+  const branchCode = user?.branch?.toString().padStart(5, "0");
+
+  const debouncedFetchDifference = useCb(
+    debounce(async () => {
+      if (mode === "DD") await fetchDifference();
+    }, 100),
+    [userDate, mode]
+  );
+
+  async function fetchDifference() {
+    const payload = {
+      date: userDate,
+      branch: branchCode,
+      paginationModel: {
+        page: 0,
+        pageSize: 100
+      }
+    };
+
+    try {
+      setLoading("Y");
+
+      const res = await callApi(
+        "/ES/branch-position/get-difference",
+        payload,
+        "POST"
+      );
+
+      if (res?.success) {
+        setDataRows(res.data);
+      } else {
+        showSnackBar(res.message, "error");
+        setDataRows({});
+      }
+    } catch (e) {
+      showSnackBar(e.message, "error");
+    } finally {
+      setLoading("N");
+    }
+  }
+
+  async function fetchIndividualDifference(type, paginationModel) {
+    const payload = {
+      date: userDate,
+      branch: branchCode,
+      differenceType: type,
+      paginationModel
+    };
+
+    try {
+      setLoading(type);
+
+      const res = await callApi(
+        "/ES/branch-position/get-difference",
+        payload,
+        "POST"
+      );
+
+      if (res?.success) {
+        setDataRows((prev) => ({
+          ...prev,
+          [type]: res.data[type] || []
+        }));
+      } else {
+        showSnackBar(res.message, "error");
+      }
+    } catch (e) {
+      showSnackBar(e.message, "error");
+    } finally {
+      setLoading("N");
+    }
+  }
+
+  const fetchDetailedData = async (
+    type,
+    { cgl, currency, firstErrorDate }
+  ) => {
+    const payload = {
+      branch: branchCode,
+      cgl,
+      currency,
+      startDate: alterDateFormat(firstErrorDate),
+      endDate: userDate,
+      differenceType: type
+    };
+
+    try {
+      const res = await callApi(
+        "/ES/branch-position/get-detailed-difference",
+        payload,
+        "POST"
+      );
+
+      if (res?.success) {
+        setBreakupDataRows({
+          type,
+          content: res.data || []
+        });
+      } else {
+        showSnackBar(res.message, "error");
+      }
+    } catch (e) {
+      showSnackBar(e.message, "error");
+    }
+  };
+
+  const blobErrorHandler = (error) => {
+    if (error instanceof Blob) {
+      error.text().then((message) => {
+        try {
+          const json = JSON.parse(message);
+          showSnackBar(json?.message, "error");
+        } catch {
+          showSnackBar(`Error: ${message}`, "error");
+        }
+      });
+    } else {
+      showSnackBar(error.message, "error");
+    }
+  };
+
+  const exportData = async (filePref, differenceType) => {
+    const payload = {
+      branch: branchCode,
+      date: userDate,
+      differenceType
+    };
+
+    try {
+      const res = await callApi(
+        "/ES/branch-position/export-difference",
+        payload,
+        "POST",
+        "blob",
+        "application/octet-stream"
+      );
+
+      if (!res) {
+        throw new Error("Failed to download file!");
+      }
+
+      const filename = `${filePref}_${branchCode}_${alterDateFormat(userDate)}`;
+
+      downloadFile(
+        new Blob([res]),
+        "xlsx",
+        filename,
+        false
+      );
+    } catch (e) {
+      blobErrorHandler(e);
+    }
+  };
+
+  const exportDetailedData = async () => {
+    if (!breakupDataRows?.content?.length) {
+      showSnackBar("No Rows to download!", "error");
+      return;
+    }
+
+    const first = breakupDataRows.content[0];
+
+    const payload = {
+      branch: branchCode,
+      cgl: first.cgl,
+      currency: first.currency,
+      startDate: alterDateFormat(first.firstErrorDate),
+      endDate: userDate,
+      differenceType: breakupDataRows.type
+    };
+
+    try {
+      const res = await callApi(
+        "/ES/branch-position/export-detailed-difference",
+        payload,
+        "POST",
+        "blob",
+        "application/octet-stream"
+      );
+
+      if (!res) {
+        throw new Error("Failed to download file!");
+      }
+
+      const filename =
+        `${breakupDataRows.type}_${branchCode}_${first.currency}_${first.cgl}_${alterDateFormat(userDate)}`;
+
+      downloadFile(
+        new Blob([res]),
+        "xlsx",
+        filename,
+        false
+      );
+    } catch (e) {
+      blobErrorHandler(e);
+    }
+  };
+
+  const exportGlifData = async () => {
+    const payload = {
+      branch: branchCode,
+      date: userDate,
+      filters: [
+        {
+          field: "BRANCH_CODE",
+          operator: "EQUALS",
+          value: branchCode
+        },
+        {
+          field: "TRANS_DATE",
+          operator: "EQUALS",
+          value: userDate
+        },
+        ...Object.entries(glifDataFilter).map(
+          ([key, entry]) => ({
+            field: key,
+            operator: entry.operator,
+            value: entry.value
+          })
+        )
+      ]
+    };
+
+    try {
+      const res = await callApi(
+        "/ES/branch-position/export-glif-data",
+        payload,
+        "POST",
+        "blob",
+        "application/octet-stream"
+      );
+
+      if (!res) {
+        throw new Error("Failed to download file!");
+      }
+
+      const filename =
+        `glif_${branchCode}_${alterDateFormat(userDate)}${Object.keys(glifDataFilter).length ? "_filtered" : ""}`;
+
+      downloadFile(
+        new Blob([res]),
+        "xlsx",
+        filename,
+        false
+      );
+    } catch (e) {
+      blobErrorHandler(e);
+    }
+  };
+
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        const res = await callApi(
+          "/ES/branch-position/user-date"
+        );
+
+        if (res?.success) {
+          setUserDate(res.data.substring(0, 10));
+        } else {
+          showSnackBar(res.message, "error");
+        }
+      } catch (e) {
+        showSnackBar(e.message, "error");
+      }
+    };
+
+    fetchData();
+
+    return () => {
+      setUserDate(null);
+      setBreakupDataRows({});
+      setDataRows({});
+      setIsDialogOpen(false);
+      setGlifDataFilter({});
+      setLoading("N");
+      setMode("DD");
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!userDate) return;
+
+    setBreakupDataRows({});
+    debouncedFetchDifference();
+  }, [userDate, debouncedFetchDifference]);
+
+  useEffect(() => {
+    if (breakupDataRows?.content) {
+      setIsDialogOpen(true);
+    }
+  }, [breakupDataRows]);
+
+  const handleFilter = (filter) => {
+    if (!filter.multiValue) {
+      setGlifDataFilter((prev) => ({
+        ...prev,
+        [filter.field]: {
+          operator: "EQUALS",
+          value: filter.value
+        }
+      }));
+      return;
+    }
+
+    if (glifDataFilter[filter.field]) {
+      if (glifDataFilter[filter.field].value.length >= 10) {
+        showSnackBar(
+          "Only 10 filter values allowed!",
+          "error"
+        );
+        return;
+      }
+
+      if (
+        new Set(
+          glifDataFilter[filter.field].value
+        ).has(filter.value)
+      ) {
+        showSnackBar(
+          "Value already present in the filter!",
+          "error"
+        );
+        return;
+      }
+
+      setGlifDataFilter((prev) => ({
+        ...prev,
+        [filter.field]: {
+          operator: "IN",
+          value: [
+            ...prev[filter.field].value,
+            filter.value
+          ]
+        }
+      }));
+
+      return;
+    }
+
+    setGlifDataFilter((prev) => ({
+      ...prev,
+      [filter.field]: {
+        operator: "IN",
+        value: [filter.value]
+      }
+    }));
+  };
+
+  const deleteFilter = (key) => {
+    const {
+      [key]: _,
+      ...rest
+    } = glifDataFilter;
+
+    setGlifDataFilter(rest);
+  };
+
+  const deleteFilterValue = (key, value) => {
+    const values =
+      glifDataFilter[key].value.filter(
+        (v) => v !== value
+      );
+
+    if (values.length) {
+      setGlifDataFilter((prev) => ({
+        ...prev,
+        [key]: {
+          ...prev[key],
+          value: values
+        }
+      }));
+    } else {
+      deleteFilter(key);
+    }
+  };
+
+  const getFilterData = (field) =>
+    glifDataFilter[field]?.value || [];
+
+  const cards = [
+    {
+      type: "TSD",
+      title: "Technical suspense",
+      icon: <EventAvailable />,
+      color: "violet"
+    },
+    {
+      type: "CSD",
+      title: "CGL suspense",
+      icon: <Business />,
+      color: "green"
+    },
+    {
+      type: "BCD",
+      title: "Balance compare",
+      icon: <AccountBalance />,
+      color: "orange"
+    }
+  ];
+
+  return (
+    <Box className={styles.page}>
+
+      {/* LEFT PANEL */}
+      <Paper className={styles.sidebar}>
+
+        <Box className={styles.brand}>
+          <Box className={styles.brandIcon}>
+            <AccountBalance />
+          </Box>
+
+          <Box>
+            <Typography className={styles.brandTitle}>
+              Branch position
+            </Typography>
+
+            <Box className={styles.brandLine} />
+          </Box>
+
+          <AutoAwesome
+            className={styles.sidebarSparkle}
+          />
+        </Box>
+
+        <Box className={styles.infoCard}>
+
+          {/* BRANCH */}
+          <Box className={styles.infoItem}>
+            <Box className={styles.infoIcon}>
+              <AccountBalance />
+            </Box>
+
+            <Box>
+              <Typography className={styles.infoLabel}>
+                BRANCH
+              </Typography>
+
+              <Typography className={styles.infoValue}>
+                {branchCode}
+              </Typography>
+
+              <Typography className={styles.infoSub}>
+                {user?.branchName}
+              </Typography>
+            </Box>
+          </Box>
+
+          <Divider />
+
+          {/* CIRCLE */}
+          <Box className={styles.infoItem}>
+            <Box className={styles.infoIcon}>
+              <Public />
+            </Box>
+
+            <Box>
+              <Typography className={styles.infoLabel}>
+                CIRCLE
+              </Typography>
+
+              <Typography className={styles.infoValue}>
+                {user?.circleCode}
+              </Typography>
+
+              <Typography className={styles.infoSub}>
+                {user?.circleName}
+              </Typography>
+            </Box>
+          </Box>
+
+          <Divider />
+
+          {/* REPORT DATE */}
+          <Box className={styles.infoItem}>
+            <Box className={styles.infoIcon}>
+              <CalendarMonth />
+            </Box>
+
+            <Box className={styles.dateInfo}>
+              <Typography className={styles.infoLabel}>
+                REPORT DATE
+              </Typography>
+
+              <LocalizationProvider
+                dateAdapter={AdapterDayjs}
+              >
+                <DesktopDatePicker
+                  value={
+                    userDate
+                      ? dayjs(userDate)
+                      : null
+                  }
+                  onChange={(value) =>
+                    value &&
+                    setUserDate(
+                      value.format("YYYY-MM-DD")
+                    )
+                  }
+                  maxDate={dayjs()}
+                  format="DD-MM-YYYY"
+                  closeOnSelect
+                  slotProps={{
+                    textField: {
+                      size: "small",
+                      fullWidth: true
+                    }
+                  }}
+                />
+              </LocalizationProvider>
+            </Box>
+          </Box>
+
+        </Box>
+
+        {/* NAVIGATION */}
+        <Box className={styles.navigation}>
+
+          <Button
+            className={`${styles.navButton} ${
+              mode === "DD"
+                ? styles.activeNav
+                : ""
+            }`}
+            onClick={() => setMode("DD")}
+            startIcon={<EventAvailable />}
+          >
+            Difference data
+          </Button>
+
+          <Button
+            className={`${styles.navButton} ${
+              mode === "GE"
+                ? styles.activeNav
+                : ""
+            }`}
+            onClick={() => {
+              setMode("GE");
+              setGlifDataFilter({});
+            }}
+            startIcon={<Storage />}
+          >
+            GLIF data
+          </Button>
+
+        </Box>
+
+        {/* BOTTOM DECORATIVE AREA */}
+        <Box className={styles.sidebarArtwork}>
+
+          <AutoAwesome
+            className={styles.artSparkleOne}
+          />
+
+          <AutoAwesome
+            className={styles.artSparkleTwo}
+          />
+
+          <Box className={styles.artGlow}>
+            <AccountBalance
+              className={styles.artBank}
+            />
+          </Box>
+
+          <Box className={styles.artBase} />
+
+        </Box>
+
+      </Paper>
+
+      {/* MAIN CONTENT */}
+      <Box className={styles.main}>
+
+        <Paper className={styles.mainPanel}>
+
+          <Box className={styles.pageHeader}>
+            <Box>
+
+              <Typography className={styles.pageTitle}>
+                {mode === "DD"
+                  ? "Difference data"
+                  : "GLIF data"}
+              </Typography>
+
+              <Typography className={styles.pageSubtitle}>
+                {mode === "DD"
+                  ? `Reconciliation status for ${
+                      userDate
+                        ? dayjs(userDate).format(
+                            "DD-MM-YYYY"
+                          )
+                        : ""
+                    }`
+                  : "Apply filters to download branch GLIF data."}
+              </Typography>
+
+            </Box>
+          </Box>
+
+          {/* DIFFERENCE DATA */}
+          {mode === "DD" && (
+            <>
+
+              <Grid
+                container
+                spacing={1.5}
+                className={styles.summaryGrid}
+              >
+
+                {cards.map((card) => {
+
+                  const rows =
+                    dataRows?.[card.type]?.content ||
+                    [];
+
+                  const count =
+                    dataRows?.[card.type]?.page
+                      ?.totalElements ??
+                    rows.length;
+
+                  return (
+                    <Grid
+                      item
+                      xs={12}
+                      md={4}
+                      key={card.type}
+                    >
+
+                      <Paper
+                        className={`${styles.summaryCard} ${styles[card.color]}`}
+                      >
+
+                        <Box className={styles.summaryIcon}>
+                          {card.icon}
+                        </Box>
+
+                        <Box className={styles.summaryContent}>
+
+                          <Typography className={styles.summaryTitle}>
+                            {card.title}
+                          </Typography>
+
+                          <Typography className={styles.summaryCount}>
+                            {count}
+                          </Typography>
+
+                          <Typography className={styles.summaryLabel}>
+                            Records found
+                          </Typography>
+
+                        </Box>
+
+                        <Button
+                          size="small"
+                          variant="outlined"
+                          startIcon={<Download />}
+                          disabled={!count}
+                          onClick={() =>
+                            exportData(
+                              card.type,
+                              card.type
+                            )
+                          }
+                          className={styles.cardDownload}
+                        >
+                          Download
+                        </Button>
+
+                      </Paper>
+
+                    </Grid>
+                  );
+                })}
+
+              </Grid>
+
+              <Box className={styles.sections}>
+
+                <DisplayTab
+                  category="Technical suspense"
+                  type="TSD"
+                  level={1}
+                  data={dataRows.TSD || []}
+                  clickHandler={fetchDetailedData}
+                  downloadHandler={exportData}
+                  loading={
+                    loading === "Y" ||
+                    loading === "TSD"
+                  }
+                  requestData={
+                    fetchIndividualDifference
+                  }
+                />
+
+                <DisplayTab
+                  category="CGL suspense"
+                  type="CSD"
+                  level={1}
+                  data={dataRows.CSD || []}
+                  clickHandler={fetchDetailedData}
+                  downloadHandler={exportData}
+                  loading={
+                    loading === "Y" ||
+                    loading === "CSD"
+                  }
+                  requestData={
+                    fetchIndividualDifference
+                  }
+                />
+
+                <DisplayTab
+                  category="Balance compare"
+                  type="BCD"
+                  level={1}
+                  data={dataRows.BCD || []}
+                  clickHandler={fetchDetailedData}
+                  downloadHandler={exportData}
+                  loading={
+                    loading === "Y" ||
+                    loading === "BCD"
+                  }
+                  requestData={
+                    fetchIndividualDifference
+                  }
+                />
+
+              </Box>
+
+              <Paper className={styles.infoBanner}>
+                <Typography>
+                  Download will include all Difference
+                  data for branch {branchCode} on{" "}
+                  {userDate
+                    ? dayjs(userDate).format(
+                        "DD-MM-YYYY"
+                      )
+                    : ""}{" "}
+                  with the applied filters.
+                </Typography>
+              </Paper>
+
+            </>
+          )}
+
+          {/* GLIF DATA */}
+          {mode === "GE" && (
+            <Paper className={styles.glifPanel}>
+
+              <Typography className={styles.glifTitle}>
+                GLIF data
+              </Typography>
+
+              <Typography className={styles.glifSubtitle}>
+                Apply filters to download branch GLIF data.
+              </Typography>
+
+              <Grid
+                container
+                spacing={1.5}
+              >
+
+                <Grid
+                  item
+                  xs={12}
+                  md={6}
+                >
+
+                  <Paper className={styles.filterSection}>
+
+                    <Typography cla
