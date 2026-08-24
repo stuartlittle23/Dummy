@@ -1,34 +1,325 @@
-const validateCgl = (val) => {
-    const pattern = /^\d{10}$/;
-    return pattern.test(val.toString()) ? null : "CGL must be of 10 digits!";
+import styled from '@emotion/styled';
+import { Download } from '@mui/icons-material';
+import { Box, Button, Chip, Paper, Typography } from '@mui/material';
+import { DataGrid, GridOverlay, GridToolbarExportContainer, Toolbar } from '@mui/x-data-grid'
+import { GridToolbar } from '@mui/x-data-grid/internals';
+import React, { useMemo, useState } from 'react'
+import { string } from 'zod';
+
+function camelToTitleCase(str) {
+
+    let spaced = str.replace(/([a-z0-9])([A-Z])/g, '$1 $2');
+    spaced = spaced.replace(/([A-Z]+)([A-Z][a-z])/g, '$1 $2');
+    return spaced
+        .split(' ')
+        .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+        .join(' ');
 }
 
-const validateCurrency = (val) => {
-    const pattern = /^([A-Z]){3}$/;
-    return pattern.test(val.toString()) ? null : "Currency Code must be of 3 Capital letters!";
-}
+// function filePref() {
 
-const validateBranchCode = (val) => {
-    const pattern = /^([0-9]){5}$/;
-    return pattern.test(val.toString()) ? null : "Branch code must be of 5 digits!";
-}
+// }
+const StyledBox = styled(Box)(({ theme }) => ({
+    textAlign: 'center',
+    padding: "5px"
+}));
 
-const validateJrnNo = (val) => {
-    const pattern = /^\d+$/;
-    return pattern.test(val.toString()) ? null : "Journal Number must be numeric only!";
-}
+const HeaderBox = styled(Box)(({ theme }) => ({
+    display: "flex", alignItems: "center"
+}));
 
-const validateAccNo = (val) => {
-    const pattern = /^\d{10}$/;
-    return pattern.test(val.toString()) ? null : "Account Number must be 10 digits only!";
-}
+const HeaderTypography = styled(Typography)(({ theme }) => ({
+    flexGrow: 1
+}));
 
-const validateTxnCode = (val) => {
-    const pattern = /^\d{5}$/;
-    return pattern.test(val.toString()) ? null : "Transaction code must be 5 digits only!";
-}
-const validateBatchId = (val) => {
-    return null
-}
+const MainPaper = styled(Paper)(({ theme }) => ({
+    // minHeight: "200px",
+    marginTop: "5px",
+    marginBottom: "5px"
+}));
 
-export default { validateCgl, validateCurrency, validateBranchCode, validateJrnNo, validateAccNo, validateTxnCode, validateBatchId };
+const DownloadButton = styled(Button)(({ theme }) => ({
+    flexGrow: 0,
+    margin: "3px"
+}));
+
+const StyledDataGrid = styled(DataGrid)(({ theme }) => ({
+    maxHeight: "400px",
+    minHeight: "100px",
+    '& .MuiDataGrid-cell:focus, & .MuiDataGrid-columnHeader:focus': {
+        outline: 'none',
+    },
+    '& .MuiDataGrid-cell:focus-within, & .MuiDataGrid-columnHeader:focus-within': {
+        outline: 'none',
+    },
+    '& .MuiDataGrid-columnHeader': {
+        backgroundColor: '#ffffff',
+    }
+}))
+
+const rawColumns = [
+    {
+        field: "reconRunDate",
+        headerName: "Report Date",
+        width: 100,
+        headerAlign: 'center',
+        align: 'center',
+        disableColumnMenu: true,
+        sortable: false,
+        filterable: false,
+        // flex: 1
+    },
+    {
+        field: "date",
+        headerName: "Report Date",
+        width: 120,
+        headerAlign: 'center',
+        align: 'center',
+        disableColumnMenu: true,
+        sortable: false,
+        filterable: false,
+        // flex: 1
+    },
+    {
+        field: "firstErrorDate",
+        headerName: "First Error Date",
+        width: 120,
+        disableColumnMenu: true,
+        headerAlign: 'center',
+        align: 'center',
+        sortable: true,
+        filterable: true,
+        // flex: 1
+    },
+    {
+        field: "branchCode",
+        headerName: "Branch Code",
+        width: 100,
+        disableColumnMenu: true,
+        headerAlign: 'center',
+        align: 'center',
+        // flex: 1
+    },
+    {
+        field: "currency",
+        headerName: "Currency",
+        width: 80,
+        headerAlign: 'center',
+        align: 'center',
+        disableColumnMenu: true,
+        sortable: true,
+        filterable: true,
+        // flex: 1
+    },
+    {
+        field: "cgl",
+        headerName: "CGL",
+        width: 120,
+        headerAlign: 'center',
+        align: 'center',
+        sortable: true,
+        filterable: true,
+        // flex: 1
+    },
+    {
+        field: "balance",
+        headerName: "Amount",
+        // width: 180,
+        align: 'right',
+        headerAlign: 'center',
+        sortable: true,
+        filterable: true,
+        flex: 2
+    },
+    {
+        field: "inrBalance",
+        headerName: "INR Balance",
+        // minWidth: 180,
+        align: 'right',
+        headerAlign: 'center',
+        sortable: true,
+        filterable: true,
+        flex: 2
+    },
+    {
+        field: "cbsBalance",
+        headerName: "CBS Balance",
+        // minWidth: 180,
+        align: 'right',
+        headerAlign: 'center',
+        sortable: false,
+        filterable: false,
+        flex: 2
+    },
+    {
+        field: "glBalance",
+        headerName: " GL Balance",
+        // minWidth: 180,
+        align: 'right',
+        headerAlign: 'center',
+        sortable: false,
+        filterable: false,
+        flex: 2
+    },
+    {
+        field: "differenceAmount",
+        headerName: "Difference Amount",
+        // minWidth: 180,
+        align: 'right',
+        headerAlign: 'center',
+        sortable: false,
+        filterable: false,
+        flex: 2
+    },
+    {
+        field: "diffBwYesterday",
+        headerName: "Diff Bw Yesterday",
+        // minWidth: 180,
+        align: 'right',
+        headerAlign: 'center',
+        sortable: false,
+        filterable: false,
+        flex: 2
+    },
+    {
+        field: "type",
+        headerName: "Type",
+        // maxWidth: 100,
+        sortable: true,
+        filterable: true,
+        flex: 1
+    },
+    {
+        field: "head",
+        headerName: "Head",
+        // minWidth: 100,
+        sortable: true,
+        filterable: true,
+        flex: 1
+    },
+]
+
+export default function DisplayTab({ level, type, data = {}, category, clickHandler = () => { }, downloadHandler = () => { }, requestData = () => { }, loading = false }) {
+    const [paginationModel, setPaginationModel] = useState({
+        page: 0,
+        pageSize: 100,
+    });
+    const rows = data?.content || [];
+
+    //Dynamic Columns Mapper
+    const columns = useMemo(() => {
+        if (!rows || rows.length === 0) return [];
+
+        // let cols = Object.entries(rows[0]).reduce((acc, entry) => {
+        //     if (entry[0].toLowerCase() == "id") {
+        //         return acc
+        //     }
+        //     let isNumericValue = typeof entry[1] === 'number';
+        //     acc.push({
+        //         field: entry[0],
+        //         // headerName: entry[0].charAt(0).toUpperCase() + entry[0].slice(1), // Capitalize header
+        //         headerName: camelToTitleCase(entry[0]),
+        //         maxWidth: 100,
+        //         // Handle nested objects if necessary
+        //         renderCell: (params) => {
+        //             const value = params.value;
+        //             return typeof value === 'object' && value !== null
+        //                 ? JSON.stringify(value)
+        //                 : value;
+        //         },
+        //         type: isNumericValue ? 'number' : string,
+        //         align: isNumericValue ? 'right' : 'center',
+        //         headerAlign: isNumericValue ? 'right' : 'center',
+        //         sortable: false,
+        //         filterable: true,
+        //         flex: 1
+        //     });
+        //     return acc
+        // }, []);
+        const fields = Object.keys(rows[0]);
+        let cols = rawColumns.filter((field) => fields.includes(field.field));
+
+        if (level && level == 1) {
+            const actions = {
+                field: "action",
+                headerName: 'Actions',
+                headerAlign: 'center',
+                align: 'center',
+                width: 100,
+                renderCell: (params) => (
+                    <Button variant="text" size="small" variant="contained" onClick={() =>
+                        // alert(`View details for ${params.row.cgl}`)
+                        clickHandler(type, params.row)
+
+                    }>
+                        Details
+                    </Button>)
+            }
+            return [...cols, actions]
+        }
+        return cols;
+    }, [rows]);
+
+
+    const handlePaginationModelChange = (newModel) => {
+        setPaginationModel(newModel);
+        requestData(type, { ...newModel });
+    };
+
+    const CustomNoRowsOverlay = () => (
+        <GridOverlay>
+            <StyledBox>
+                <Typography variant="h6">No Difference</Typography>
+            </StyledBox>
+        </GridOverlay>
+    );
+    const CustomNoDataOverlay = () => (
+        <GridOverlay>
+            <StyledBox>
+                <Typography variant="h5" color="text.secondary">
+                    No Data found for the applied filters.
+                </Typography>
+            </StyledBox>
+        </GridOverlay>
+    );
+
+    const handleDownload = () => {
+        downloadHandler(`${type || "no_name"}`, type);
+    }
+
+    return (
+        <MainPaper >
+            {level == 1 &&
+                <HeaderBox>
+                    <HeaderTypography variant='h7'>
+                        {category || "Data"}
+                    </HeaderTypography >
+                    <DownloadButton onClick={handleDownload} disabled={!rows || rows.length == 0} variant="contained" size='small' endIcon={<Download />}>Download</DownloadButton>
+                </HeaderBox>
+            }
+            <StyledDataGrid
+                rows={rows || []}
+                columns={columns || []}
+                pagination={level === 1}
+                paginationMode='server'
+                paginationModel={paginationModel}
+                rowCount={data?.page?.totalElements || 0}
+                // autosizeOnMount
+                getRowId={(row) => row?.id || `${row.head}-${row.cgl}`}
+                pageSizeOptions={[100]}
+                columnHeaderHeight={rows.length == 0 ? 0 : 56}
+                // showToolbar={level === 2 && rows.length > 0}
+                onPaginationModelChange={handlePaginationModelChange}
+                hideFooter={rows.length == 0}
+                hideFooterPagination={level === 2}
+                slots={{
+                    columnHeaders: rows.length == 0 ? () => null : undefined,
+                    noRowsOverlay: CustomNoRowsOverlay,
+                    noResultsOverlay: CustomNoRowsOverlay,
+                    noColumnsOverlay: CustomNoRowsOverlay,
+                }}
+                loading={loading || false}
+            />
+        </MainPaper>
+    )
+}
