@@ -1,131 +1,559 @@
-import React,{useCallback,useEffect,useState} from "react";
-import useApi from "../../hooks/useApi";
-import Validation from "./Validation";
-import useCustomSnackbar from "../../utils/useCustomSnackbar";
-import {Autocomplete,Box,Button,FormControl,Grid,InputLabel,MenuItem,Select,TextField} from "@mui/material";
+import React, { useCallback, useEffect, useState } from "react";
+import {
+  Box, Button, Divider, Grid, Paper, Typography, Tabs, Tab,
+  Dialog, DialogContent, DialogTitle, Stack, Chip
+} from "@mui/material";
+import {
+  AccountBalance, Public, Download, EventAvailable, Delete,
+  Tune, Storage, Business, CalendarMonth
+} from "@mui/icons-material";
+import { LocalizationProvider } from "@mui/x-date-pickers/LocalizationProvider";
+import { DesktopDatePicker } from "@mui/x-date-pickers/DesktopDatePicker";
+import { AdapterDayjs } from "@mui/x-date-pickers/AdapterDayjs";
+import dayjs from "dayjs";
 import debounce from "lodash/debounce";
+import { useCallback as useCb } from "react";
+import DisplayTab from "./DisplayTab";
+import Filter from "./Filter";
+import useApi from "../../hooks/useApi";
+import useCustomSnackbar from "../../utils/useCustomSnackbar";
+import downloadFile from "../../utils/DownloadUtils";
+import styles from "./BranchPosition.module.css";
 
-const filterMap={
-  CURRENCY:{type:"autocomplete",multiValue:true,validate:"validateCurrency"},
-  CGL:{type:"autocomplete",multiValue:true,validate:"validateCgl"},
-  JOURNAL_NUMBER:{type:"input",multiValue:false,validate:"validateJrnNo"},
-  TRANSACTION_CODE:{type:"input",multiValue:true,validate:"validateTxnCode"},
-  BATCH_ID:{type:"input",multiValue:false,validate:"validateBatchId"},
-  ACCOUNT:{type:"input",multiValue:false,validate:"validateAccNo"}
+const alterDateFormat = (date) => {
+  const dateRegex = /^(0[1-9]|[12][0-9]|3[01])([-/.])(0[1-9]|1[0-2])\2(\d{4})$/;
+  return date.replace(dateRegex, "$4$2$3$2$1");
 };
 
-export default function Filter({handleFilter,getValues}){
-  const [values,setValues]=useState([]);
-  const [filterField,setFilterField]=useState("CGL");
-  const [isMinInput,setIsMinInput]=useState(false);
-  const [inputInstance,setInputInstance]=useState("");
-  const snackbar=useCustomSnackbar();
-  const {callApi}=useApi();
+export default function BranchPosition() {
+  const [userDate, setUserDate] = useState(null);
+  const [dataRows, setDataRows] = useState({});
+  const [breakupDataRows, setBreakupDataRows] = useState({});
+  const [glifDataFilter, setGlifDataFilter] = useState({});
+  const [loading, setLoading] = useState("N");
+  const [mode, setMode] = useState("DD");
+  const [isDialogOpen, setIsDialogOpen] = useState(false);
 
-  const debouncedFetchCgls=useCallback(debounce(async(value,type,min)=>fetchCgls(value,type,min),100),[]);
+  const { callApi } = useApi();
+  const showSnackBar = useCustomSnackbar();
+  const user = JSON.parse(localStorage.getItem("user"));
 
-  const fetchCurrencies=async()=>{
-    const response=await callApi("/CM/common-master/currency",null,"GET");
-    if(response)setValues(response.data||[]);
-    else snackbar("Failed to fetch currency list!","error");
-  };
+  const branchCode = user?.branch?.toString().padStart(5, "0");
 
-  async function fetchCgls(term,reason,min){
-    if(reason!=="input")return;
-    if(term?.length<3){
-      if(min)setIsMinInput(false);
-      setValues([]);
-      return;
+  const debouncedFetchDifference = useCb(
+    debounce(async () => {
+      if (mode === "DD") await fetchDifference();
+    }, 100),
+    [userDate, mode]
+  );
+
+  async function fetchDifference() {
+    const payload = {
+      date: userDate,
+      branch: branchCode,
+      paginationModel: { page: 0, pageSize: 100 }
+    };
+
+    try {
+      setLoading("Y");
+      const res = await callApi("/ES/branch-position/get-difference", payload, "POST");
+      if (res?.success) setDataRows(res.data);
+      else {
+        showSnackBar(res.message, "error");
+        setDataRows({});
+      }
+    } catch (e) {
+      showSnackBar(e.message, "error");
+    } finally {
+      setLoading("N");
     }
-    if(!min)setIsMinInput(true);
-    try{
-      const res=await callApi(`/CM/common-master/cgl-code-description-only?q=${encodeURIComponent(term)}`);
-      if(res?.success)setValues(res.data||[]);
-      else{setValues([]);snackbar(res?.message,"error");}
-    }catch(e){snackbar(e.message,"error");}
   }
 
-  useEffect(()=>{if(filterField==="CURRENCY")fetchCurrencies();},[filterField]);
+  async function fetchIndividualDifference(type, paginationModel) {
+    const payload = {
+      date: userDate,
+      branch: branchCode,
+      differenceType: type,
+      paginationModel
+    };
 
-  const setFilter=()=>{
-    if((filterField==="CURRENCY"||filterField==="CGL")&&!inputInstance){
-      snackbar("Kindly select the value!","error");
+    try {
+      setLoading(type);
+      const res = await callApi("/ES/branch-position/get-difference", payload, "POST");
+      if (res?.success) {
+        setDataRows((prev) => ({ ...prev, [type]: res.data[type] || [] }));
+      } else showSnackBar(res.message, "error");
+    } catch (e) {
+      showSnackBar(e.message, "error");
+    } finally {
+      setLoading("N");
+    }
+  }
+
+  const fetchDetailedData = async (type, { cgl, currency, firstErrorDate }) => {
+    const payload = {
+      branch: branchCode,
+      cgl,
+      currency,
+      startDate: alterDateFormat(firstErrorDate),
+      endDate: userDate,
+      differenceType: type
+    };
+
+    try {
+      const res = await callApi(
+        "/ES/branch-position/get-detailed-difference",
+        payload,
+        "POST"
+      );
+
+      if (res?.success) setBreakupDataRows({ type, content: res.data || [] });
+      else showSnackBar(res.message, "error");
+    } catch (e) {
+      showSnackBar(e.message, "error");
+    }
+  };
+
+  const blobErrorHandler = (error) => {
+    if (error instanceof Blob) {
+      error.text().then((message) => {
+        try {
+          const json = JSON.parse(message);
+          showSnackBar(json?.message, "error");
+        } catch {
+          showSnackBar(`Error: ${message}`, "error");
+        }
+      });
+    } else showSnackBar(error.message, "error");
+  };
+
+  const exportData = async (filePref, differenceType) => {
+    const payload = {
+      branch: branchCode,
+      date: userDate,
+      differenceType
+    };
+
+    try {
+      const res = await callApi(
+        "/ES/branch-position/export-difference",
+        payload,
+        "POST",
+        "blob",
+        "application/octet-stream"
+      );
+
+      if (!res) throw new Error("Failed to download file!");
+
+      const filename = `${filePref}_${branchCode}_${alterDateFormat(userDate)}`;
+      downloadFile(new Blob([res]), "xlsx", filename, false);
+    } catch (e) {
+      blobErrorHandler(e);
+    }
+  };
+
+  const exportDetailedData = async () => {
+    if (!breakupDataRows?.content?.length) {
+      showSnackBar("No Rows to download!", "error");
       return;
     }
-    const error=Validation[filterMap[filterField].validate](inputInstance);
-    if(error){snackbar(error,"error");return;}
-    handleFilter({field:filterField,value:inputInstance,multiValue:filterMap[filterField].multiValue});
-    setInputInstance("");
+
+    const first = breakupDataRows.content[0];
+    const payload = {
+      branch: branchCode,
+      cgl: first.cgl,
+      currency: first.currency,
+      startDate: alterDateFormat(first.firstErrorDate),
+      endDate: userDate,
+      differenceType: breakupDataRows.type
+    };
+
+    try {
+      const res = await callApi(
+        "/ES/branch-position/export-detailed-difference",
+        payload,
+        "POST",
+        "blob",
+        "application/octet-stream"
+      );
+
+      if (!res) throw new Error("Failed to download file!");
+
+      const filename = `${breakupDataRows.type}_${branchCode}_${first.currency}_${first.cgl}_${alterDateFormat(userDate)}`;
+      downloadFile(new Blob([res]), "xlsx", filename, false);
+    } catch (e) {
+      blobErrorHandler(e);
+    }
   };
 
-  const fieldChange=(e)=>{
-    setFilterField(e.target.value);
-    setInputInstance("");
-    setValues([]);
-    setIsMinInput(false);
+  const exportGlifData = async () => {
+    const payload = {
+      branch: branchCode,
+      date: userDate,
+      filters: [
+        { field: "BRANCH_CODE", operator: "EQUALS", value: branchCode },
+        { field: "TRANS_DATE", operator: "EQUALS", value: userDate },
+        ...Object.entries(glifDataFilter).map(([key, entry]) => ({
+          field: key,
+          operator: entry.operator,
+          value: entry.value
+        }))
+      ]
+    };
+
+    try {
+      const res = await callApi(
+        "/ES/branch-position/export-glif-data",
+        payload,
+        "POST",
+        "blob",
+        "application/octet-stream"
+      );
+
+      if (!res) throw new Error("Failed to download file!");
+
+      const filename = `glif_${branchCode}_${alterDateFormat(userDate)}${Object.keys(glifDataFilter).length ? "_filtered" : ""}`;
+      downloadFile(new Blob([res]), "xlsx", filename, false);
+    } catch (e) {
+      blobErrorHandler(e);
+    }
   };
 
-  return(
-    <Grid container spacing={1} alignItems="center">
-      <Grid item xs={12} md={4}>
-        <FormControl fullWidth size="small">
-          <InputLabel>Select Filter</InputLabel>
-          <Select value={filterField} label="Select Filter" onChange={fieldChange}>
-            <MenuItem value="CURRENCY">Currency</MenuItem>
-            <MenuItem value="CGL">CGL</MenuItem>
-            <MenuItem value="JOURNAL_NUMBER">Journal Number</MenuItem>
-            <MenuItem value="TRANSACTION_CODE">Transaction Code</MenuItem>
-            <MenuItem value="BATCH_ID">Batch ID</MenuItem>
-            <MenuItem value="ACCOUNT">Account</MenuItem>
-          </Select>
-        </FormControl>
-      </Grid>
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        const res = await callApi("/ES/branch-position/user-date");
+        if (res?.success) setUserDate(res.data.substring(0, 10));
+        else showSnackBar(res.message, "error");
+      } catch (e) {
+        showSnackBar(e.message, "error");
+      }
+    };
 
-      <Grid item xs={12} md={5}>
-        {filterField==="CURRENCY"&&(
-          <Autocomplete
-            size="small"
-            options={values||[]}
-            value={inputInstance||null}
-            onChange={(e,v,r)=>setInputInstance(r==="selectOption"?v:"")}
-            filterOptions={(options,{inputValue})=>options.filter(v=>v.startsWith(inputValue.toUpperCase())&&!getValues("CURRENCY")?.includes(v))}
-            renderInput={(params)=><TextField {...params} label="Currency"/>}
-            noOptionsText="No options"
-          />
-        )}
+    fetchData();
 
-        {filterField==="CGL"&&(
-          <Autocomplete
-            size="small"
-            options={(values||[]).map(v=>v.cglNumber)}
-            value={inputInstance||null}
-            onInputChange={(e,v,r)=>debouncedFetchCgls(v,r,isMinInput)}
-            onChange={(e,v,r)=>{if(r==="selectOption"){setInputInstance(v);setValues([]);}else if(r==="clear"){setInputInstance("");setValues([]);}}}
-            filterOptions={(options)=>options.filter(v=>!getValues("CGL")?.includes(v))}
-            renderInput={(params)=><TextField {...params} label="CGL"/>}
-            noOptionsText={!isMinInput?"Enter at least 3 characters":"No options"}
-          />
-        )}
+    return () => {
+      setUserDate(null);
+      setBreakupDataRows({});
+      setDataRows({});
+      setIsDialogOpen(false);
+      setGlifDataFilter({});
+      setLoading("N");
+      setMode("DD");
+    };
+  }, []);
 
-        {["JOURNAL_NUMBER","TRANSACTION_CODE","BATCH_ID","ACCOUNT"].includes(filterField)&&(
-          <TextField
-            fullWidth
-            size="small"
-            label={filterField.replaceAll("_"," ")}
-            value={inputInstance}
-            onChange={e=>setInputInstance(e.target.value)}
-            slotProps={{htmlInput:{maxLength:filterField==="TRANSACTION_CODE"?5:10}}}
-          />
-        )}
-      </Grid>
+  useEffect(() => {
+    if (!userDate) return;
+    setBreakupDataRows({});
+    debouncedFetchDifference();
+  }, [userDate, debouncedFetchDifference]);
 
-      <Grid item xs={12} md={3}>
-        <Box display="flex" justifyContent="flex-end">
-          <Button variant="contained" onClick={setFilter} size="small" sx={{textTransform:"none",background:"#5739c8",px:3}}>
-            Add Filter
+  useEffect(() => {
+    if (breakupDataRows?.content) setIsDialogOpen(true);
+  }, [breakupDataRows]);
+
+  const handleFilter = (filter) => {
+    if (!filter.multiValue) {
+      setGlifDataFilter((prev) => ({
+        ...prev,
+        [filter.field]: { operator: "EQUALS", value: filter.value }
+      }));
+      return;
+    }
+
+    if (glifDataFilter[filter.field]) {
+      if (glifDataFilter[filter.field].value.length >= 10) {
+        showSnackBar("Only 10 filter values allowed!", "error");
+        return;
+      }
+
+      if (new Set(glifDataFilter[filter.field].value).has(filter.value)) {
+        showSnackBar("Value already present in the filter!", "error");
+        return;
+      }
+
+      setGlifDataFilter((prev) => ({
+        ...prev,
+        [filter.field]: {
+          operator: "IN",
+          value: [...prev[filter.field].value, filter.value]
+        }
+      }));
+      return;
+    }
+
+    setGlifDataFilter((prev) => ({
+      ...prev,
+      [filter.field]: { operator: "IN", value: [filter.value] }
+    }));
+  };
+
+  const deleteFilter = (key) => {
+    const { [key]: _, ...rest } = glifDataFilter;
+    setGlifDataFilter(rest);
+  };
+
+  const deleteFilterValue = (key, value) => {
+    const values = glifDataFilter[key].value.filter((v) => v !== value);
+    if (values.length) {
+      setGlifDataFilter((prev) => ({
+        ...prev,
+        [key]: { ...prev[key], value: values }
+      }));
+    } else deleteFilter(key);
+  };
+
+  const getFilterData = (field) => glifDataFilter[field]?.value || [];
+
+  const cards = [
+    { type: "TSD", title: "Technical suspense", icon: <EventAvailable />, color: "violet" },
+    { type: "CSD", title: "CGL suspense", icon: <Business />, color: "green" },
+    { type: "BCD", title: "Balance compare", icon: <AccountBalance />, color: "orange" }
+  ];
+
+  return (
+    <Box className={styles.page}>
+      <Paper className={styles.sidebar}>
+        <Box className={styles.brand}>
+          <Box className={styles.brandIcon}><AccountBalance /></Box>
+          <Box>
+            <Typography className={styles.brandTitle}>Branch position</Typography>
+            <Box className={styles.brandLine} />
+          </Box>
+        </Box>
+
+        <Box className={styles.infoCard}>
+          <Box className={styles.infoItem}>
+            <Box className={styles.infoIcon}><AccountBalance /></Box>
+            <Box>
+              <Typography className={styles.infoLabel}>BRANCH</Typography>
+              <Typography className={styles.infoValue}>{branchCode}</Typography>
+              <Typography className={styles.infoSub}>{user?.branchName}</Typography>
+            </Box>
+          </Box>
+
+          <Divider />
+
+          <Box className={styles.infoItem}>
+            <Box className={styles.infoIcon}><Public /></Box>
+            <Box>
+              <Typography className={styles.infoLabel}>CIRCLE</Typography>
+              <Typography className={styles.infoValue}>{user?.circleCode}</Typography>
+              <Typography className={styles.infoSub}>{user?.circleName}</Typography>
+            </Box>
+          </Box>
+
+          <Divider />
+
+          <Box className={styles.infoItem}>
+            <Box className={styles.infoIcon}><CalendarMonth /></Box>
+            <Box className={styles.dateInfo}>
+              <Typography className={styles.infoLabel}>REPORT DATE</Typography>
+              <LocalizationProvider dateAdapter={AdapterDayjs}>
+                <DesktopDatePicker
+                  value={userDate ? dayjs(userDate) : null}
+                  onChange={(value) => value && setUserDate(value.format("YYYY-MM-DD"))}
+                  maxDate={dayjs()}
+                  format="DD-MM-YYYY"
+                  closeOnSelect
+                  slotProps={{ textField: { size: "small" } }}
+                />
+              </LocalizationProvider>
+            </Box>
+          </Box>
+        </Box>
+
+        <Box className={styles.navigation}>
+          <Button
+            className={`${styles.navButton} ${mode === "DD" ? styles.activeNav : ""}`}
+            onClick={() => setMode("DD")}
+            startIcon={<EventAvailable />}
+          >
+            Difference data
+          </Button>
+
+          <Button
+            className={`${styles.navButton} ${mode === "GE" ? styles.activeNav : ""}`}
+            onClick={() => {
+              setMode("GE");
+              setGlifDataFilter({});
+            }}
+            startIcon={<Storage />}
+          >
+            GLIF data
           </Button>
         </Box>
-      </Grid>
-    </Grid>
+      </Paper>
+
+      <Box className={styles.main}>
+        <Paper className={styles.mainPanel}>
+          <Box className={styles.pageHeader}>
+            <Box>
+              <Typography className={styles.pageTitle}>
+                {mode === "DD" ? "Difference data" : "GLIF data"}
+              </Typography>
+              <Typography className={styles.pageSubtitle}>
+                {mode === "DD"
+                  ? `Reconciliation status for ${userDate ? dayjs(userDate).format("DD-MM-YYYY") : ""}`
+                  : "Apply filters to download branch GLIF data."}
+              </Typography>
+            </Box>
+          </Box>
+
+          {mode === "DD" && (
+            <>
+              <Grid container spacing={1.5} className={styles.summaryGrid}>
+                {cards.map((card) => {
+                  const rows = dataRows?.[card.type]?.content || [];
+                  const count = dataRows?.[card.type]?.page?.totalElements ?? rows.length;
+
+                  return (
+                    <Grid item xs={12} md={4} key={card.type}>
+                      <Paper className={`${styles.summaryCard} ${styles[card.color]}`}>
+                        <Box className={styles.summaryIcon}>{card.icon}</Box>
+                        <Box className={styles.summaryContent}>
+                          <Typography className={styles.summaryTitle}>{card.title}</Typography>
+                          <Typography className={styles.summaryCount}>{count}</Typography>
+                          <Typography className={styles.summaryLabel}>Records found</Typography>
+                        </Box>
+                        <Button
+                          size="small"
+                          variant="outlined"
+                          startIcon={<Download />}
+                          disabled={!count}
+                          onClick={() => exportData(card.type, card.type)}
+                          className={styles.cardDownload}
+                        >
+                          Download
+                        </Button>
+                      </Paper>
+                    </Grid>
+                  );
+                })}
+              </Grid>
+
+              <Box className={styles.sections}>
+                <DisplayTab
+                  category="Technical suspense"
+                  type="TSD"
+                  level={1}
+                  data={dataRows.TSD || []}
+                  clickHandler={fetchDetailedData}
+                  downloadHandler={exportData}
+                  loading={loading === "Y" || loading === "TSD"}
+                  requestData={fetchIndividualDifference}
+                />
+
+                <DisplayTab
+                  category="CGL suspense"
+                  type="CSD"
+                  level={1}
+                  data={dataRows.CSD || []}
+                  clickHandler={fetchDetailedData}
+                  downloadHandler={exportData}
+                  loading={loading === "Y" || loading === "CSD"}
+                  requestData={fetchIndividualDifference}
+                />
+
+                <DisplayTab
+                  category="Balance compare"
+                  type="BCD"
+                  level={1}
+                  data={dataRows.BCD || []}
+                  clickHandler={fetchDetailedData}
+                  downloadHandler={exportData}
+                  loading={loading === "Y" || loading === "BCD"}
+                  requestData={fetchIndividualDifference}
+                />
+              </Box>
+
+              <Paper className={styles.infoBanner}>
+                <Typography>
+                  Download will include all Difference data for branch {branchCode} on{" "}
+                  {userDate ? dayjs(userDate).format("DD-MM-YYYY") : ""} with the applied filters.
+                </Typography>
+              </Paper>
+            </>
+          )}
+
+          {mode === "GE" && (
+            <Paper className={styles.glifPanel}>
+              <Typography className={styles.glifTitle}>GLIF data</Typography>
+              <Typography className={styles.glifSubtitle}>
+                Apply filters to download branch GLIF data.
+              </Typography>
+
+              <Grid container spacing={1.5}>
+                <Grid item xs={12} md={6}>
+                  <Paper className={styles.filterSection}>
+                    <Typography className={styles.filterTitle}>Add filters</Typography>
+                    <Filter handleFilter={handleFilter} getValues={getFilterData} />
+                  </Paper>
+                </Grid>
+
+                <Grid item xs={12} md={6}>
+                  <Paper className={styles.filterSection}>
+                    <Typography className={styles.filterTitle}>Applied filters</Typography>
+                    {Object.keys(glifDataFilter).length === 0 ? (
+                      <Typography className={styles.emptyFilter}>No filters applied</Typography>
+                    ) : (
+                      <Stack spacing={0.8}>
+                        {Object.entries(glifDataFilter).map(([key, val]) => (
+                          <Box className={styles.appliedFilter} key={key}>
+                            <Typography className={styles.appliedLabel}>
+                              {key.replaceAll("_", " ")}
+                            </Typography>
+                            <Box className={styles.appliedValues}>
+                              {(Array.isArray(val.value) ? val.value : [val.value]).map((item) => (
+                                <Chip
+                                  key={item}
+                                  size="small"
+                                  label={item}
+                                  onDelete={() => deleteFilterValue(key, item)}
+                                />
+                              ))}
+                            </Box>
+                            <Button size="small" onClick={() => deleteFilter(key)}>Clear</Button>
+                          </Box>
+                        ))}
+                      </Stack>
+                    )}
+                  </Paper>
+                </Grid>
+              </Grid>
+
+              <Box className={styles.glifDownload}>
+                <Button variant="contained" startIcon={<Download />} onClick={exportGlifData}>
+                  Download GLIF Data
+                </Button>
+              </Box>
+            </Paper>
+          )}
+        </Paper>
+      </Box>
+
+      <Dialog open={isDialogOpen} onClose={() => { setBreakupDataRows({}); setIsDialogOpen(false); }} fullWidth maxWidth="xl">
+        <DialogTitle className={styles.dialogTitle}>
+          <Typography>Difference Break-up</Typography>
+          <Box>
+            <Button size="small" variant="contained" startIcon={<Download />} onClick={exportDetailedData} sx={{ mr: 1 }}>
+              Download
+            </Button>
+            <Button size="small" onClick={() => { setBreakupDataRows({}); setIsDialogOpen(false); }}>
+              Close
+            </Button>
+          </Box>
+        </DialogTitle>
+        <DialogContent>
+          <DisplayTab
+            data={breakupDataRows}
+            category="Difference Breakup"
+            type={breakupDataRows?.type}
+            level={2}
+          />
+        </DialogContent>
+      </Dialog>
+    </Box>
   );
 }
