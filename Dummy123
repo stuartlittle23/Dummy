@@ -1,76 +1,183 @@
-  {(mode === "GE") &&
-                        <Paper className={styles.gilfPaper}>
-                            <Typography className={styles.typographyHeaderCenter}>
-                                Download GLIF data of your branch and selected date.
-                            </Typography>
-                            <Divider className={styles.dividerMargin} />
-                            <Grid container className={styles.uniformPaddedContainer} spacing={1}>
-                                <Grid item size={{ md: 6 }} className={styles.filterContainer} >
-                                    <Paper className={`${styles.filterPaper} ${styles.filterBgInfo}`}>
-                                        <Typography>
-                                            Add filter for fetching data(Max 10, If multivalued).
-                                        </Typography>
-                                        <Divider className={styles.dividerMargin} />
-                                        <Filter handleFilter={handleFilter} getValues={getFiterData} />
-                                    </Paper>
-                                </Grid>
-                                <Grid item size={{ md: 6 }} className={styles.filterContainer}>
-                                    <Paper className={`${styles.filterPaper} ${styles.filterBgSuccess}`}>
-                                        <Typography>
-                                            Filters added for data fetching.
-                                        </Typography>
-                                        <Divider className={styles.dividerMargin} />
+.uniformPaddedContainer{
+    padding: 5px;
+    height: 100%
+}
 
-                                        <Stack spacing={0.5}>
-                                            {Object.entries(glifDataFilter).map(([key, val]) => (
-                                                <Grid className={styles.filterDisplay} container key={key} spacing={1}>
-                                                    <Grid className={`${styles.datePickerContainer} ${styles.filterLabel}`} item size={{ md: 3 }} spacing={1}>
-                                                        <Chip
-                                                            label={key.toString().replaceAll("_", " ")}
-                                                            onDelete={() => deleteFilter(key)}
-                                                            deleteIcon={<Delete />}
-                                                        />
-                                                    </Grid>
-                                                    <Grid item size={{ md: 9 }} className={styles.filterValues} >
-                                                        {Array.isArray(val.value) ? val.value.map((ent, index) => (<Chip className={styles.chipBg} key={index} onDelete={() => deleteFilterValue(key, ent)} label={ent} />)) : <Typography><Chip className={styles.chipBg} onDelete={() => setGlifDataFilter(() => { const { [key]: _, ...rest } = glifDataFilter; return rest })} label={val.value} /></Typography>}
-                                                    </Grid>
-                                                </Grid>))}
-                                        </Stack>
+.outerGridContainer{
+    align-items: flex-start;
+    height:100%
+}
 
-                                    </Paper>
-                                </Grid>
-                            </Grid>
-                            <Divider className={styles.dividerMargin} />
-                            <Box className={styles.centeredButtonBox}>
-                                <Button variant="contained" onClick={() => exportGlifData()} >
-                                    <Typography>
-                                        Download Data
-                                    </Typography>
-                                </Button>
-                            </Box>
-                        </Paper >
-                    }
-                </Paper>
-            </Box >
-            <Dialog
-                className={styles.dialog}
-                open={isDialogOpen}
-                fullWidth
-                PaperProps={{
-                    className: styles.dialogPaper
+.datePickerContainer{
+    flex-grow: 1;
+    height: auto;
+    align-self: stretch 
+}
 
-                }}
-            >
-                <DialogTitle className={styles.dialogTitle} >
-                    <Typography className={styles.typographyLabel}>Difference Break-up</Typography>
-                    <Button className={styles.dialogButton} disabled={breakupDataRows?.data?.length == 0} onClick={exportDetailedData} variant="contained" size='small'><Download /></Button>
-                    <Button className={styles.dialogButton} onClick={closeDialog} variant="contained" size='small'>X</Button>
-                </DialogTitle >
-                <DialogContent>
-                    <DisplayTab data={breakupDataRows || []} category={"Difference Breakup"} type={breakupDataRows?.type} level={2} closeHandler={() => closeDialog()} />
-                </DialogContent>
-            </Dialog >
-        </>
+.typographyHeader{
+    font-size: 16;
+    font-weight:100 ;
+      overflow-wrap: break-word;
+}
 
-    )
+.typographyHeaderCenter{
+    font-size: 16;
+    font-weight:100 ;
+    overflow-wrap: break-word;
+    text-align: center;
+}
+
+.typographyLabel{
+    font-size: 14;
+    overflow-wrap: break-word;
+    flex-grow: 1;
+}
+.dividerMargin{
+    margin-bottom: 5px;
+}
+
+.contentPaper{
+    margin-top: 10px;
+    /* margin-bottom: 5px; */
+    /* padding: 5px; */
+}
+
+.buttonBox{
+ display: flex;
+ justify-content: flex-end;
+ flex-grow: 1;
+ align-content: center;
+ align-items: center;
+ margin: 2px;
+}
+
+
+.centeredButtonBox{
+ display: flex;
+ justify-content: center;
+ flex-grow: 1;
+ align-content: center;
+ align-items: center;
+ margin: 2px;
+}
+
+.flexiBox{
+    display:flex;
+    padding: 2px;
+    width:100%;
+}
+
+.chipStack{
+    margin: 2px;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center
+}
+
+.chipDivider{
+margin: 2px;
+}
+
+.boundedGrid{
+    padding: 2px;
+    border: 1px solid var(--template-palette-secondary-dark);
+    border-radius: 5px;
+    margin: 3px;
+    background-color: var(--template-palette-primary-light) ;
+}
+
+.filterBox{
+    border: 1px solid var(--template-palette-secondary-dark);
+    border-radius: 5px;
+}
+
+.formButton{
+    flex-grow: 0;
+}
+
+.contentBox{
+    padding: 2px;
+    margin-top: 5px;
+    margin-bottom: 5px;
+    border-radius: 15px;
+    background-color: "rgba(255,255,255,0.0)";
+}
+
+.noBg{
+     background-color: "rgba(255,255,255,0.0)";
+}
+
+.tabs{
+    background-color: var(--template-palette-primary-light);
+    border-top-left-radius: 10px;
+    border-top-right-radius: 10px;
+}
+
+.tab{
+    color:white ;
+}
+
+.dialog{
+ height: 100%;
+ width: 100%; 
+}
+
+.dialogPaper{
+   max-width: none; 
+}
+
+.filterPaper{
+     min-height:150px;
+     padding:10px; 
+     height: 100%;
+}
+
+.filterBgSuccess{
+    background-color: var(--template-palette-success-light);
+}
+
+.filterBgInfo{
+    background-color: var(--template-palette-info-light);
+}
+
+.filterContainer{
+    height: auto;
+    align-self: stretch
+}
+
+.glifPaper{
+    border-top-left-radius: 0px;
+    border-top-right-radius: 0px;
+    margin-top:0px 
+}
+
+.dialogButton{
+    flex-grow: 0;
+    margin: 5px
+}
+
+.dialogTitle{
+    display:flex;
+    align-items: center;
+}
+
+.chipBg{
+    background-color: var(--template-palette-primary-light);
+}
+
+.chipValues{
+    display: flex;
+    row-gap: 3px;
+    flex-wrap: wrap
+}
+.filterLabel{
+    border: 1px solid;
+    border-radius: 3px;
+    border-color: var(--template-palette-primary-dark);
+    align-content: center
+}
+.filterDisplay{
+    background-color: rgba(255, 255, 255, 0.5);
+    border-radius: 3px;
+    padding: 3px
 }
