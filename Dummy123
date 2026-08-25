@@ -1,210 +1,475 @@
-  {/* ---- Main content ---- */}
-        <Box className={styles.mainContent}>
-          {mode === "DD" && (
-            <>
-              <Box className={styles.pageHeaderRow}>
-                <Typography className={styles.pageHeaderTitle}>Difference data</Typography>
-                <AutoAwesome className={styles.headerSparkle} />
-              </Box>
-              <Typography className={styles.pageHeaderSubtitle}>
-                Reconciliation status for {userDate ? dayjs(userDate).format('DD-MM-YYYY') : '—'}
-              </Typography>
+/* ==========================================================================
+   BranchPosition — Summary cards + accordion + full-width GLIF sections
+   ========================================================================== */
 
-              <Box className={styles.summaryRow}>
-                {Object.entries(categoryMeta).map(([type, meta]) => (
-                  <SummaryCard
-                    key={type}
-                    meta={meta}
-                    count={getCategoryCount(type)}
-                    isLoading={loading === "Y" || loading === type}
-                    onDownload={() => exportData(type, type)}
-                  />
-                ))}
-              </Box>
+.appShell {
+  display: flex;
+  align-items: stretch;
+  border-radius: 16px;
+  overflow: hidden;
+  box-shadow: 0 2px 20px rgba(76, 60, 150, 0.1);
+  border: 1px solid rgba(108, 92, 231, 0.1);
+  min-height: 640px;
+  background-color: #ffffff;
+}
 
-              <Box className={styles.accordionList}>
-                {Object.entries(categoryMeta).map(([type, meta]) => {
-                  const count = getCategoryCount(type);
-                  const isOpen = expandedCategory === type;
-                  const isLoading = loading === "Y" || loading === type;
-                  return (
-                    <Box key={type} className={styles.accordionRow}>
-                      <Box
-                        className={styles.accordionHeader}
-                        onClick={() => setExpandedCategory(isOpen ? null : type)}
-                      >
-                        <Box className={styles.accordionHeaderIcon} sx={{
-                          backgroundColor: meta.role === 'rolePurple' ? '#EEEDFE' : meta.role === 'roleTeal' ? '#E1F5EE' : '#FFF1E0',
-                          color: meta.role === 'rolePurple' ? '#6C5CE7' : meta.role === 'roleTeal' ? '#10A37F' : '#C9761A',
-                        }}>
-                          {meta.icon}
-                        </Box>
-                        <Typography className={styles.accordionHeaderLabel}>{meta.label}</Typography>
-                        <Chip
-                          size="small"
-                          className={styles.accordionCountChip}
-                          label={isLoading ? '…' : (typeof count === 'number' ? `${count} rows` : '—')}
-                          sx={{
-                            backgroundColor: (count === 0) ? '#E1F5EE' : (count > 0) ? '#FFF1E0' : '#F1EFE8',
-                            color: (count === 0) ? '#0F8A6C' : (count > 0) ? '#A56814' : '#6B6A63',
-                          }}
-                        />
-                        <Button
-                          size="small"
-                          variant="outlined"
-                          startIcon={<Download fontSize="small" />}
-                          disabled={!count}
-                          onClick={(e) => { e.stopPropagation(); exportData(type, type); }}
-                          sx={{ textTransform: 'none', borderRadius: '8px' }}
-                        >
-                          Download
-                        </Button>
-                        <Box className={`${styles.accordionChevron} ${isOpen ? styles.accordionChevronOpen : ''}`}>
-                          <ExpandMoreOutlined fontSize="small" />
-                        </Box>
-                      </Box>
-                      <Collapse in={isOpen} timeout="auto" unmountOnExit>
-                        <DisplayTab
-                          category={meta.category}
-                          type={type}
-                          level={1}
-                          hideHeader
-                          flat
-                          data={dataRows[type] || []}
-                          clickHandler={fetchDetailedData}
-                          downloadHandler={exportData}
-                          loading={isLoading}
-                          requestData={fetchIndividualDifference}
-                        />
-                      </Collapse>
-                    </Box>
-                  )
-                })}
-              </Box>
+/* ---- Sidebar ---------------------------------------------------------- */
 
-              <Box className={styles.infoBanner}>
-                <InfoOutlined fontSize="small" sx={{ color: '#6C5CE7', mt: '1px' }} />
-                <Typography className={styles.infoBannerText}>
-                  Download will include all Difference data for branch {user?.branch?.toString().padStart(5, 0)} on {userDate ? dayjs(userDate).format('DD-MM-YYYY') : '—'}.
-                </Typography>
-              </Box>
-            </>
-          )}
+.sidebar {
+  width: 260px;
+  flex-shrink: 0;
+  background-color: #FAF9FE;
+  border-right: 1px solid rgba(108, 92, 231, 0.1);
+  padding: 20px 16px;
+  display: flex;
+  flex-direction: column;
+}
 
-          {mode === "GE" && (
-            <>
-              <Box className={styles.pageHeaderRow}>
-                <Typography className={styles.pageHeaderTitle}>GLIF data</Typography>
-                <AutoAwesome className={styles.headerSparkle} />
-              </Box>
-              <Typography className={styles.pageHeaderSubtitle}>
-                Download GLIF data for your branch and selected date.
-              </Typography>
+.sidebarBrand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 20px;
+  padding: 0 4px;
+}
 
-              {/* Row 1 — Add filter (field + value + Add button) */}
-              <Box className={styles.glifSection}>
-                <Box className={styles.glifSectionHeader}>
-                  <Box className={styles.glifSectionIcon}><FilterAltOutlined fontSize="small" /></Box>
-                  <Typography className={styles.glifSectionTitle}>Add Filter</Typography>
-                </Box>
-                <Typography className={styles.typographyLabel} sx={{ mb: 1 }}>
-                  Add up to 10 values per filter field.
-                </Typography>
-                <Filter handleFilter={handleFilter} getValues={getFiterData} />
-              </Box>
+.sidebarBrandIconWrap {
+  position: relative;
+}
 
-              {/* Row 2 — Applied filters */}
-              <Box className={styles.glifSection}>
-                <Box className={styles.glifSectionHeader} sx={{ marginBottom: 0 }}>
-                  <Box className={styles.glifSectionIcon}><PlaylistAddCheckOutlined fontSize="small" /></Box>
-                  <Typography className={styles.glifSectionTitle}>Applied Filters ({activeFilterCount})</Typography>
-                  {activeFilterCount > 0 && (
-                    <button className={styles.clearAllLink} onClick={() => setGlifDataFilter({})}>
-                      Clear All
-                    </button>
-                  )}
-                </Box>
-                <Box sx={{ marginTop: '14px' }}>
-                  {activeFilterCount === 0 ? (
-                    <Typography variant="caption" sx={{ color: 'rgba(30,20,60,0.45)' }}>
-                      No filters applied yet — results will include the full branch and date.
-                    </Typography>
-                  ) : (
-                    <Box className={styles.chipValues}>
-                      {Object.entries(glifDataFilter).map(([key, val]) => {
-                        const color = filterFieldColors[key] || { bg: '#F1EFE8', text: '#6B6A63' };
-                        const items = Array.isArray(val.value) ? val.value : [val.value];
-                        return items.map((ent, index) => (
-                          <Chip
-                            key={`${key}-${index}`}
-                            size="small"
-                            className={styles.filterFieldChip}
-                            label={`${key.replaceAll('_', ' ')}: ${ent}`}
-                            onDelete={() => Array.isArray(val.value) ? deleteFilterValue(key, ent) : deleteFilter(key)}
-                            deleteIcon={<Delete fontSize="small" />}
-                            sx={{ backgroundColor: color.bg, color: color.text }}
-                          />
-                        ))
-                      })}
-                    </Box>
-                  )}
-                </Box>
-              </Box>
-{/* Row 3 — Download */}
-              <Box className={styles.glifSection}>
-                <Box className={styles.glifSectionHeader}>
-                  <Box className={styles.glifSectionIcon}><CloudDownloadOutlined fontSize="small" /></Box>
-                  <Typography className={styles.glifSectionTitle}>Download GLIF Data</Typography>
-                </Box>
-                <Box className={styles.infoBanner} sx={{ marginTop: 0, marginBottom: '16px' }}>
-                  <InfoOutlined fontSize="small" sx={{ color: '#6C5CE7', mt: '1px' }} />
-                  <Typography className={styles.infoBannerText}>
-                    Download will include all GLIF data for branch {user?.branch?.toString().padStart(5, 0)} on {userDate ? dayjs(userDate).format('DD-MM-YYYY') : '—'} with the applied filters.
-                  </Typography>
-                </Box>
-                <Button
-                  fullWidth
-                  variant="contained"
-                  startIcon={<Download />}
-                  onClick={() => exportGlifData()}
-                  sx={{ textTransform: 'none', borderRadius: '8px', fontWeight: 600, height: '44px' }}
-                >
-                  Download GLIF Data
-                </Button>
-              </Box>
-            </>
-          )}
-        </Box>
-      </Box>
+.sidebarBrandIcon {
+  width: 36px;
+  height: 36px;
+  border-radius: 10px;
+  background-color: #EEEDFE;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #6C5CE7;
+}
 
-      <Dialog
-        className={styles.dialog}
-        open={isDialogOpen}
-        onClose={closeDialog}
-        fullWidth
-        PaperProps={{ className: styles.dialogPaper }}
-      >
-        <DialogTitle className={styles.dialogTitle}>
-          <Typography className={styles.typographyLabel} sx={{ flexGrow: 1 }}>
-            Difference break-up
-          </Typography>
-          <IconButton
-            className={styles.dialogButton}
-            disabled={breakupDataRows?.data?.length == 0}
-            onClick={exportDetailedData}
-            size="small"
-            title="Download breakup"
-          >
-            <Download fontSize="small" />
-          </IconButton>
-          <IconButton className={styles.dialogButton} onClick={closeDialog} size="small" title="Close">
-            <Close fontSize="small" />
-          </IconButton>
-        </DialogTitle>
-        <DialogContent>
-          <DisplayTab data={breakupDataRows || []} category={"Difference Breakup"} type={breakupDataRows?.type} level={2} closeHandler={() => closeDialog()} />
-        </DialogContent>
-      </Dialog>
-    </>
-  )
+.brandSparkle {
+  position: absolute;
+  top: -6px;
+  right: -6px;
+  font-size: 13px !important;
+  color: #B8AEFB;
+}
+
+.sidebarBrandText {
+  font-size: 15px;
+  font-weight: 600;
+  color: rgba(30, 20, 60, 0.87);
+}
+
+.infoCard {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px;
+  border: 1px solid rgba(108, 92, 231, 0.12);
+  border-radius: 10px;
+  background-color: #ffffff;
+  margin-bottom: 8px;
+}
+
+.infoCardIcon {
+  width: 30px;
+  height: 30px;
+  border-radius: 8px;
+  background-color: #F5F3FF;
+  color: #6C5CE7;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.infoCardLabel {
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: rgba(30, 20, 60, 0.4);
+  margin: 0 0 2px;
+}
+
+.infoCardValue {
+  font-size: 13px;
+  font-weight: 600;
+  color: rgba(30, 20, 60, 0.85);
+  line-height: 1.3;
+}
+
+.infoCardSubvalue {
+  font-size: 11px;
+  color: rgba(30, 20, 60, 0.5);
+}
+
+.navTabs {
+  margin-top: 8px;
+}
+
+.navTab {
+  color: rgba(30, 20, 60, 0.6) !important;
+  font-weight: 500;
+  text-transform: none;
+  align-items: center;
+  flex-direction: row;
+  justify-content: flex-start;
+  min-height: 42px;
+  border-radius: 10px;
+  padding: 8px 12px;
+  border-left: 3px solid transparent;
+  transition: background-color 0.15s ease, color 0.15s ease;
+}
+
+.navTab:hover {
+  background-color: rgba(108, 92, 231, 0.06);
+}
+
+.navTab:global(.Mui-selected) {
+  background-color: #F5F3FF !important;
+  color: #6C5CE7 !important;
+  border-left: 3px solid #6C5CE7;
+  font-weight: 600;
+}
+
+.navTab:global(.Mui-disabled) {
+  opacity: 0.4;
+}
+
+.sidebarFooter {
+  margin-top: auto;
+  padding-top: 12px;
+}
+
+/* ---- Sidebar illustration ------------------------------------------------- */
+
+.sidebarIllustration {
+  position: relative;
+  width: 100%;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  padding: 12px 0 4px;
+}
+
+.sparkleTopRight {
+  position: absolute;
+  top: 2px;
+  right: 28%;
+  font-size: 15px !important;
+  color: #C9BFFC;
+}
+
+.sparkleBottomLeft {
+  position: absolute;
+  bottom: 6px;
+  left: 22%;
+  font-size: 10px !important;
+  color: #C9BFFC;
+  opacity: 0.8;
+}
+
+.sparkleMidRight {
+  position: absolute;
+  top: 38%;
+  right: 14%;
+  font-size: 9px !important;
+  color: #DCD5FE;
+}
+
+/* ---- Main content ------------------------------------------------------- */
+
+.mainContent {
+  flex: 1;
+  min-width: 0;
+  padding: 24px;
+  background-color: #FDFCFF;
+}
+
+.pageHeaderRow {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.headerSparkle {
+  font-size: 17px !important;
+  color: #B8AEFB;
+}
+
+.pageHeaderTitle {
+  font-size: 20px;
+  font-weight: 700;
+  color: rgba(20, 14, 45, 0.9);
+  margin: 0 0 2px;
+}
+
+.pageHeaderSubtitle {
+  font-size: 13px;
+  color: rgba(30, 20, 60, 0.5);
+  margin: 0 0 20px;
+}
+
+/* ---- Summary cards -------------------------------------------------------- */
+
+.summaryRow {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 14px;
+  margin-bottom: 24px;
+}
+
+.summaryCard {
+  position: relative;
+  background-color: #ffffff;
+  border: 1px solid rgba(108, 92, 231, 0.1);
+  border-radius: 14px;
+  padding: 18px;
+  transition: box-shadow 0.15s ease;
+}
+
+.summaryCard:hover {
+  box-shadow: 0 4px 18px rgba(76, 60, 150, 0.08);
+}
+
+.cardSparkleBadge {
+  position: absolute;
+  top: 10px;
+  right: 12px;
+  font-size: 16px !important;
+  color: #10A37F;
+}
+
+.summaryCardHeader {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 14px;
+}
+
+.summaryCardIcon {
+  width: 42px;
+  height: 42px;
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.summaryCardLabel {
+  font-size: 14px;
+  font-weight: 600;
+  color: rgba(30, 20, 60, 0.85);
+}
+
+.summaryCardCount {
+  font-size: 30px;
+  font-weight: 700;
+  line-height: 1;
+  margin-bottom: 2px;
+}
+
+.summaryCardCaption {
+  font-size: 12px;
+  color: rgba(30, 20, 60, 0.45);
+  margin-bottom: 14px;
+}
+
+.summaryDownloadButton {
+  width: 100%;
+  text-transform: none !important;
+  border-radius: 8px !important;
+  font-weight: 600 !important;
+}
+
+.rolePurple .summaryCardIcon { background-color: #EEEDFE; color: #6C5CE7; }
+.rolePurple .summaryCardCount { color: #6C5CE7; }
+
+.roleTeal .summaryCardIcon { background-color: #E1F5EE; color: #10A37F; }
+.roleTeal .summaryCardCount { color: #10A37F; }
+
+.roleAmber .summaryCardIcon { background-color: #FFF1E0; color: #C9761A; }
+.roleAmber .summaryCardCount { color: #C9761A; }
+
+/* ---- Accordion detail list -------------------------------------------------- */
+
+.accordionList {
+  border: 1px solid rgba(108, 92, 231, 0.1);
+  border-radius: 14px;
+  overflow: hidden;
+  background-color: #ffffff;
+}
+
+.accordionRow {
+  border-bottom: 1px solid rgba(108, 92, 231, 0.08);
+}
+
+.accordionRow:last-child {
+  border-bottom: none;
+}
+
+.accordionHeader {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 14px 18px;
+  cursor: pointer;
+  transition: background-color 0.15s ease;
+}
+
+.accordionHeader:hover {
+  background-color: #FAF9FE;
+}
+
+.accordionHeaderIcon {
+  width: 32px;
+  height: 32px;
+  border-radius: 9px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.accordionHeaderLabel {
+  font-size: 14px;
+  font-weight: 600;
+  color: rgba(30, 20, 60, 0.85);
+  flex-grow: 1;
+}
+
+.accordionCountChip {
+  font-weight: 600 !important;
+}
+
+.accordionChevron {
+  color: rgba(30, 20, 60, 0.4);
+  transition: transform 0.15s ease;
+  display: flex;
+}
+
+.accordionChevronOpen {
+  transform: rotate(180deg);
+}
+
+.infoBanner {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 12px 16px;
+  border-radius: 10px;
+  background-color: #F5F3FF;
+  border: 1px solid rgba(108, 92, 231, 0.15);
+  margin-top: 16px;
+}
+
+.infoBannerText {
+  font-size: 12.5px;
+  color: rgba(30, 20, 60, 0.6);
+  line-height: 1.5;
+}
+
+/* ---- Full-width GLIF sections --------------------------------------------- */
+
+.glifSection {
+  width: 100%;
+  background-color: #ffffff;
+  border: 1px solid rgba(108, 92, 231, 0.1);
+  border-radius: 14px;
+  padding: 20px 24px;
+  margin-bottom: 16px;
+  box-shadow: 0 1px 6px rgba(76, 60, 150, 0.05);
+}
+
+.glifSectionHeader {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 16px;
+}
+
+.glifSectionIcon {
+  width: 34px;
+  height: 34px;
+  border-radius: 9px;
+  background-color: #F5F3FF;
+  color: #6C5CE7;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.glifSectionTitle {
+  font-size: 15px;
+  font-weight: 700;
+  color: rgba(30, 20, 60, 0.87);
+  flex-grow: 1;
+}
+
+.chipValues {
+  display: flex;
+  row-gap: 8px;
+  column-gap: 8px;
+  flex-wrap: wrap;
+  align-items: center;
+}
+
+.filterFieldChip {
+  font-weight: 600 !important;
+}
+
+.typographyLabel {
+  font-size: 13px;
+  color: rgba(30, 20, 60, 0.6);
+}
+
+.activeFiltersRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 12px;
+}
+
+.clearAllLink {
+  font-size: 12px;
+  font-weight: 600;
+  color: #6C5CE7;
+  cursor: pointer;
+  background: none;
+  border: none;
+  padding: 0;
+}
+
+.clearAllLink:hover {
+  text-decoration: underline;
+}
+
+/* ---- Dialog ------------------------------------------------------------------- */
+
+.dialog {
+  height: 100%;
+  width: 100%;
+}
+
+.dialogPaper {
+  max-width: none;
+  border-radius: 16px;
+  box-shadow: 0 12px 48px rgba(76, 60, 150, 0.2);
+}
+
+.dialogButton {
+  flex-grow: 0;
+  margin: 4px;
+}
+
+.dialogTitle {
+  display: flex;
+  align-items: center;
+  font-weight: 600;
+  border-bottom: 1px solid rgba(108, 92, 231, 0.1);
 }
