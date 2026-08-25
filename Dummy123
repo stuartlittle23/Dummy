@@ -1,1 +1,143 @@
+import React,{useCallback,useEffect,useState}from"react";
+import useApi from"../../hooks/useApi";
+import Validation from"./Validation";
+import useCustomSnackbar from"../../utils/useCustomSnackbar";
+import{Autocomplete,Box,Button,FormControl,InputLabel,MenuItem,Select,TextField}from"@mui/material";
+import debounce from"lodash/debounce";
 
+const filterMap={
+ CURRENCY:{type:"autocomplete",multiValue:true,validate:"validateCurrency"},
+ CGL:{type:"autocomplete",multiValue:true,validate:"validateCgl"},
+ JOURNAL_NUMBER:{type:"input",multiValue:false,validate:"validateJrnNo"},
+ TRANSACTION_CODE:{type:"input",multiValue:true,validate:"validateTxnCode"},
+ BATCH_ID:{type:"input",multiValue:false,validate:"validateBatchId"},
+ ACCOUNT:{type:"input",multiValue:false,validate:"validateAccNo"}
+};
+
+export default function Filter({handleFilter,getValues}){
+ const[values,setValues]=useState([]);
+ const[filterField,setFilterField]=useState("CGL");
+ const[isMinInput,setIsMinInput]=useState(false);
+ const[inputInstance,setInputInstance]=useState("");
+ const snackbar=useCustomSnackbar();
+ const{callApi}=useApi();
+
+ const debouncedFetchCgls=useCallback(debounce(async(value,type,min)=>fetchCgls(value,type,min),100),[]);
+
+ const fetchCurrencies=async()=>{
+  const response=await callApi("/CM/common-master/currency",null,"GET");
+  if(response)setValues(response.data||[]);
+  else snackbar("Failed to fetch currency list!","error");
+ };
+
+ async function fetchCgls(term,reason,min){
+  if(reason!=="input")return;
+  if(term?.length<3){
+   if(min)setIsMinInput(false);
+   setValues([]);
+   return;
+  }
+  if(!min)setIsMinInput(true);
+  try{
+   const res=await callApi(`/CM/common-master/cgl-code-description-only?q=${encodeURIComponent(term)}`);
+   if(res?.success)setValues(res.data||[]);
+   else{setValues([]);snackbar(res?.message,"error");}
+  }catch(e){snackbar(e.message,"error");}
+ }
+
+ useEffect(()=>{if(filterField==="CURRENCY")fetchCurrencies();},[filterField]);
+
+ const setFilter=()=>{
+  if((filterField==="CURRENCY"||filterField==="CGL")&&!inputInstance){
+   snackbar("Kindly select the value!","error");
+   return;
+  }
+  if(!inputInstance&&["JOURNAL_NUMBER","TRANSACTION_CODE","BATCH_ID","ACCOUNT"].includes(filterField)){
+   snackbar("Kindly enter the value!","error");
+   return;
+  }
+  const error=Validation[filterMap[filterField].validate](inputInstance);
+  if(error){snackbar(error,"error");return;}
+  handleFilter({field:filterField,value:inputInstance,multiValue:filterMap[filterField].multiValue});
+  setInputInstance("");
+ };
+
+ const fieldChange=e=>{
+  setFilterField(e.target.value);
+  setInputInstance("");
+  setValues([]);
+  setIsMinInput(false);
+ };
+
+ return(
+  <Box sx={{display:"flex",alignItems:"center",gap:1.25,width:"100%",minWidth:0}}>
+   <Box sx={{flex:"0 1 30%",minWidth:180}}>
+    <FormControl fullWidth size="small">
+     <InputLabel>Select Filter</InputLabel>
+     <Select value={filterField} label="Select Filter" onChange={fieldChange}>
+      <MenuItem value="CURRENCY">Currency</MenuItem>
+      <MenuItem value="CGL">CGL</MenuItem>
+      <MenuItem value="JOURNAL_NUMBER">Journal Number</MenuItem>
+      <MenuItem value="TRANSACTION_CODE">Transaction Code</MenuItem>
+      <MenuItem value="BATCH_ID">Batch ID</MenuItem>
+      <MenuItem value="ACCOUNT">Account</MenuItem>
+     </Select>
+    </FormControl>
+   </Box>
+
+   <Box sx={{flex:"1 1 0",minWidth:220}}>
+    {filterField==="CURRENCY"&&(
+     <Autocomplete
+      size="small"
+      fullWidth
+      options={values||[]}
+      value={inputInstance||null}
+      onChange={(e,v,r)=>setInputInstance(r==="selectOption"?v:"")}
+      filterOptions={(options,{inputValue})=>options.filter(v=>v.startsWith(inputValue.toUpperCase())&&!getValues("CURRENCY")?.includes(v))}
+      renderInput={params=><TextField {...params} fullWidth label="Currency"/>}
+      noOptionsText="No options"
+     />
+    )}
+
+    {filterField==="CGL"&&(
+     <Autocomplete
+      size="small"
+      fullWidth
+      options={(values||[]).map(v=>v.cglNumber)}
+      value={inputInstance||null}
+      onInputChange={(e,v,r)=>debouncedFetchCgls(v,r,isMinInput)}
+      onChange={(e,v,r)=>{
+       if(r==="selectOption"){setInputInstance(v);setValues([]);}
+       else if(r==="clear"){setInputInstance("");setValues([]);}
+      }}
+      filterOptions={options=>options.filter(v=>!getValues("CGL")?.includes(v))}
+      renderInput={params=><TextField {...params} fullWidth label="CGL"/>}
+      noOptionsText={!isMinInput?"Enter at least 3 characters":"No options"}
+     />
+    )}
+
+    {["JOURNAL_NUMBER","TRANSACTION_CODE","BATCH_ID","ACCOUNT"].includes(filterField)&&(
+     <TextField
+      fullWidth
+      size="small"
+      label={filterField.replaceAll("_"," ")}
+      value={inputInstance}
+      onChange={e=>setInputInstance(e.target.value)}
+      slotProps={{htmlInput:{maxLength:filterField==="TRANSACTION_CODE"?5:10}}}
+     />
+    )}
+   </Box>
+
+   <Box sx={{flex:"0 0 auto"}}>
+    <Button
+     variant="contained"
+     onClick={setFilter}
+     size="small"
+     sx={{textTransform:"none",background:"#5739c8",px:3,minHeight:40,whiteSpace:"nowrap",boxShadow:"0 4px 12px rgba(87,57,200,.22)","&:hover":{background:"#4930ad"}}}
+    >
+     Add Filter
+    </Button>
+   </Box>
+  </Box>
+ );
+}
