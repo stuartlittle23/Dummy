@@ -1,1 +1,168 @@
+import styled from '@emotion/styled';
+import InboxOutlinedIcon from '@mui/icons-material/InboxOutlined';
+import CheckCircleOutlineIcon from '@mui/icons-material/CheckCircleOutline';
+import { Box, Button, Paper, Typography } from '@mui/material';
+import { DataGrid, GridOverlay } from '@mui/x-data-grid'
+import React, { useMemo, useState } from 'react'
 
+const StyledBox = styled(Box)(({ theme }) => ({
+    textAlign: 'center',
+    padding: '24px 5px',
+    display: 'flex',
+    flexDirection: 'column',
+    alignItems: 'center',
+    gap: '6px',
+}));
+
+const StyledDataGrid = styled(DataGrid)(({ theme }) => ({
+    maxHeight: '400px',
+    minHeight: '100px',
+    border: 'none',
+    '& .MuiDataGrid-cell:focus, & .MuiDataGrid-columnHeader:focus': {
+        outline: 'none',
+    },
+    '& .MuiDataGrid-cell:focus-within, & .MuiDataGrid-columnHeader:focus-within': {
+        outline: 'none',
+    },
+    '& .MuiDataGrid-columnHeader': {
+        backgroundColor: '#FBFAFF',
+    },
+    '& .MuiDataGrid-columnHeaderTitle': {
+        fontWeight: 600,
+        color: 'rgba(30, 20, 60, 0.7)',
+    },
+    '& .MuiDataGrid-row:hover': {
+        backgroundColor: 'rgba(108, 92, 231, 0.04)',
+    },
+}))
+
+const rawColumns = [
+    { field: "reconRunDate", headerName: "Report Date", width: 100, headerAlign: 'center', align: 'center', disableColumnMenu: true, sortable: false, filterable: false },
+    { field: "date", headerName: "Report Date", width: 120, headerAlign: 'center', align: 'center', disableColumnMenu: true, sortable: false, filterable: false },
+    { field: "firstErrorDate", headerName: "First Error Date", width: 120, disableColumnMenu: true, headerAlign: 'center', align: 'center', sortable: true, filterable: true },
+    { field: "branchCode", headerName: "Branch Code", width: 100, disableColumnMenu: true, headerAlign: 'center', align: 'center' },
+    { field: "currency", headerName: "Currency", width: 80, headerAlign: 'center', align: 'center', disableColumnMenu: true, sortable: true, filterable: true },
+    { field: "cgl", headerName: "CGL", width: 120, headerAlign: 'center', align: 'center', sortable: true, filterable: true },
+    { field: "balance", headerName: "Amount", align: 'right', headerAlign: 'center', sortable: true, filterable: true, flex: 2 },
+    { field: "inrBalance", headerName: "INR Balance", align: 'right', headerAlign: 'center', sortable: true, filterable: true, flex: 2 },
+    { field: "cbsBalance", headerName: "CBS Balance", align: 'right', headerAlign: 'center', sortable: false, filterable: false, flex: 2 },
+    { field: "glBalance", headerName: " GL Balance", align: 'right', headerAlign: 'center', sortable: false, filterable: false, flex: 2 },
+    { field: "differenceAmount", headerName: "Difference Amount", align: 'right', headerAlign: 'center', sortable: false, filterable: false, flex: 2 },
+    { field: "diffBwYesterday", headerName: "Diff Bw Yesterday", align: 'right', headerAlign: 'center', sortable: false, filterable: false, flex: 2 },
+    { field: "type", headerName: "Type", sortable: true, filterable: true, flex: 1 },
+    { field: "head", headerName: "Head", sortable: true, filterable: true, flex: 1 },
+]
+
+export default function DisplayTab({ level, type, data = {}, category, clickHandler = () => { }, downloadHandler = () => { }, requestData = () => { }, loading = false, hideHeader = false, flat = false }) {
+    const [paginationModel, setPaginationModel] = useState({
+        page: 0,
+        pageSize: 100,
+    });
+    const rows = data?.content || [];
+
+    const columns = useMemo(() => {
+        if (!rows || rows.length === 0) return [];
+        const fields = Object.keys(rows[0]);
+        let cols = rawColumns.filter((field) => fields.includes(field.field));
+
+        if (level && level == 1) {
+            const actions = {
+                field: "action",
+                headerName: 'Actions',
+                headerAlign: 'center',
+                align: 'center',
+                width: 100,
+                renderCell: (params) => (
+                    <Button
+                        variant="contained"
+                        size="small"
+                        onClick={() => clickHandler(type, params.row)}
+                        sx={{ textTransform: 'none', borderRadius: '8px' }}
+                    >
+                        Details
+                    </Button>)
+            }
+            return [...cols, actions]
+        }
+        return cols;
+    }, [rows]);
+
+    const handlePaginationModelChange = (newModel) => {
+        setPaginationModel(newModel);
+        requestData(type, { ...newModel });
+    };
+
+    const CustomNoRowsOverlay = () => (
+        <GridOverlay>
+            <StyledBox>
+                <CheckCircleOutlineIcon sx={{ fontSize: 32, color: 'rgba(16, 163, 127, 0.6)' }} />
+                <Typography variant="body1" sx={{ fontWeight: 600, color: 'rgba(30, 20, 60, 0.75)' }}>
+                    No Difference
+                </Typography>
+                <Typography variant="caption" sx={{ color: 'rgba(30, 20, 60, 0.5)' }}>
+                    This branch is fully reconciled for the selected date.
+                </Typography>
+            </StyledBox>
+        </GridOverlay>
+    );
+
+    const CustomNoDataOverlay = () => (
+        <GridOverlay>
+            <StyledBox>
+                <InboxOutlinedIcon sx={{ fontSize: 32, color: 'rgba(30, 20, 60, 0.35)' }} />
+                <Typography variant="body1" sx={{ fontWeight: 600, color: 'rgba(30, 20, 60, 0.75)' }}>
+                    No data found
+                </Typography>
+                <Typography variant="caption" sx={{ color: 'rgba(30, 20, 60, 0.5)' }}>
+                    No records match the applied filters or date range.
+                </Typography>
+            </StyledBox>
+        </GridOverlay>
+    );
+
+    const handleDownload = () => {
+        downloadHandler(`${type || "no_name"}`, type);
+    }
+
+    return (
+        <Paper
+            elevation={0}
+            sx={flat
+                ? { border: 'none', boxShadow: 'none', margin: 0, borderRadius: 0 }
+                : { marginTop: '8px', marginBottom: '8px', borderRadius: '12px', overflow: 'hidden', border: '1px solid rgba(108, 92, 231, 0.1)', boxShadow: '0 1px 6px rgba(76, 60, 150, 0.06)' }
+            }
+        >
+            {level == 1 && !hideHeader &&
+                <Box sx={{ display: 'flex', alignItems: 'center', padding: '10px 14px', backgroundColor: '#F7F6FD', borderBottom: '1px solid rgba(108, 92, 231, 0.1)' }}>
+                    <Typography sx={{ flexGrow: 1, fontWeight: 600, fontSize: '15px', color: 'rgba(30, 20, 60, 0.87)' }}>
+                        {category || "Data"}
+                    </Typography>
+                    <Button onClick={handleDownload} disabled={!rows || rows.length == 0} variant="contained" size='small' sx={{ textTransform: 'none', borderRadius: '8px' }}>
+                        Download
+                    </Button>
+                </Box>
+            }
+            <StyledDataGrid
+                rows={rows || []}
+                columns={columns || []}
+                pagination={level === 1}
+                paginationMode='server'
+                paginationModel={paginationModel}
+                rowCount={data?.page?.totalElements || 0}
+                getRowId={(row) => row?.id || `${row.head}-${row.cgl}`}
+                pageSizeOptions={[100]}
+                columnHeaderHeight={rows.length == 0 ? 0 : 56}
+                onPaginationModelChange={handlePaginationModelChange}
+                hideFooter={rows.length == 0}
+                hideFooterPagination={level === 2}
+                slots={{
+                    columnHeaders: rows.length == 0 ? () => null : undefined,
+                    noRowsOverlay: level === 2 ? CustomNoDataOverlay : CustomNoRowsOverlay,
+                    noResultsOverlay: level === 2 ? CustomNoDataOverlay : CustomNoRowsOverlay,
+                    noColumnsOverlay: level === 2 ? CustomNoDataOverlay : CustomNoRowsOverlay,
+                }}
+                loading={loading || false}
+            />
+        </Paper>
+    )
+}
