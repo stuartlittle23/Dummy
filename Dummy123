@@ -1,1 +1,955 @@
+import React, { useCallback, useEffect, useState } from 'react'
+import {
+  Box,
+  Typography,
+  Chip,
+  Paper,
+  Tabs,
+  Tab,
+  Button,
+  IconButton,
+  Dialog,
+  DialogContent,
+  DialogTitle,
+} from '@mui/material'
 
+import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider'
+import { DesktopDatePicker } from '@mui/x-date-pickers/DesktopDatePicker'
+import { AdapterDayjs } from '@mui/x-date-pickers/AdapterDayjs'
+
+import dayjs from 'dayjs'
+
+import DisplayTab from './DisplayTab'
+import useApi from '../../hooks/useApi'
+
+import {
+  AccountBalance,
+  Public,
+  Download,
+  Delete,
+  Close,
+  CalendarMonthOutlined,
+  ReceiptLongOutlined,
+  VerifiedUserOutlined,
+  CompareArrowsOutlined,
+  AdjustOutlined,
+  StorageOutlined,
+  AccountBalanceOutlined,
+  InfoOutlined,
+  AutoAwesome,
+  FilterAltOutlined,
+  PlaylistAddCheckOutlined,
+  CloudDownloadOutlined,
+  VisibilityOutlined,
+  Check,
+  SearchOutlined,
+  MoreVertOutlined,
+  RefreshOutlined,
+} from '@mui/icons-material'
+
+import debounce from 'lodash/debounce'
+import downloadFile from '../../utils/DownloadUtils'
+import useCustomSnackbar from '../../utils/useCustomSnackbar'
+import styles from './BranchPosition.module.css'
+import Filter from './Filter'
+
+const alterDateFormat = (date) => {
+  if (!date) return ''
+
+  const dateRegex =
+    /^(0[1-9]|[12][0-9]|3[01])([-/.])(0[1-9]|1[0-2])\2(\d{4})$/
+
+  return date.replace(dateRegex, '$4$2$3$2$1')
+}
+
+const categoryMeta = {
+  TSD: {
+    label: 'Technical suspense',
+    category: 'Technical Suspense Difference',
+    icon: <ReceiptLongOutlined fontSize="small" />,
+    role: 'rolePurple',
+    accent: '#3158C8',
+  },
+
+  CSD: {
+    label: 'CGL suspense',
+    category: 'CGL Suspense Difference',
+    icon: <VerifiedUserOutlined fontSize="small" />,
+    role: 'roleTeal',
+    accent: '#159B88',
+  },
+
+  BCD: {
+    label: 'Balance compare',
+    category: 'Balance Compare Difference',
+    icon: <CompareArrowsOutlined fontSize="small" />,
+    role: 'roleAmber',
+    accent: '#D88916',
+  },
+}
+
+const filterFieldColors = {
+  CURRENCY: {
+    bg: '#E1F5EE',
+    text: '#0F8A6C',
+  },
+
+  CGL: {
+    bg: '#EEEDFE',
+    text: '#6C5CE7',
+  },
+
+  JOURNAL_NUMBER: {
+    bg: '#E6F1FB',
+    text: '#1D6FB8',
+  },
+
+  TRANSACTION_CODE: {
+    bg: '#FBEAF0',
+    text: '#C23E70',
+  },
+
+  BATCH_ID: {
+    bg: '#F1EFE8',
+    text: '#6B6A63',
+  },
+
+  ACCOUNT: {
+    bg: '#FFF1E0',
+    text: '#C9761A',
+  },
+}
+
+function BankIllustration() {
+  return (
+    <svg
+      width="120"
+      height="92"
+      viewBox="0 0 120 92"
+      fill="none"
+      xmlns="http://www.w3.org/2000/svg"
+    >
+      <rect
+        x="10"
+        y="76"
+        width="100"
+        height="8"
+        rx="2"
+        fill="#D9E2FF"
+      />
+
+      <polygon
+        points="60,10 108,34 12,34"
+        fill="#B8C8F8"
+      />
+
+      <rect
+        x="16"
+        y="34"
+        width="88"
+        height="38"
+        fill="#EAF0FF"
+      />
+
+      <rect
+        x="26"
+        y="42"
+        width="10"
+        height="30"
+        rx="2"
+        fill="#6D87D9"
+      />
+
+      <rect
+        x="44"
+        y="42"
+        width="10"
+        height="30"
+        rx="2"
+        fill="#6D87D9"
+      />
+
+      <rect
+        x="62"
+        y="42"
+        width="10"
+        height="30"
+        rx="2"
+        fill="#6D87D9"
+      />
+
+      <rect
+        x="80"
+        y="42"
+        width="10"
+        height="30"
+        rx="2"
+        fill="#6D87D9"
+      />
+
+      <rect
+        x="12"
+        y="72"
+        width="96"
+        height="4"
+        fill="#3158C8"
+      />
+
+      <circle
+        cx="60"
+        cy="22"
+        r="4"
+        fill="#3158C8"
+      />
+    </svg>
+  )
+}
+
+function SummaryCard({
+  meta,
+  count,
+  isLoading,
+  onViewDetails,
+  onDownload,
+  isSelected,
+}) {
+  const hasCount = typeof count === 'number'
+
+  const isReconciled = hasCount && count === 0
+
+  return (
+    <Paper
+      elevation={0}
+      className={`${styles.summaryCard} ${styles[meta.role]} ${
+        isSelected ? styles.summaryCardSelected : ''
+      }`}
+    >
+      {isReconciled && (
+        <AutoAwesome className={styles.cardSparkleBadge} />
+      )}
+
+      <Box className={styles.summaryCardHeader}>
+        <Box className={styles.summaryCardIcon}>
+          {meta.icon}
+        </Box>
+
+        <Typography className={styles.summaryCardLabel}>
+          {meta.label}
+        </Typography>
+      </Box>
+
+      <Box className={styles.summaryCountArea}>
+        <Typography className={styles.summaryCardCount}>
+          {isLoading
+            ? '—'
+            : hasCount
+              ? count
+              : '—'}
+        </Typography>
+
+        <Typography className={styles.summaryCardCaption}>
+          {isLoading ? 'Checking…' : 'Records found'}
+        </Typography>
+      </Box>
+
+      <Box className={styles.summaryCardDivider} />
+
+      <Box className={styles.summaryCardActions}>
+        <Button
+          className={styles.viewDetailsButton}
+          variant="outlined"
+          size="small"
+          startIcon={<VisibilityOutlined fontSize="small" />}
+          disabled={!hasCount || count === 0}
+          onClick={onViewDetails}
+        >
+          View details
+        </Button>
+
+        <Button
+          className={styles.cardDownloadButton}
+          variant="contained"
+          size="small"
+          startIcon={<Download fontSize="small" />}
+          disabled={!hasCount || count === 0}
+          onClick={onDownload}
+        >
+          Download
+        </Button>
+      </Box>
+    </Paper>
+  )
+}
+
+export default function BranchPosition() {
+  const [userDate, setUserDate] = useState(null)
+
+  const [dataRows, setDataRows] = useState({})
+
+  const [breakupDataRows, setBreakupDataRows] = useState({})
+
+  const { callApi } = useApi()
+
+  const [glifDataFilter, setGlifDataFilter] = useState({})
+
+  const [loading, setLoading] = useState('N')
+
+  const showSnackBar = useCustomSnackbar()
+
+  const [mode, setMode] = useState('DD')
+
+  const [isDialogOpen, setIsDialogOpen] = useState(false)
+
+  /*
+   * Selected Difference Data card.
+   *
+   * null  -> no detail grid shown
+   * TSD   -> Technical suspense grid
+   * CSD   -> CGL suspense grid
+   * BCD   -> Balance compare grid
+   */
+  const [expandedCategory, setExpandedCategory] = useState(null)
+
+  const user = JSON.parse(localStorage.getItem('user'))
+
+  /* -----------------------------------------------------------------------
+     DATA FETCHING
+     ----------------------------------------------------------------------- */
+
+  const debouncedFetchDifference = useCallback(
+    debounce(async () => {
+      if (mode === 'DD') {
+        await fetchDifference()
+      }
+    }, 100),
+    [userDate, mode]
+  )
+
+  async function fetchDifference() {
+    const payload = {
+      date: userDate,
+      branch: user.branch.toString().padStart(5, 0),
+      paginationModel: {
+        page: 0,
+        pageSize: 100,
+      },
+    }
+
+    try {
+      setLoading('Y')
+
+      const res = await callApi(
+        '/ES/branch-position/get-difference',
+        payload,
+        'POST'
+      )
+
+      if (res && res.success) {
+        setDataRows(res.data)
+      } else {
+        showSnackBar(res.message, 'error')
+        setDataRows({})
+      }
+
+      setLoading('N')
+    } catch (e) {
+      setLoading('N')
+      showSnackBar(e.message, 'error')
+    }
+  }
+
+  async function fetchIndividualDifference(
+    type,
+    paginationModel
+  ) {
+    const payload = {
+      date: userDate,
+      branch: user.branch.toString().padStart(5, 0),
+      differenceType: type,
+      paginationModel,
+    }
+
+    try {
+      setLoading(type)
+
+      const res = await callApi(
+        '/ES/branch-position/get-difference',
+        payload,
+        'POST'
+      )
+
+      if (res && res.success) {
+        setDataRows((prev) => ({
+          ...prev,
+          [type]: res.data[type] || [],
+        }))
+      } else {
+        showSnackBar(res.message, 'error')
+      }
+
+      setLoading('N')
+    } catch (e) {
+      setLoading('N')
+      showSnackBar(e.message, 'error')
+    }
+  }
+
+  async function fetchDetailedData(
+    type,
+    { cgl, currency, firstErrorDate }
+  ) {
+    const payload = {
+      branch: user.branch.toString().padStart(5, 0),
+      cgl,
+      currency,
+      startDate: alterDateFormat(firstErrorDate),
+      endDate: userDate,
+      differenceType: type,
+    }
+
+    try {
+      const res = await callApi(
+        '/ES/branch-position/get-detailed-difference',
+        payload,
+        'POST'
+      )
+
+      if (res && res.success) {
+        setBreakupDataRows({
+          type,
+          content: res.data || [],
+        })
+      } else {
+        showSnackBar(res.message, 'error')
+      }
+    } catch (e) {
+      showSnackBar(e.message, 'error')
+    }
+  }
+
+  /* -----------------------------------------------------------------------
+     DOWNLOAD ERROR HANDLER
+     ----------------------------------------------------------------------- */
+
+  const blobErrorHandler = (error) => {
+    if (error instanceof Blob) {
+      error.text().then((errorMessage) => {
+        try {
+          const errorJson = JSON.parse(errorMessage)
+
+          showSnackBar(
+            errorJson?.message || 'Download failed',
+            'error'
+          )
+        } catch (e) {
+          showSnackBar(
+            `Error: ${errorMessage}`,
+            'error'
+          )
+        }
+      })
+    } else {
+      showSnackBar(
+        error?.message || 'Download failed',
+        'error'
+      )
+    }
+  }
+
+  /* -----------------------------------------------------------------------
+     DIFFERENCE DOWNLOAD
+     ----------------------------------------------------------------------- */
+
+  const exportData = async (
+    filePref,
+    differenceType
+  ) => {
+    const payload = {
+      branch: user.branch.toString().padStart(5, 0),
+      date: userDate,
+      differenceType,
+    }
+
+    try {
+      const res = await callApi(
+        '/ES/branch-position/export-difference',
+        payload,
+        'POST',
+        'blob',
+        'application/octet-stream'
+      )
+
+      if (res) {
+        const filename =
+          `${filePref}_${payload.branch}_${alterDateFormat(userDate)}`
+
+        const fileData = new Blob([res])
+
+        downloadFile(
+          fileData,
+          'xlsx',
+          filename,
+          false
+        )
+      } else {
+        throw new Error(
+          'Failed to download file!'
+        )
+      }
+    } catch (e) {
+      blobErrorHandler(e)
+    }
+  }
+
+  /* -----------------------------------------------------------------------
+     DOWNLOAD ALL DIFFERENCE DATA
+     ----------------------------------------------------------------------- */
+
+  const exportAllDifferenceData = async () => {
+    const categories = Object.keys(categoryMeta)
+
+    for (const type of categories) {
+      const count = getCategoryCount(type)
+
+      if (typeof count === 'number' && count > 0) {
+        await exportData(type, type)
+      }
+    }
+  }
+
+  /* -----------------------------------------------------------------------
+     DETAILED DOWNLOAD
+     ----------------------------------------------------------------------- */
+
+  const exportDetailedData = async () => {
+    if (
+      !breakupDataRows?.content ||
+      breakupDataRows.content.length === 0
+    ) {
+      showSnackBar(
+        'No Rows to download!',
+        'error'
+      )
+      return
+    }
+
+    const cgl =
+      breakupDataRows.content[0].cgl
+
+    const currency =
+      breakupDataRows.content[0].currency
+
+    const branch =
+      user.branch.toString().padStart(5, 0)
+
+    const differenceType =
+      breakupDataRows.type
+
+    const firstErrorDate =
+      breakupDataRows.content[0].firstErrorDate
+
+    const payload = {
+      branch,
+      cgl,
+      currency,
+      startDate:
+        alterDateFormat(firstErrorDate),
+      endDate: userDate,
+      differenceType,
+    }
+
+    try {
+      const res = await callApi(
+        '/ES/branch-position/export-detailed-difference',
+        payload,
+        'POST',
+        'blob',
+        'application/octet-stream'
+      )
+
+      if (res) {
+        const filename =
+          `${differenceType}_${branch}_${currency}_${cgl}_${alterDateFormat(userDate)}`
+
+        const fileData = new Blob([res])
+
+        downloadFile(
+          fileData,
+          'xlsx',
+          filename,
+          false
+        )
+      } else {
+        throw new Error(
+          'Failed to download file!'
+        )
+      }
+    } catch (e) {
+      blobErrorHandler(e)
+    }
+  }
+
+  /* -----------------------------------------------------------------------
+     GLIF DOWNLOAD
+     ----------------------------------------------------------------------- */
+
+  const exportGlifData = async () => {
+    const payload = {
+      branch: user.branch.toString().padStart(5, 0),
+      date: userDate,
+
+      filters: [
+        {
+          field: 'BRANCH_CODE',
+          operator: 'EQUALS',
+          value: user.branch
+            .toString()
+            .padStart(5, 0),
+        },
+
+        {
+          field: 'TRANS_DATE',
+          operator: 'EQUALS',
+          value: userDate,
+        },
+
+        ...Object.entries(
+          glifDataFilter
+        ).map(([key, entry]) => ({
+          field: key,
+          operator: entry.operator,
+          value: entry.value,
+        })),
+      ],
+    }
+
+    try {
+      const res = await callApi(
+        '/ES/branch-position/export-glif-data',
+        payload,
+        'POST',
+        'blob',
+        'application/octet-stream'
+      )
+
+      if (res) {
+        const branch =
+          user.branch
+            .toString()
+            .padStart(5, 0)
+
+        const filename =
+          `glif_${branch}_${alterDateFormat(userDate)}${
+            Object.keys(glifDataFilter).length > 0
+              ? '_filtered'
+              : ''
+          }`
+
+        const fileData = new Blob([res])
+
+        downloadFile(
+          fileData,
+          'xlsx',
+          filename,
+          false
+        )
+      } else {
+        throw new Error(
+          'Failed to download file!'
+        )
+      }
+    } catch (error) {
+      blobErrorHandler(error)
+    }
+  }
+
+  /* -----------------------------------------------------------------------
+     INITIAL USER DATE
+     ----------------------------------------------------------------------- */
+
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        const res = await callApi(
+          '/ES/branch-position/user-date'
+        )
+
+        if (res && res.success) {
+          setUserDate(
+            res.data.substring(0, 10)
+          )
+        } else {
+          showSnackBar(
+            res.message,
+            'error'
+          )
+        }
+      } catch (e) {
+        showSnackBar(
+          e.message,
+          'error'
+        )
+      }
+    }
+
+    fetchData()
+
+    return () => {
+      setUserDate(null)
+      setBreakupDataRows({})
+      setDataRows(null)
+      setIsDialogOpen(false)
+      setGlifDataFilter({})
+      setLoading('N')
+      setMode('DD')
+      setExpandedCategory(null)
+    }
+  }, [])
+
+  useEffect(() => {
+    if (userDate == null) {
+      return
+    }
+
+    setBreakupDataRows({})
+    setExpandedCategory(null)
+
+    debouncedFetchDifference()
+  }, [
+    userDate,
+    debouncedFetchDifference,
+  ])
+
+  useEffect(() => {
+    if (!breakupDataRows?.content) {
+      return
+    }
+
+    setIsDialogOpen(true)
+  }, [breakupDataRows])
+
+  const closeDialog = () => {
+    setBreakupDataRows({})
+    setIsDialogOpen(false)
+  }
+
+  /* -----------------------------------------------------------------------
+     GLIF FILTER FUNCTIONS
+     ----------------------------------------------------------------------- */
+
+  const handleFilter = (filter) => {
+    if (!filter.multiValue) {
+      setGlifDataFilter((prev) => ({
+        ...prev,
+        [filter.field]: {
+          operator: 'EQUALS',
+          value: filter.value,
+        },
+      }))
+
+      return
+    }
+
+    if (glifDataFilter[filter.field]) {
+      if (
+        glifDataFilter[filter.field].value
+          .length >= 10
+      ) {
+        showSnackBar(
+          'only 10 filter values allowed!',
+          'error'
+        )
+
+        return
+      }
+
+      if (
+        new Set(
+          glifDataFilter[filter.field].value
+        ).has(filter.value)
+      ) {
+        showSnackBar(
+          'value already present in the filter!',
+          'error'
+        )
+
+        return
+      }
+
+      setGlifDataFilter((prev) => ({
+        ...prev,
+        [filter.field]: {
+          operator: 'IN',
+          value: [
+            ...prev[filter.field].value,
+            filter.value,
+          ],
+        },
+      }))
+
+      return
+    }
+
+    setGlifDataFilter((prev) => ({
+      ...prev,
+      [filter.field]: {
+        operator: 'IN',
+        value: [filter.value],
+      },
+    }))
+  }
+
+  const deleteFilter = (key) => {
+    const {
+      [key]: _,
+      ...rem
+    } = glifDataFilter
+
+    setGlifDataFilter(rem)
+  }
+
+  const deleteFilterValue = (
+    key,
+    deleteVal
+  ) => {
+    const newArray =
+      glifDataFilter[key].value.filter(
+        (val) => val !== deleteVal
+      )
+
+    if (newArray.length > 0) {
+      setGlifDataFilter((prev) => ({
+        ...prev,
+        [key]: {
+          ...prev[key],
+          value: newArray,
+        },
+      }))
+    } else {
+      deleteFilter(key)
+    }
+  }
+
+  const getFiterData = (field) => {
+    return (
+      glifDataFilter[field]?.value || []
+    )
+  }
+
+  /* -----------------------------------------------------------------------
+     HELPERS
+     ----------------------------------------------------------------------- */
+
+  const getCategoryCount = (type) => {
+    const bucket =
+      dataRows?.[type]
+
+    if (!bucket) {
+      return null
+    }
+
+    if (
+      typeof bucket?.page
+        ?.totalElements === 'number'
+    ) {
+      return bucket.page.totalElements
+    }
+
+    if (
+      Array.isArray(bucket?.content)
+    ) {
+      return bucket.content.length
+    }
+
+    return null
+  }
+
+  const activeFilterCount =
+    Object.keys(
+      glifDataFilter
+    ).length
+
+  const handleViewDetails = (type) => {
+    setExpandedCategory(type)
+  }
+
+  /* -----------------------------------------------------------------------
+     RENDER
+     ----------------------------------------------------------------------- */
+
+  return (
+    <>
+      <Box className={styles.appShell}>
+
+        {/* ================================================================
+            LEFT SIDEBAR
+            ================================================================ */}
+
+        <Box className={styles.sidebar}>
+
+          <Box className={styles.sidebarBrand}>
+            <Box
+              className={
+                styles.sidebarBrandIconWrap
+              }
+            >
+              <Box
+                className={
+                  styles.sidebarBrandIcon
+                }
+              >
+                <AccountBalanceOutlined
+                  fontSize="small"
+                />
+              </Box>
+
+              <AutoAwesome
+                className={
+                  styles.brandSparkle
+                }
+              />
+            </Box>
+
+            <Typography
+              className={
+                styles.sidebarBrandText
+              }
+            >
+              Branch position
+            </Typography>
+          </Box>
+
+          <Box className={styles.infoCard}>
+            <Box
+              className={
+                styles.infoCardIcon
+              }
+            >
+              <AccountBalance fontSize="small" />
+            </Box>
+
+            <Box>
+              <Typography
+                className={
+                  styles.infoCardLabel
+                }
+              >
+                Branch
+              </Typography>
+
+              <Typography
+                className={
+                  styles.infoCardValue
+                }
+              >
+                {user?.branch
+                  ?.toString()
+                  .padStart(5, 0)}
+              </Typography>
+
+              <Typography
+                className={
+                  styles.infoCardSubvalue
+                }
+              >
+          
