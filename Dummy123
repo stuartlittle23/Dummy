@@ -1,150 +1,176 @@
-<Box className={`${styles.accordionChevron} ${isOpen ? styles.accordionChevronOpen : ''}`}>
-                          <ExpandMoreOutlined fontSize="small" />
-                        </Box>
-                      </Box>
-                      <Collapse in={isOpen} timeout="auto" unmountOnExit>
-                        <DisplayTab
-                          category={meta.category}
-                          type={type}
-                          level={1}
-                          hideHeader
-                          flat
-                          data={dataRows[type] || []}
-                          clickHandler={fetchDetailedData}
-                          downloadHandler={exportData}
-                          loading={isLoading}
-                          requestData={fetchIndividualDifference}
-                        />
-                      </Collapse>
-                    </Box>
-                  )
-                })}
-              </Box>
+import styled from '@emotion/styled';
+import InboxOutlinedIcon from '@mui/icons-material/InboxOutlined';
+import CheckCircleOutlineIcon from '@mui/icons-material/CheckCircleOutline';
+import { Box, Button, Paper, Typography } from '@mui/material';
+import { DataGrid, GridOverlay } from '@mui/x-data-grid'
+import React, { useMemo, useState } from 'react'
 
-              <Box className={styles.infoBanner}>
-                <InfoOutlined fontSize="small" sx={{ color: '#6C5CE7', mt: '1px' }} />
-                <Typography className={styles.infoBannerText}>
-                  Download will include all Difference data for branch {user?.branch?.toString().padStart(5, 0)} on {userDate ? dayjs(userDate).format('DD-MM-YYYY') : '—'}.
+const StyledBox = styled(Box)(({ theme }) => ({
+    textAlign: 'center',
+    padding: '24px 5px',
+    display: 'flex',
+    flexDirection: 'column',
+    alignItems: 'center',
+    gap: '6px',
+}));
+
+const StyledDataGrid = styled(DataGrid)(({ theme }) => ({
+    maxHeight: '400px',
+    minHeight: '100px',
+    border: 'none',
+    '& .MuiDataGrid-cell:focus, & .MuiDataGrid-columnHeader:focus': {
+        outline: 'none',
+    },
+    '& .MuiDataGrid-cell:focus-within, & .MuiDataGrid-columnHeader:focus-within': {
+        outline: 'none',
+    },
+    '& .MuiDataGrid-columnHeader': {
+        backgroundColor: '#FBFAFF',
+    },
+    '& .MuiDataGrid-columnHeaderTitle': {
+        fontWeight: 600,
+        color: 'rgba(30, 20, 60, 0.7)',
+    },
+    '& .MuiDataGrid-row:hover': {
+        backgroundColor: 'rgba(108, 92, 231, 0.04)',
+    },
+}))
+
+const rawColumns = [
+    { field: "reconRunDate", headerName: "Report Date", width: 100, headerAlign: 'center', align: 'center', disableColumnMenu: true, sortable: false, filterable: false },
+    { field: "date", headerName: "Report Date", width: 120, headerAlign: 'center', align: 'center', disableColumnMenu: true, sortable: false, filterable: false },
+    { field: "firstErrorDate", headerName: "First Error Date", width: 120, disableColumnMenu: true, headerAlign: 'center', align: 'center', sortable: true, filterable: true },
+    { field: "branchCode", headerName: "Branch Code", width: 100, disableColumnMenu: true, headerAlign: 'center', align: 'center' },
+    { field: "currency", headerName: "Currency", width: 80, headerAlign: 'center', align: 'center', disableColumnMenu: true, sortable: true, filterable: true },
+    { field: "cgl", headerName: "CGL", width: 120, headerAlign: 'center', align: 'center', sortable: true, filterable: true },
+    { field: "balance", headerName: "Amount", align: 'right', headerAlign: 'center', sortable: true, filterable: true, flex: 2 },
+    { field: "inrBalance", headerName: "INR Balance", align: 'right', headerAlign: 'center', sortable: true, filterable: true, flex: 2 },
+    { field: "cbsBalance", headerName: "CBS Balance", align: 'right', headerAlign: 'center', sortable: false, filterable: false, flex: 2 },
+    { field: "glBalance", headerName: " GL Balance", align: 'right', headerAlign: 'center', sortable: false, filterable: false, flex: 2 },
+    { field: "differenceAmount", headerName: "Difference Amount", align: 'right', headerAlign: 'center', sortable: false, filterable: false, flex: 2 },
+    { field: "diffBwYesterday", headerName: "Diff Bw Yesterday", align: 'right', headerAlign: 'center', sortable: false, filterable: false, flex: 2 },
+    { field: "type", headerName: "Type", sortable: true, filterable: true, flex: 1 },
+    { field: "head", headerName: "Head", sortable: true, filterable: true, flex: 1 },
+]
+
+/**
+ * level: 1 = summary category grid (Actions column, server pagination)
+ *        2 = breakup dialog grid (no pagination controls)
+ * hideHeader: when the parent (e.g. an accordion row) already renders the
+ *             category name + download button, skip DisplayTab's own header.
+ * flat: strip the outer Paper's border/shadow/margin — use when nesting
+ *       inside another bordered container (e.g. an accordion row).
+ */
+export default function DisplayTab({ level, type, data = {}, category, clickHandler = () => { }, downloadHandler = () => { }, requestData = () => { }, loading = false, hideHeader = false, flat = false }) {
+    const [paginationModel, setPaginationModel] = useState({
+        page: 0,
+        pageSize: 100,
+    });
+    const rows = data?.content || [];
+
+    const columns = useMemo(() => {
+        if (!rows || rows.length === 0) return [];
+        const fields = Object.keys(rows[0]);
+        let cols = rawColumns.filter((field) => fields.includes(field.field));
+
+        if (level && level == 1) {
+            const actions = {
+                field: "action",
+                headerName: 'Actions',
+                headerAlign: 'center',
+                align: 'center',
+                width: 100,
+                renderCell: (params) => (
+                    <Button
+                        variant="contained"
+                        size="small"
+                        onClick={() => clickHandler(type, params.row)}
+                        sx={{ textTransform: 'none', borderRadius: '8px' }}
+                    >
+                        Details
+                    </Button>)
+            }
+            return [...cols, actions]
+        }
+        return cols;
+    }, [rows]);
+
+    const handlePaginationModelChange = (newModel) => {
+        setPaginationModel(newModel);
+        requestData(type, { ...newModel });
+    };
+
+    const CustomNoRowsOverlay = () => (
+        <GridOverlay>
+            <StyledBox>
+                <CheckCircleOutlineIcon sx={{ fontSize: 32, color: 'rgba(16, 163, 127, 0.6)' }} />
+                <Typography variant="body1" sx={{ fontWeight: 600, color: 'rgba(30, 20, 60, 0.75)' }}>
+                    No Difference
                 </Typography>
-              </Box>
-            </>
-          )}
-
-          {mode === "GE" && (
-            <>
-              <Box className={styles.pageHeaderRow}>
-                <Typography className={styles.pageHeaderTitle}>GLIF data</Typography>
-                <AutoAwesome className={styles.headerSparkle} />
-              </Box>
-              <Typography className={styles.pageHeaderSubtitle}>
-                Download GLIF data for your branch and selected date.
-              </Typography>
-
-              {/* Row 1 — Add filter (field + value + Add button) */}
-              <Box className={styles.glifSection}>
-                <Box className={styles.glifSectionHeader}>
-                  <Box className={styles.glifSectionIcon}><FilterAltOutlined fontSize="small" /></Box>
-                  <Typography className={styles.glifSectionTitle}>Add Filter</Typography>
-                </Box>
-                <Typography className={styles.typographyLabel} sx={{ mb: 1 }}>
-                  Add up to 10 values per filter field.
+                <Typography variant="caption" sx={{ color: 'rgba(30, 20, 60, 0.5)' }}>
+                    This branch is fully reconciled for the selected date.
                 </Typography>
-                <Filter handleFilter={handleFilter} getValues={getFiterData} />
-              </Box>
+            </StyledBox>
+        </GridOverlay>
+    );
 
-              {/* Row 2 — Applied filters */}
-              <Box className={styles.glifSection}>
-                <Box className={styles.glifSectionHeader} sx={{ marginBottom: 0 }}>
-                  <Box className={styles.glifSectionIcon}><PlaylistAddCheckOutlined fontSize="small" /></Box>
-                  <Typography className={styles.glifSectionTitle}>Applied Filters ({activeFilterCount})</Typography>
-                  {activeFilterCount > 0 && (
-                    <button className={styles.clearAllLink} onClick={() => setGlifDataFilter({})}>
-                      Clear All
-                    </button>
-                  )}
-                </Box>
-                <Box sx={{ marginTop: '14px' }}>
-                  {activeFilterCount === 0 ? (
-                    <Typography variant="caption" sx={{ color: 'rgba(30,20,60,0.45)' }}>
-                      No filters applied yet — results will include the full branch and date.
+    const CustomNoDataOverlay = () => (
+        <GridOverlay>
+            <StyledBox>
+                <InboxOutlinedIcon sx={{ fontSize: 32, color: 'rgba(30, 20, 60, 0.35)' }} />
+                <Typography variant="body1" sx={{ fontWeight: 600, color: 'rgba(30, 20, 60, 0.75)' }}>
+                    No data found
+                </Typography>
+                <Typography variant="caption" sx={{ color: 'rgba(30, 20, 60, 0.5)' }}>
+                    No records match the applied filters or date range.
+                </Typography>
+            </StyledBox>
+        </GridOverlay>
+    );
+
+    const handleDownload = () => {
+        downloadHandler(`${type || "no_name"}`, type);
+    }
+
+    return (
+        <Paper
+            elevation={0}
+            sx={flat
+                ? { border: 'none', boxShadow: 'none', margin: 0, borderRadius: 0 }
+                : { marginTop: '8px', marginBottom: '8px', borderRadius: '12px', overflow: 'hidden', border: '1px solid rgba(108, 92, 231, 0.1)', boxShadow: '0 1px 6px rgba(76, 60, 150, 0.06)' }
+            }
+        >
+            {level == 1 && !hideHeader &&
+                <Box sx={{ display: 'flex', alignItems: 'center', padding: '10px 14px', backgroundColor: '#F7F6FD', borderBottom: '1px solid rgba(108, 92, 231, 0.1)' }}>
+                    <Typography sx={{ flexGrow: 1, fontWeight: 600, fontSize: '15px', color: 'rgba(30, 20, 60, 0.87)' }}>
+                        {category || "Data"}
                     </Typography>
-                  ) : (
-                    <Box className={styles.chipValues}>
-                      {Object.entries(glifDataFilter).map(([key, val]) => {
-                        const color = filterFieldColors[key] || { bg: '#F1EFE8', text: '#6B6A63' };
-                        const items = Array.isArray(val.value) ? val.value : [val.value];
-                        return items.map((ent, index) => (
-                          <Chip
-                            key={`${key}-${index}`}
-                            size="small"
-                            className={styles.filterFieldChip}
-                            label={`${key.replaceAll('_', ' ')}: ${ent}`}
-                            onDelete={() => Array.isArray(val.value) ? deleteFilterValue(key, ent) : deleteFilter(key)}
-                            deleteIcon={<Delete fontSize="small" />}
-                            sx={{ backgroundColor: color.bg, color: color.text }}
-                          />
-                        ))
-                      })}
-                    </Box>
-                  )}
+                    <Button onClick={handleDownload} disabled={!rows || rows.length == 0} variant="contained" size='small' sx={{ textTransform: 'none', borderRadius: '8px' }}>
+                        Download
+                    </Button>
                 </Box>
-              </Box>
-{/* Row 3 — Download */}
-              <Box className={styles.glifSection}>
-                <Box className={styles.glifSectionHeader}>
-                  <Box className={styles.glifSectionIcon}><CloudDownloadOutlined fontSize="small" /></Box>
-                  <Typography className={styles.glifSectionTitle}>Download GLIF Data</Typography>
-                </Box>
-                <Box className={styles.infoBanner} sx={{ marginTop: 0, marginBottom: '16px' }}>
-                  <InfoOutlined fontSize="small" sx={{ color: '#6C5CE7', mt: '1px' }} />
-                  <Typography className={styles.infoBannerText}>
-                    Download will include all GLIF data for branch {user?.branch?.toString().padStart(5, 0)} on {userDate ? dayjs(userDate).format('DD-MM-YYYY') : '—'} with the applied filters.
-                  </Typography>
-                </Box>
-                <Button
-                  fullWidth
-                  variant="contained"
-                  startIcon={<Download />}
-                  onClick={() => exportGlifData()}
-                  sx={{ textTransform: 'none', borderRadius: '8px', fontWeight: 600, height: '44px' }}
-                >
-                  Download GLIF Data
-                </Button>
-              </Box>
-            </>
-          )}
-        </Box>
-      </Box>
-
-      <Dialog
-        className={styles.dialog}
-        open={isDialogOpen}
-        onClose={closeDialog}
-        fullWidth
-        PaperProps={{ className: styles.dialogPaper }}
-      >
-        <DialogTitle className={styles.dialogTitle}>
-          <Typography className={styles.typographyLabel} sx={{ flexGrow: 1 }}>
-            Difference break-up
-          </Typography>
-          <IconButton
-            className={styles.dialogButton}
-            disabled={breakupDataRows?.data?.length == 0}
-            onClick={exportDetailedData}
-            size="small"
-            title="Download breakup"
-          >
-            <Download fontSize="small" />
-          </IconButton>
-          <IconButton className={styles.dialogButton} onClick={closeDialog} size="small" title="Close">
-            <Close fontSize="small" />
-          </IconButton>
-        </DialogTitle>
-        <DialogContent>
-          <DisplayTab data={breakupDataRows || []} category={"Difference Breakup"} type={breakupDataRows?.type} level={2} closeHandler={() => closeDialog()} />
-        </DialogContent>
-      </Dialog>
-    </>
-  )
+            }
+            <StyledDataGrid
+                rows={rows || []}
+                columns={columns || []}
+                pagination={level === 1}
+                paginationMode='server'
+                paginationModel={paginationModel}
+                rowCount={data?.page?.totalElements || 0}
+                getRowId={(row) => row?.id || `${row.head}-${row.cgl}`}
+                pageSizeOptions={[100]}
+                columnHeaderHeight={rows.length == 0 ? 0 : 56}
+                onPaginationModelChange={handlePaginationModelChange}
+                hideFooter={rows.length == 0}
+                hideFooterPagination={level === 2}
+                slots={{
+                    columnHeaders: rows.length == 0 ? () => null : undefined,
+                    noRowsOverlay: level === 2 ? CustomNoDataOverlay : CustomNoRowsOverlay,
+                    noResultsOverlay: level === 2 ? CustomNoDataOverlay : CustomNoRowsOverlay,
+                    noColumnsOverlay: level === 2 ? CustomNoDataOverlay : CustomNoRowsOverlay,
+                }}
+                loading={loading || false}
+            />
+        </Paper>
+    )
 }
-
