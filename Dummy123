@@ -1,475 +1,176 @@
-/* ==========================================================================
-   BranchPosition — Summary cards + accordion + full-width GLIF sections
-   ========================================================================== */
-
-.appShell {
-  display: flex;
-  align-items: stretch;
-  border-radius: 16px;
-  overflow: hidden;
-  box-shadow: 0 2px 20px rgba(76, 60, 150, 0.1);
-  border: 1px solid rgba(108, 92, 231, 0.1);
-  min-height: 640px;
-  background-color: #ffffff;
-}
-
-/* ---- Sidebar ---------------------------------------------------------- */
-
-.sidebar {
-  width: 260px;
-  flex-shrink: 0;
-  background-color: #FAF9FE;
-  border-right: 1px solid rgba(108, 92, 231, 0.1);
-  padding: 20px 16px;
-  display: flex;
-  flex-direction: column;
-}
-
-.sidebarBrand {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  margin-bottom: 20px;
-  padding: 0 4px;
-}
-
-.sidebarBrandIconWrap {
-  position: relative;
-}
-
-.sidebarBrandIcon {
-  width: 36px;
-  height: 36px;
-  border-radius: 10px;
-  background-color: #EEEDFE;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  color: #6C5CE7;
-}
-
-.brandSparkle {
-  position: absolute;
-  top: -6px;
-  right: -6px;
-  font-size: 13px !important;
-  color: #B8AEFB;
-}
-
-.sidebarBrandText {
-  font-size: 15px;
-  font-weight: 600;
-  color: rgba(30, 20, 60, 0.87);
-}
-
-.infoCard {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  padding: 10px;
-  border: 1px solid rgba(108, 92, 231, 0.12);
-  border-radius: 10px;
-  background-color: #ffffff;
-  margin-bottom: 8px;
-}
-
-.infoCardIcon {
-  width: 30px;
-  height: 30px;
-  border-radius: 8px;
-  background-color: #F5F3FF;
-  color: #6C5CE7;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  flex-shrink: 0;
-}
-
-.infoCardLabel {
-  font-size: 10px;
-  font-weight: 600;
-  letter-spacing: 0.05em;
-  text-transform: uppercase;
-  color: rgba(30, 20, 60, 0.4);
-  margin: 0 0 2px;
-}
-
-.infoCardValue {
-  font-size: 13px;
-  font-weight: 600;
-  color: rgba(30, 20, 60, 0.85);
-  line-height: 1.3;
-}
-
-.infoCardSubvalue {
-  font-size: 11px;
-  color: rgba(30, 20, 60, 0.5);
-}
-
-.navTabs {
-  margin-top: 8px;
-}
-
-.navTab {
-  color: rgba(30, 20, 60, 0.6) !important;
-  font-weight: 500;
-  text-transform: none;
-  align-items: center;
-  flex-direction: row;
-  justify-content: flex-start;
-  min-height: 42px;
-  border-radius: 10px;
-  padding: 8px 12px;
-  border-left: 3px solid transparent;
-  transition: background-color 0.15s ease, color 0.15s ease;
-}
-
-.navTab:hover {
-  background-color: rgba(108, 92, 231, 0.06);
-}
-
-.navTab:global(.Mui-selected) {
-  background-color: #F5F3FF !important;
-  color: #6C5CE7 !important;
-  border-left: 3px solid #6C5CE7;
-  font-weight: 600;
-}
-
-.navTab:global(.Mui-disabled) {
-  opacity: 0.4;
-}
-
-.sidebarFooter {
-  margin-top: auto;
-  padding-top: 12px;
-}
-
-/* ---- Sidebar illustration ------------------------------------------------- */
-
-.sidebarIllustration {
-  position: relative;
-  width: 100%;
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  padding: 12px 0 4px;
-}
-
-.sparkleTopRight {
-  position: absolute;
-  top: 2px;
-  right: 28%;
-  font-size: 15px !important;
-  color: #C9BFFC;
-}
-
-.sparkleBottomLeft {
-  position: absolute;
-  bottom: 6px;
-  left: 22%;
-  font-size: 10px !important;
-  color: #C9BFFC;
-  opacity: 0.8;
-}
-
-.sparkleMidRight {
-  position: absolute;
-  top: 38%;
-  right: 14%;
-  font-size: 9px !important;
-  color: #DCD5FE;
-}
-
-/* ---- Main content ------------------------------------------------------- */
-
-.mainContent {
-  flex: 1;
-  min-width: 0;
-  padding: 24px;
-  background-color: #FDFCFF;
-}
-
-.pageHeaderRow {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-}
-
-.headerSparkle {
-  font-size: 17px !important;
-  color: #B8AEFB;
-}
-
-.pageHeaderTitle {
-  font-size: 20px;
-  font-weight: 700;
-  color: rgba(20, 14, 45, 0.9);
-  margin: 0 0 2px;
-}
-
-.pageHeaderSubtitle {
-  font-size: 13px;
-  color: rgba(30, 20, 60, 0.5);
-  margin: 0 0 20px;
-}
-
-/* ---- Summary cards -------------------------------------------------------- */
-
-.summaryRow {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 14px;
-  margin-bottom: 24px;
-}
-
-.summaryCard {
-  position: relative;
-  background-color: #ffffff;
-  border: 1px solid rgba(108, 92, 231, 0.1);
-  border-radius: 14px;
-  padding: 18px;
-  transition: box-shadow 0.15s ease;
-}
-
-.summaryCard:hover {
-  box-shadow: 0 4px 18px rgba(76, 60, 150, 0.08);
-}
-
-.cardSparkleBadge {
-  position: absolute;
-  top: 10px;
-  right: 12px;
-  font-size: 16px !important;
-  color: #10A37F;
-}
-
-.summaryCardHeader {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  margin-bottom: 14px;
-}
-
-.summaryCardIcon {
-  width: 42px;
-  height: 42px;
-  border-radius: 12px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  flex-shrink: 0;
-}
-
-.summaryCardLabel {
-  font-size: 14px;
-  font-weight: 600;
-  color: rgba(30, 20, 60, 0.85);
-}
-
-.summaryCardCount {
-  font-size: 30px;
-  font-weight: 700;
-  line-height: 1;
-  margin-bottom: 2px;
-}
-
-.summaryCardCaption {
-  font-size: 12px;
-  color: rgba(30, 20, 60, 0.45);
-  margin-bottom: 14px;
-}
-
-.summaryDownloadButton {
-  width: 100%;
-  text-transform: none !important;
-  border-radius: 8px !important;
-  font-weight: 600 !important;
-}
-
-.rolePurple .summaryCardIcon { background-color: #EEEDFE; color: #6C5CE7; }
-.rolePurple .summaryCardCount { color: #6C5CE7; }
-
-.roleTeal .summaryCardIcon { background-color: #E1F5EE; color: #10A37F; }
-.roleTeal .summaryCardCount { color: #10A37F; }
-
-.roleAmber .summaryCardIcon { background-color: #FFF1E0; color: #C9761A; }
-.roleAmber .summaryCardCount { color: #C9761A; }
-
-/* ---- Accordion detail list -------------------------------------------------- */
-
-.accordionList {
-  border: 1px solid rgba(108, 92, 231, 0.1);
-  border-radius: 14px;
-  overflow: hidden;
-  background-color: #ffffff;
-}
-
-.accordionRow {
-  border-bottom: 1px solid rgba(108, 92, 231, 0.08);
-}
-
-.accordionRow:last-child {
-  border-bottom: none;
-}
-
-.accordionHeader {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  padding: 14px 18px;
-  cursor: pointer;
-  transition: background-color 0.15s ease;
-}
-
-.accordionHeader:hover {
-  background-color: #FAF9FE;
-}
-
-.accordionHeaderIcon {
-  width: 32px;
-  height: 32px;
-  border-radius: 9px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  flex-shrink: 0;
-}
-
-.accordionHeaderLabel {
-  font-size: 14px;
-  font-weight: 600;
-  color: rgba(30, 20, 60, 0.85);
-  flex-grow: 1;
-}
-
-.accordionCountChip {
-  font-weight: 600 !important;
-}
-
-.accordionChevron {
-  color: rgba(30, 20, 60, 0.4);
-  transition: transform 0.15s ease;
-  display: flex;
-}
-
-.accordionChevronOpen {
-  transform: rotate(180deg);
-}
-
-.infoBanner {
-  display: flex;
-  align-items: flex-start;
-  gap: 10px;
-  padding: 12px 16px;
-  border-radius: 10px;
-  background-color: #F5F3FF;
-  border: 1px solid rgba(108, 92, 231, 0.15);
-  margin-top: 16px;
-}
-
-.infoBannerText {
-  font-size: 12.5px;
-  color: rgba(30, 20, 60, 0.6);
-  line-height: 1.5;
-}
-
-/* ---- Full-width GLIF sections --------------------------------------------- */
-
-.glifSection {
-  width: 100%;
-  background-color: #ffffff;
-  border: 1px solid rgba(108, 92, 231, 0.1);
-  border-radius: 14px;
-  padding: 20px 24px;
-  margin-bottom: 16px;
-  box-shadow: 0 1px 6px rgba(76, 60, 150, 0.05);
-}
-
-.glifSectionHeader {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  margin-bottom: 16px;
-}
-
-.glifSectionIcon {
-  width: 34px;
-  height: 34px;
-  border-radius: 9px;
-  background-color: #F5F3FF;
-  color: #6C5CE7;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  flex-shrink: 0;
-}
-
-.glifSectionTitle {
-  font-size: 15px;
-  font-weight: 700;
-  color: rgba(30, 20, 60, 0.87);
-  flex-grow: 1;
-}
-
-.chipValues {
-  display: flex;
-  row-gap: 8px;
-  column-gap: 8px;
-  flex-wrap: wrap;
-  align-items: center;
-}
-
-.filterFieldChip {
-  font-weight: 600 !important;
-}
-
-.typographyLabel {
-  font-size: 13px;
-  color: rgba(30, 20, 60, 0.6);
-}
-
-.activeFiltersRow {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  margin-bottom: 12px;
-}
-
-.clearAllLink {
-  font-size: 12px;
-  font-weight: 600;
-  color: #6C5CE7;
-  cursor: pointer;
-  background: none;
-  border: none;
-  padding: 0;
-}
-
-.clearAllLink:hover {
-  text-decoration: underline;
-}
-
-/* ---- Dialog ------------------------------------------------------------------- */
-
-.dialog {
-  height: 100%;
-  width: 100%;
-}
-
-.dialogPaper {
-  max-width: none;
-  border-radius: 16px;
-  box-shadow: 0 12px 48px rgba(76, 60, 150, 0.2);
-}
-
-.dialogButton {
-  flex-grow: 0;
-  margin: 4px;
-}
-
-.dialogTitle {
-  display: flex;
-  align-items: center;
-  font-weight: 600;
-  border-bottom: 1px solid rgba(108, 92, 231, 0.1);
+import styled from '@emotion/styled';
+import InboxOutlinedIcon from '@mui/icons-material/InboxOutlined';
+import CheckCircleOutlineIcon from '@mui/icons-material/CheckCircleOutline';
+import { Box, Button, Paper, Typography } from '@mui/material';
+import { DataGrid, GridOverlay } from '@mui/x-data-grid'
+import React, { useMemo, useState } from 'react'
+
+const StyledBox = styled(Box)(({ theme }) => ({
+    textAlign: 'center',
+    padding: '24px 5px',
+    display: 'flex',
+    flexDirection: 'column',
+    alignItems: 'center',
+    gap: '6px',
+}));
+
+const StyledDataGrid = styled(DataGrid)(({ theme }) => ({
+    maxHeight: '400px',
+    minHeight: '100px',
+    border: 'none',
+    '& .MuiDataGrid-cell:focus, & .MuiDataGrid-columnHeader:focus': {
+        outline: 'none',
+    },
+    '& .MuiDataGrid-cell:focus-within, & .MuiDataGrid-columnHeader:focus-within': {
+        outline: 'none',
+    },
+    '& .MuiDataGrid-columnHeader': {
+        backgroundColor: '#FBFAFF',
+    },
+    '& .MuiDataGrid-columnHeaderTitle': {
+        fontWeight: 600,
+        color: 'rgba(30, 20, 60, 0.7)',
+    },
+    '& .MuiDataGrid-row:hover': {
+        backgroundColor: 'rgba(108, 92, 231, 0.04)',
+    },
+}))
+
+const rawColumns = [
+    { field: "reconRunDate", headerName: "Report Date", width: 100, headerAlign: 'center', align: 'center', disableColumnMenu: true, sortable: false, filterable: false },
+    { field: "date", headerName: "Report Date", width: 120, headerAlign: 'center', align: 'center', disableColumnMenu: true, sortable: false, filterable: false },
+    { field: "firstErrorDate", headerName: "First Error Date", width: 120, disableColumnMenu: true, headerAlign: 'center', align: 'center', sortable: true, filterable: true },
+    { field: "branchCode", headerName: "Branch Code", width: 100, disableColumnMenu: true, headerAlign: 'center', align: 'center' },
+    { field: "currency", headerName: "Currency", width: 80, headerAlign: 'center', align: 'center', disableColumnMenu: true, sortable: true, filterable: true },
+    { field: "cgl", headerName: "CGL", width: 120, headerAlign: 'center', align: 'center', sortable: true, filterable: true },
+    { field: "balance", headerName: "Amount", align: 'right', headerAlign: 'center', sortable: true, filterable: true, flex: 2 },
+    { field: "inrBalance", headerName: "INR Balance", align: 'right', headerAlign: 'center', sortable: true, filterable: true, flex: 2 },
+    { field: "cbsBalance", headerName: "CBS Balance", align: 'right', headerAlign: 'center', sortable: false, filterable: false, flex: 2 },
+    { field: "glBalance", headerName: " GL Balance", align: 'right', headerAlign: 'center', sortable: false, filterable: false, flex: 2 },
+    { field: "differenceAmount", headerName: "Difference Amount", align: 'right', headerAlign: 'center', sortable: false, filterable: false, flex: 2 },
+    { field: "diffBwYesterday", headerName: "Diff Bw Yesterday", align: 'right', headerAlign: 'center', sortable: false, filterable: false, flex: 2 },
+    { field: "type", headerName: "Type", sortable: true, filterable: true, flex: 1 },
+    { field: "head", headerName: "Head", sortable: true, filterable: true, flex: 1 },
+]
+
+/**
+ * level: 1 = summary category grid (Actions column, server pagination)
+ *        2 = breakup dialog grid (no pagination controls)
+ * hideHeader: when the parent (e.g. an accordion row) already renders the
+ *             category name + download button, skip DisplayTab's own header.
+ * flat: strip the outer Paper's border/shadow/margin — use when nesting
+ *       inside another bordered container (e.g. an accordion row).
+ */
+export default function DisplayTab({ level, type, data = {}, category, clickHandler = () => { }, downloadHandler = () => { }, requestData = () => { }, loading = false, hideHeader = false, flat = false }) {
+    const [paginationModel, setPaginationModel] = useState({
+        page: 0,
+        pageSize: 100,
+    });
+    const rows = data?.content || [];
+
+    const columns = useMemo(() => {
+        if (!rows || rows.length === 0) return [];
+        const fields = Object.keys(rows[0]);
+        let cols = rawColumns.filter((field) => fields.includes(field.field));
+
+        if (level && level == 1) {
+            const actions = {
+                field: "action",
+                headerName: 'Actions',
+                headerAlign: 'center',
+                align: 'center',
+                width: 100,
+                renderCell: (params) => (
+                    <Button
+                        variant="contained"
+                        size="small"
+                        onClick={() => clickHandler(type, params.row)}
+                        sx={{ textTransform: 'none', borderRadius: '8px' }}
+                    >
+                        Details
+                    </Button>)
+            }
+            return [...cols, actions]
+        }
+        return cols;
+    }, [rows]);
+
+    const handlePaginationModelChange = (newModel) => {
+        setPaginationModel(newModel);
+        requestData(type, { ...newModel });
+    };
+
+    const CustomNoRowsOverlay = () => (
+        <GridOverlay>
+            <StyledBox>
+                <CheckCircleOutlineIcon sx={{ fontSize: 32, color: 'rgba(16, 163, 127, 0.6)' }} />
+                <Typography variant="body1" sx={{ fontWeight: 600, color: 'rgba(30, 20, 60, 0.75)' }}>
+                    No Difference
+                </Typography>
+                <Typography variant="caption" sx={{ color: 'rgba(30, 20, 60, 0.5)' }}>
+                    This branch is fully reconciled for the selected date.
+                </Typography>
+            </StyledBox>
+        </GridOverlay>
+    );
+
+    const CustomNoDataOverlay = () => (
+        <GridOverlay>
+            <StyledBox>
+                <InboxOutlinedIcon sx={{ fontSize: 32, color: 'rgba(30, 20, 60, 0.35)' }} />
+                <Typography variant="body1" sx={{ fontWeight: 600, color: 'rgba(30, 20, 60, 0.75)' }}>
+                    No data found
+                </Typography>
+                <Typography variant="caption" sx={{ color: 'rgba(30, 20, 60, 0.5)' }}>
+                    No records match the applied filters or date range.
+                </Typography>
+            </StyledBox>
+        </GridOverlay>
+    );
+
+    const handleDownload = () => {
+        downloadHandler(`${type || "no_name"}`, type);
+    }
+
+    return (
+        <Paper
+            elevation={0}
+            sx={flat
+                ? { border: 'none', boxShadow: 'none', margin: 0, borderRadius: 0 }
+                : { marginTop: '8px', marginBottom: '8px', borderRadius: '12px', overflow: 'hidden', border: '1px solid rgba(108, 92, 231, 0.1)', boxShadow: '0 1px 6px rgba(76, 60, 150, 0.06)' }
+            }
+        >
+            {level == 1 && !hideHeader &&
+                <Box sx={{ display: 'flex', alignItems: 'center', padding: '10px 14px', backgroundColor: '#F7F6FD', borderBottom: '1px solid rgba(108, 92, 231, 0.1)' }}>
+                    <Typography sx={{ flexGrow: 1, fontWeight: 600, fontSize: '15px', color: 'rgba(30, 20, 60, 0.87)' }}>
+                        {category || "Data"}
+                    </Typography>
+                    <Button onClick={handleDownload} disabled={!rows || rows.length == 0} variant="contained" size='small' sx={{ textTransform: 'none', borderRadius: '8px' }}>
+                        Download
+                    </Button>
+                </Box>
+            }
+            <StyledDataGrid
+                rows={rows || []}
+                columns={columns || []}
+                pagination={level === 1}
+                paginationMode='server'
+                paginationModel={paginationModel}
+                rowCount={data?.page?.totalElements || 0}
+                getRowId={(row) => row?.id || `${row.head}-${row.cgl}`}
+                pageSizeOptions={[100]}
+                columnHeaderHeight={rows.length == 0 ? 0 : 56}
+                onPaginationModelChange={handlePaginationModelChange}
+                hideFooter={rows.length == 0}
+                hideFooterPagination={level === 2}
+                slots={{
+                    columnHeaders: rows.length == 0 ? () => null : undefined,
+                    noRowsOverlay: level === 2 ? CustomNoDataOverlay : CustomNoRowsOverlay,
+                    noResultsOverlay: level === 2 ? CustomNoDataOverlay : CustomNoRowsOverlay,
+                    noColumnsOverlay: level === 2 ? CustomNoDataOverlay : CustomNoRowsOverlay,
+                }}
+                loading={loading || false}
+            />
+        </Paper>
+    )
 }
