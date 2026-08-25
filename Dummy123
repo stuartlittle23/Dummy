@@ -1,1 +1,71 @@
+{mode==="GE"&&(
+ <Box className={styles.glifPanel}>
+  <Box className={styles.glifHeader}>
+   <Typography className={styles.glifTitle}>GLIF data</Typography>
+   <Typography className={styles.glifSubtitle}>Apply filters to download branch GLIF data.</Typography>
+  </Box>
 
+  <Paper className={styles.glifFilterCard}>
+   <Box className={styles.glifSectionHeader}>
+    <Box>
+     <Typography className={styles.filterTitle}>Add filters</Typography>
+     <Typography className={styles.filterHint}>Select the required field and value, then add it to the applied filters.</Typography>
+    </Box>
+   </Box>
+   <Box className={styles.filterRow}>
+    <Filter handleFilter={handleFilter} getValues={getFilterData}/>
+   </Box>
+  </Paper>
+
+  <Paper className={styles.appliedFilterCard}>
+   <Box className={styles.appliedHeader}>
+    <Box>
+     <Typography className={styles.filterTitle}>Applied filters</Typography>
+     <Typography className={styles.filterHint}>Review and manage the filters applied to GLIF data.</Typography>
+    </Box>
+    {Object.keys(glifDataFilter).length>0&&(
+     <Button
+      size="small"
+      onClick={()=>setGlifDataFilter({})}
+      className={styles.clearAllButton}
+     >
+      Clear all
+     </Button>
+    )}
+   </Box>
+
+   {Object.keys(glifDataFilter).length===0?(
+    <Box className={styles.emptyFilter}>
+     <Typography>No filters applied</Typography>
+    </Box>
+   ):(
+    <Box className={styles.appliedList}>
+     {Object.entries(glifDataFilter).map(([key,val])=>(
+      <Box className={styles.appliedFilter} key={key}>
+       <Typography className={styles.appliedLabel}>{key.replaceAll("_"," ")}</Typography>
+       <Box className={styles.appliedValues}>
+        {(Array.isArray(val.value)?val.value:[val.value]).map(item=>(
+         <Chip
+          key={item}
+          size="small"
+          label={item}
+          onDelete={()=>deleteFilterValue(key,item)}
+         />
+        ))}
+       </Box>
+       <Button size="small" onClick={()=>deleteFilter(key)} className={styles.clearFilterButton}>
+        Clear
+       </Button>
+      </Box>
+     ))}
+    </Box>
+   )}
+  </Paper>
+
+  <Box className={styles.glifDownload}>
+   <Button variant="contained" startIcon={<Download/>} onClick={exportGlifData}>
+    Download GLIF Data
+   </Button>
+  </Box>
+ </Box>
+)}
