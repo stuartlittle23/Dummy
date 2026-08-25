@@ -1,13 +1,131 @@
-.page{display:flex;gap:14px;width:100%;height:calc(100vh - 32px);min-height:620px;padding:10px;box-sizing:border-box;overflow:hidden;background:linear-gradient(135deg,#faf9ff,#f3f0fb,#faf9ff)}
-.sidebar{position:relative;display:flex;flex-direction:column;width:280px;min-width:280px;height:100%;min-height:620px;box-sizing:border-box;overflow:hidden;padding:18px;background:rgba(245,243,255,.62);border:1px solid rgba(255,255,255,.72);border-radius:20px;box-shadow:0 8px 28px rgba(76,55,170,.1);backdrop-filter:blur(18px);-webkit-backdrop-filter:blur(18px)}
-.brand{position:relative;display:flex;align-items:center;gap:12px;padding:4px 2px 18px}.brandIcon{width:58px;height:58px;display:flex;align-items:center;justify-content:center;border-radius:15px;background:linear-gradient(145deg,rgba(112,83,220,.12),rgba(255,255,255,.8));color:#5135c9}.brandIcon svg{font-size:32px}.brandTitle{font-size:18px!important;font-weight:700!important;color:#17203a}.brandLine{width:48px;height:3px;margin-top:8px;border-radius:4px;background:#6744d8}.sidebarSparkle{position:absolute;right:2px;top:0;color:#9a83ed;font-size:25px!important}
-.infoCard{padding:14px 14px 8px;border:1px solid rgba(255,255,255,.75);border-radius:16px;background:rgba(250,249,255,.48);box-shadow:0 4px 18px rgba(76,55,170,.06);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px)}.infoCard hr{margin:8px 0;border-color:rgba(70,60,130,.1)}.infoItem{display:flex;align-items:center;gap:12px;padding:12px 2px;min-width:0}.infoItem>div:last-child{min-width:0;flex:1}.infoIcon{width:42px;height:42px;min-width:42px;display:flex;align-items:center;justify-content:center;border-radius:12px;background:rgba(105,76,215,.08);color:#5135c9}.infoIcon svg{font-size:22px}.infoLabel{font-size:11px!important;font-weight:700!important;letter-spacing:.5px;color:#59617a}.infoValue{font-size:20px!important;font-weight:700!important;line-height:1.2;color:#17203a}.infoSub{font-size:14px!important;font-weight:500!important;margin-top:3px;color:#59617a}
-.dateInfo{min-width:0!important;width:100%}.dateInfo :global(.MuiFormControl-root){width:100%!important;min-width:0!important}.dateInfo :global(.MuiInputBase-root){width:100%!important;min-width:0!important;padding-right:2px!important;font-size:13px!important;background:rgba(255,255,255,.55);border-radius:10px}.dateInfo :global(.MuiInputBase-input){font-size:13px!important;padding:9px 2px!important;min-width:0!important}.dateInfo :global(.MuiIconButton-root){padding:4px!important}.dateInfo :global(.MuiSvgIcon-root){font-size:18px!important}
-.navigation{display:flex;flex-direction:column;gap:9px;margin-top:18px}.navButton{width:100%!important;justify-content:flex-start!important;text-transform:none!important;font-size:14px!important;font-weight:600!important;color:#27304a!important;padding:12px 16px!important;border-radius:11px!important;min-height:46px!important;background:rgba(255,255,255,.42)!important;border:1px solid rgba(255,255,255,.72)!important;box-shadow:0 3px 10px rgba(76,55,170,.07)!important;backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px)}.navButton :global(.MuiButton-startIcon){color:#4e3aaf!important}.activeNav{color:#fff!important;background:linear-gradient(135deg,#5637c9,#6849d8)!important;border:1px solid rgba(255,255,255,.25)!important;box-shadow:0 6px 16px rgba(86,55,201,.28)!important}.activeNav :global(.MuiButton-startIcon){color:#fff!important}
-.sidebarArtwork{position:relative;flex:0 0 165px;height:165px;min-height:165px;margin:8px -4px 0;display:flex;align-items:flex-end;justify-content:center;overflow:hidden}.artGlow{width:150px;height:110px;display:flex;align-items:center;justify-content:center;border-radius:50%;background:radial-gradient(circle,rgba(126,99,226,.22),rgba(126,99,226,.05) 65%,transparent 70%);filter:drop-shadow(0 10px 18px rgba(92,68,190,.15))}.artBank{font-size:68px!important;color:#7860d9;filter:drop-shadow(0 8px 8px rgba(85,61,180,.18))}.artBase{position:absolute;bottom:4px;width:165px;height:12px;border-radius:50%;background:rgba(102,77,201,.11);box-shadow:0 -8px 22px rgba(102,77,201,.12)}.artSparkleOne{position:absolute;left:27px;bottom:90px;font-size:15px!important;color:#a797ed}.artSparkleTwo{position:absolute;right:25px;bottom:125px;font-size:11px!important;color:#c0b5f5}
-.main{flex:1;min-width:0;width:calc(100% - 294px);height:100%;overflow:hidden}.mainPanel{width:100%;height:100%;overflow:auto;padding:20px;background:rgba(248,247,255,.58);border:1px solid rgba(255,255,255,.75);border-radius:18px;box-shadow:0 8px 28px rgba(76,55,170,.07);backdrop-filter:blur(18px);-webkit-backdrop-filter:blur(18px);box-sizing:border-box}.pageHeader{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:16px}.pageTitle{font-size:25px!important;font-weight:700!important;color:#121a32!important;line-height:1.2!important}.pageSubtitle{font-size:13px!important;color:#59647d!important;margin-top:5px!important}
-.summaryGrid{display:grid!important;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px!important;width:100%!important;margin:0 0 14px!important}.summaryGrid>.MuiGrid-item{width:100%!important;max-width:none!important;min-width:0!important;padding:0!important}.summaryCard{width:100%!important;height:145px;padding:18px!important;position:relative;display:flex;align-items:flex-start;gap:13px;border-radius:14px!important;background:rgba(255,255,255,.62)!important;border:1px solid rgba(255,255,255,.78)!important;box-shadow:0 5px 18px rgba(60,45,130,.07)!important;backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);box-sizing:border-box}.summaryIcon{width:48px;height:48px;flex-shrink:0;border-radius:14px;display:flex;align-items:center;justify-content:center;background:#f3efff}.summaryIcon svg{font-size:27px}.summaryContent{min-width:0}.summaryTitle{font-size:14px!important;font-weight:700!important;color:#172039!important;margin-top:2px!important}.summaryCount{font-size:30px!important;font-weight:700!important;line-height:1.1!important;margin-top:9px!important}.summaryLabel{font-size:12px!important;color:#5d6780!important;margin-top:4px!important}.summaryCard.violet .summaryIcon{color:#5b3dcc;background:#f0ebff}.summaryCard.violet .summaryCount{color:#5537c8}.summaryCard.green .summaryIcon{color:#15966d;background:#e8f8f1}.summaryCard.green .summaryCount{color:#15966d}.summaryCard.orange .summaryIcon{color:#e88b10;background:#fff3df}.summaryCard.orange .summaryCount{color:#e88b10}.cardDownload{position:absolute!important;right:16px;bottom:16px;text-transform:none!important;font-size:12px!important;border-radius:7px!important}
-.sections{display:flex!important;flex-direction:column!important;gap:10px!important;width:100%!important;max-width:none!important;min-width:0!important}.sections>*{width:100%!important;max-width:none!important;min-width:0!important;flex:1 1 100%!important}.infoBanner{width:100%!important;margin-top:12px;padding:12px 16px!important;border-radius:12px!important;background:rgba(255,255,255,.48)!important;border:1px solid rgba(255,255,255,.72)!important;color:#59647d!important;font-size:12px!important;backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px)}
-.glifScreen{width:100%!important;max-width:none!important;min-width:0!important}.glifTitle{font-size:22px!important;font-weight:700!important;color:#172039!important}.glifSubtitle{font-size:13px!important;color:#59647d!important;margin:4px 0 14px!important}.glifSection{width:100%!important;max-width:none!important;min-width:0!important;padding:16px!important;background:rgba(255,255,255,.55)!important;border:1px solid rgba(255,255,255,.75)!important;border-radius:12px!important;box-shadow:none!important;box-sizing:border-box;backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px)}.filterHeader,.appliedHeader{display:flex;align-items:center;justify-content:space-between;gap:16px;width:100%}.filterTitle{font-size:14px!important;font-weight:700!important;color:#26304a!important;margin:0 0 5px!important}.filterHint{font-size:11px!important;color:#8790a4!important}.filterControls{width:100%!important;max-width:none!important;margin-top:12px}.filterControls>div{width:100%!important;max-width:none!important}.filterControls form{width:100%!important}.appliedSection{margin-top:12px}.emptyFilter{font-size:12px!important;color:#8790a4!important;padding:18px 0 4px!important}.appliedFilter{display:flex;align-items:center;gap:10px;width:100%;padding:8px 10px;border-radius:8px;background:rgba(245,243,252,.75);border:1px solid rgba(90,70,170,.08);box-sizing:border-box}.appliedLabel{font-size:11px!important;font-weight:700!important;color:#4e3ab0!important;min-width:120px}.appliedValues{display:flex;flex-wrap:wrap;gap:5px;flex:1;min-width:0}.appliedValues .MuiChip-root{font-size:11px;height:25px}.appliedFilter .MuiButton-root,.clearAll{font-size:10px!important;min-width:auto!important;text-transform:none!important}.clearAll{color:#5637c9!important;font-weight:600!important}.glifDownload{display:flex;justify-content:flex-end;width:100%;margin-top:14px}.glifDownload button{font-size:12px!important;text-transform:none!important;background:#5739c8!important;box-shadow:0 5px 14px rgba(87,57,200,.22)!important}
-.dialogTitle{display:flex!important;align-items:center;justify-content:space-between;font-size:15px!important}
-@media(max-width:1000px){.page{height:auto;min-height:0;overflow:visible;flex-direction:column}.sidebar{width:100%;min-width:0;height:auto}.main{width:100%;height:auto}.mainPanel{height:auto;overflow:visible}.summaryGrid{grid-template-columns:1fr!important}.summaryCard{height:135px}}
+import React,{useCallback,useEffect,useState} from "react";
+import useApi from "../../hooks/useApi";
+import Validation from "./Validation";
+import useCustomSnackbar from "../../utils/useCustomSnackbar";
+import {Autocomplete,Box,Button,FormControl,Grid,InputLabel,MenuItem,Select,TextField} from "@mui/material";
+import debounce from "lodash/debounce";
+
+const filterMap={
+  CURRENCY:{type:"autocomplete",multiValue:true,validate:"validateCurrency"},
+  CGL:{type:"autocomplete",multiValue:true,validate:"validateCgl"},
+  JOURNAL_NUMBER:{type:"input",multiValue:false,validate:"validateJrnNo"},
+  TRANSACTION_CODE:{type:"input",multiValue:true,validate:"validateTxnCode"},
+  BATCH_ID:{type:"input",multiValue:false,validate:"validateBatchId"},
+  ACCOUNT:{type:"input",multiValue:false,validate:"validateAccNo"}
+};
+
+export default function Filter({handleFilter,getValues}){
+  const [values,setValues]=useState([]);
+  const [filterField,setFilterField]=useState("CGL");
+  const [isMinInput,setIsMinInput]=useState(false);
+  const [inputInstance,setInputInstance]=useState("");
+  const snackbar=useCustomSnackbar();
+  const {callApi}=useApi();
+
+  const debouncedFetchCgls=useCallback(debounce(async(value,type,min)=>fetchCgls(value,type,min),100),[]);
+
+  const fetchCurrencies=async()=>{
+    const response=await callApi("/CM/common-master/currency",null,"GET");
+    if(response)setValues(response.data||[]);
+    else snackbar("Failed to fetch currency list!","error");
+  };
+
+  async function fetchCgls(term,reason,min){
+    if(reason!=="input")return;
+    if(term?.length<3){
+      if(min)setIsMinInput(false);
+      setValues([]);
+      return;
+    }
+    if(!min)setIsMinInput(true);
+    try{
+      const res=await callApi(`/CM/common-master/cgl-code-description-only?q=${encodeURIComponent(term)}`);
+      if(res?.success)setValues(res.data||[]);
+      else{setValues([]);snackbar(res?.message,"error");}
+    }catch(e){snackbar(e.message,"error");}
+  }
+
+  useEffect(()=>{if(filterField==="CURRENCY")fetchCurrencies();},[filterField]);
+
+  const setFilter=()=>{
+    if((filterField==="CURRENCY"||filterField==="CGL")&&!inputInstance){
+      snackbar("Kindly select the value!","error");
+      return;
+    }
+    const error=Validation[filterMap[filterField].validate](inputInstance);
+    if(error){snackbar(error,"error");return;}
+    handleFilter({field:filterField,value:inputInstance,multiValue:filterMap[filterField].multiValue});
+    setInputInstance("");
+  };
+
+  const fieldChange=(e)=>{
+    setFilterField(e.target.value);
+    setInputInstance("");
+    setValues([]);
+    setIsMinInput(false);
+  };
+
+  return(
+    <Grid container spacing={1} alignItems="center">
+      <Grid item xs={12} md={4}>
+        <FormControl fullWidth size="small">
+          <InputLabel>Select Filter</InputLabel>
+          <Select value={filterField} label="Select Filter" onChange={fieldChange}>
+            <MenuItem value="CURRENCY">Currency</MenuItem>
+            <MenuItem value="CGL">CGL</MenuItem>
+            <MenuItem value="JOURNAL_NUMBER">Journal Number</MenuItem>
+            <MenuItem value="TRANSACTION_CODE">Transaction Code</MenuItem>
+            <MenuItem value="BATCH_ID">Batch ID</MenuItem>
+            <MenuItem value="ACCOUNT">Account</MenuItem>
+          </Select>
+        </FormControl>
+      </Grid>
+
+      <Grid item xs={12} md={5}>
+        {filterField==="CURRENCY"&&(
+          <Autocomplete
+            size="small"
+            options={values||[]}
+            value={inputInstance||null}
+            onChange={(e,v,r)=>setInputInstance(r==="selectOption"?v:"")}
+            filterOptions={(options,{inputValue})=>options.filter(v=>v.startsWith(inputValue.toUpperCase())&&!getValues("CURRENCY")?.includes(v))}
+            renderInput={(params)=><TextField {...params} label="Currency"/>}
+            noOptionsText="No options"
+          />
+        )}
+
+        {filterField==="CGL"&&(
+          <Autocomplete
+            size="small"
+            options={(values||[]).map(v=>v.cglNumber)}
+            value={inputInstance||null}
+            onInputChange={(e,v,r)=>debouncedFetchCgls(v,r,isMinInput)}
+            onChange={(e,v,r)=>{if(r==="selectOption"){setInputInstance(v);setValues([]);}else if(r==="clear"){setInputInstance("");setValues([]);}}}
+            filterOptions={(options)=>options.filter(v=>!getValues("CGL")?.includes(v))}
+            renderInput={(params)=><TextField {...params} label="CGL"/>}
+            noOptionsText={!isMinInput?"Enter at least 3 characters":"No options"}
+          />
+        )}
+
+        {["JOURNAL_NUMBER","TRANSACTION_CODE","BATCH_ID","ACCOUNT"].includes(filterField)&&(
+          <TextField
+            fullWidth
+            size="small"
+            label={filterField.replaceAll("_"," ")}
+            value={inputInstance}
+            onChange={e=>setInputInstance(e.target.value)}
+            slotProps={{htmlInput:{maxLength:filterField==="TRANSACTION_CODE"?5:10}}}
+          />
+        )}
+      </Grid>
+
+      <Grid item xs={12} md={3}>
+        <Box display="flex" justifyContent="flex-end">
+          <Button variant="contained" onClick={setFilter} size="small" sx={{textTransform:"none",background:"#5739c8",px:3}}>
+            Add Filter
+          </Button>
+        </Box>
+      </Grid>
+    </Grid>
+  );
+}
