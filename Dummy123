@@ -1,1 +1,76 @@
-
+.appShell{display:flex;align-items:stretch;width:100%;height:calc(100vh - 32px);min-height:640px;max-height:calc(100vh - 32px);overflow:hidden;border-radius:18px;border:1px solid rgba(83,68,170,.12);background:linear-gradient(135deg,#f7f8fc,#f2f1fa);box-shadow:0 8px 30px rgba(40,45,90,.08)}
+.sidebar{position:relative;width:260px;min-width:260px;height:100%;box-sizing:border-box;overflow:hidden;padding:20px 16px;display:flex;flex-direction:column;background:rgba(247,247,253,.72);border-right:1px solid rgba(108,92,231,.12);backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px)}
+.sidebarBrand{display:flex;align-items:center;gap:10px;margin-bottom:20px;padding:0 4px}
+.sidebarBrandIconWrap{position:relative}
+.sidebarBrandIcon{width:38px;height:38px;border-radius:11px;background:rgba(255,255,255,.58);border:1px solid rgba(255,255,255,.8);display:flex;align-items:center;justify-content:center;color:#4d3ab5;box-shadow:0 5px 14px rgba(75,58,170,.1);backdrop-filter:blur(12px)}
+.brandSparkle{position:absolute;top:-7px;right:-7px;font-size:14px!important;color:#9482e7}
+.sidebarBrandText{font-size:15px!important;font-weight:700!important;letter-spacing:.1px;color:#252c43}
+.infoCard{display:flex;align-items:center;gap:10px;padding:11px;border:1px solid rgba(255,255,255,.78);border-radius:12px;background:rgba(255,255,255,.48);margin-bottom:9px;box-shadow:0 4px 14px rgba(65,55,130,.055);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px)}
+.infoCardIcon{width:31px;height:31px;border-radius:9px;background:rgba(108,92,231,.08);color:#5542bd;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.infoCardLabel{font-size:10px!important;font-weight:700!important;letter-spacing:.06em;text-transform:uppercase;color:rgba(30,20,60,.43);margin:0 0 2px}
+.infoCardValue{font-size:13px!important;font-weight:700!important;color:rgba(30,20,60,.86);line-height:1.3}
+.infoCardSubvalue{font-size:11px!important;color:rgba(30,20,60,.52)}
+.navTabs{margin-top:9px!important;gap:8px}
+.navTab{min-height:43px!important;height:43px!important;color:rgba(30,20,60,.62)!important;font-weight:600!important;font-size:13px!important;text-transform:none!important;align-items:center!important;flex-direction:row!important;justify-content:flex-start!important;border-radius:10px!important;padding:8px 12px!important;border:1px solid rgba(255,255,255,.72)!important;background:rgba(255,255,255,.4)!important;box-shadow:0 3px 10px rgba(65,55,130,.055)!important;transition:.15s ease!important}
+.navTab:hover{background:rgba(255,255,255,.65)!important}
+.navTab:global(.Mui-selected){background:linear-gradient(135deg,#5140b9,#654fce)!important;color:#fff!important;border:1px solid rgba(255,255,255,.3)!important;box-shadow:0 7px 17px rgba(75,58,180,.25)!important}
+.navTab:global(.Mui-selected) .MuiTab-iconWrapper{color:#fff!important}
+.navTab:global(.Mui-disabled){opacity:.42}
+.sidebarFooter{margin-top:auto;padding-top:8px}
+.sidebarIllustration{position:relative;width:100%;height:150px;display:flex;justify-content:center;align-items:flex-end;padding:8px 0 0}
+.sparkleTopRight{position:absolute;top:5px;right:24%;font-size:14px!important;color:#b7acf1}
+.sparkleBottomLeft{position:absolute;bottom:5px;left:22%;font-size:9px!important;color:#c8c0f4;opacity:.8}
+.sparkleMidRight{position:absolute;top:38%;right:13%;font-size:8px!important;color:#d7d1f8}
+.mainContent{flex:1;min-width:0;height:100%;overflow:auto;box-sizing:border-box;padding:24px;background:rgba(249,249,253,.62);backdrop-filter:blur(18px);-webkit-backdrop-filter:blur(18px)}
+.pageHeaderRow{display:flex;align-items:flex-start;justify-content:space-between;gap:8px}
+.pageHeaderTitle{font-size:22px!important;font-weight:700!important;line-height:1.2!important;color:#20283d!important;margin:0!important}
+.pageHeaderSubtitle{font-size:12.5px!important;color:rgba(30,35,60,.52)!important;margin:5px 0 20px!important}
+.headerSparkle{font-size:17px!important;color:#aaa0e8;margin-top:2px}
+.summaryRow{width:100%;display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:16px;margin:0 0 18px}
+.summaryCard{position:relative;width:100%;min-width:0;height:245px!important;box-sizing:border-box;padding:18px!important;border-radius:15px!important;border:1px solid rgba(255,255,255,.82)!important;background:rgba(255,255,255,.5)!important;box-shadow:0 8px 24px rgba(55,55,100,.07)!important;backdrop-filter:blur(18px);-webkit-backdrop-filter:blur(18px);overflow:hidden;transition:transform .18s ease,box-shadow .18s ease}
+.summaryCard:hover{transform:translateY(-2px);box-shadow:0 12px 28px rgba(55,55,100,.11)!important}
+.summaryCard:before{content:"";position:absolute;left:0;top:0;bottom:0;width:4px;border-radius:15px 0 0 15px}
+.rolePurple:before{background:#4d5fc1}
+.roleTeal:before{background:#238d7b}
+.roleAmber:before{background:#c28a35}
+.summaryCardTop{display:flex;align-items:center;gap:10px}
+.summaryCardIcon{width:40px;height:40px;border-radius:11px;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.summaryCardLabel{font-size:14px!important;font-weight:700!important;color:#283047!important}
+.rolePurple .summaryCardIcon{background:rgba(77,95,193,.1);color:#465ab8}
+.roleTeal .summaryCardIcon{background:rgba(35,141,123,.1);color:#238d7b}
+.roleAmber .summaryCardIcon{background:rgba(194,138,53,.12);color:#b17b29}
+.summaryCardCenter{display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;min-height:105px}
+.summaryCardCount{font-size:38px!important;font-weight:750!important;line-height:1!important;color:#283047!important}
+.rolePurple .summaryCardCount{color:#465ab8!important}
+.roleTeal .summaryCardCount{color:#238d7b!important}
+.roleAmber .summaryCardCount{color:#b17b29!important}
+.summaryCardCaption{font-size:11.5px!important;font-weight:500!important;color:#737b8e!important;margin-top:6px!important}
+.summaryCardActions{display:flex;flex-direction:column;gap:8px;margin-top:auto}
+.viewDetailsButton{width:100%!important;height:35px!important;text-transform:none!important;border-radius:8px!important;background:#3547a5!important;box-shadow:0 5px 13px rgba(53,71,165,.18)!important;font-size:12px!important;font-weight:600!important}
+.viewDetailsButton:hover{background:#2f4097!important}
+.summaryDownloadButton{width:100%!important;height:35px!important;text-transform:none!important;border-radius:8px!important;border-color:rgba(53,71,165,.35)!important;color:#3547a5!important;background:rgba(255,255,255,.32)!important;font-size:12px!important;font-weight:600!important}
+.summaryDownloadButton:hover{background:rgba(255,255,255,.6)!important;border-color:#3547a5!important}
+.infoBanner{display:flex;align-items:flex-start;gap:9px;padding:11px 14px;border-radius:10px;background:rgba(255,255,255,.42);border:1px solid rgba(255,255,255,.72);margin-top:12px;box-shadow:0 3px 12px rgba(65,55,130,.04);color:#566078;backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px)}
+.infoBanner>svg{font-size:18px;color:#5365bb;flex-shrink:0}
+.infoBannerText{font-size:12px!important;color:rgba(30,35,60,.58)!important;line-height:1.5!important}
+.glifSection{width:100%;box-sizing:border-box;background:rgba(255,255,255,.48);border:1px solid rgba(255,255,255,.78);border-radius:14px;padding:20px 24px;margin-bottom:16px;box-shadow:0 5px 18px rgba(55,55,100,.055);backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px)}
+.glifSectionHeader{display:flex;align-items:center;gap:10px;margin-bottom:16px}
+.glifSectionIcon{width:34px;height:34px;border-radius:9px;background:rgba(77,67,178,.08);color:#4e5fba;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.glifSectionTitle{font-size:15px!important;font-weight:700!important;color:#30374b!important;flex-grow:1}
+.chipValues{display:flex;row-gap:8px;column-gap:8px;flex-wrap:wrap;align-items:center}
+.filterFieldChip{font-weight:600!important}
+.typographyLabel{font-size:13px!important;color:rgba(30,20,60,.6)!important}
+.clearAllLink{font-size:12px;font-weight:600;color:#4e5fba;cursor:pointer;background:none;border:none;padding:0}
+.clearAllLink:hover{text-decoration:underline}
+.dialog{height:100%;width:100%}
+.dialogPaper{max-width:none!important;border-radius:16px!important;box-shadow:0 12px 48px rgba(45,45,90,.2)!important;background:rgba(249,249,253,.97)!important;backdrop-filter:blur(18px)}
+.dialogButton{flex-grow:0;margin:4px!important}
+.dialogTitle{display:flex!important;align-items:center;font-weight:600!important;border-bottom:1px solid rgba(108,92,231,.1)}
+.detailsDialogPaper{width:94%!important;max-width:1450px!important;max-height:88vh!important;border-radius:18px!important;background:rgba(248,249,253,.96)!important;border:1px solid rgba(255,255,255,.85)!important;box-shadow:0 18px 60px rgba(40,45,90,.2)!important;backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px)}
+.detailsDialogTitle{display:flex!important;align-items:center!important;justify-content:space-between!important;padding:15px 20px!important;border-bottom:1px solid rgba(60,70,130,.1)!important;background:rgba(255,255,255,.38)!important}
+.detailsDialogHeading{font-size:17px!important;font-weight:700!important;color:#283047!important}
+.detailsDialogSubtitle{font-size:11px!important;color:#737b8e!important;margin-top:3px!important}
+.detailsDialogActions{display:flex;align-items:center;gap:6px}
+.detailsDialogActions .MuiButton-root{background:#3547a5!important;text-transform:none!important;border-radius:8px!important;font-size:12px!important;box-shadow:0 5px 13px rgba(53,71,165,.18)!important}
+.detailsDialogContent{padding:16px!important;background:rgba(250,250,253,.55)}
+@media(max-width:1000px){.appShell{height:auto;max-height:none;min-height:0;flex-direction:column}.sidebar{width:100%;min-width:0;height:auto;min-height:0}.mainContent{height:auto;overflow:visible}.summaryRow{grid-template-columns:1fr}.summaryCard{height:auto!important;min-height:220px!important}}
