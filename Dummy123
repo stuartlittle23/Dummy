@@ -1,1 +1,132 @@
+<Box className={styles.glifSection}>
+                <Box className={styles.glifSectionHeader} sx={{ marginBottom: 0 }}>
+                  <Box className={styles.glifSectionIcon}><PlaylistAddCheckOutlined fontSize="small" /></Box>
+                  <Typography className={styles.glifSectionTitle}>Applied Filters ({activeFilterCount})</Typography>
+                  {activeFilterCount > 0 && (
+                    <button className={styles.clearAllLink} onClick={() => setGlifDataFilter({})}>
+                      Clear All
+                    </button>
+                  )}
+                </Box>
+                <Box sx={{ marginTop: '14px' }}>
+                  {activeFilterCount === 0 ? (
+                    <Typography variant="caption" sx={{ color: 'rgba(30,20,60,0.45)' }}>
+                      No filters applied yet — results will include the full branch and date.
+                    </Typography>
+                  ) : (
+                    <Box className={styles.chipValues}>
+                      {Object.entries(glifDataFilter).map(([key, val]) => {
+                        const color = filterFieldColors[key] || { bg: '#F1EFE8', text: '#6B6A63' };
+                        const items = Array.isArray(val.value) ? val.value : [val.value];
+                        return items.map((ent, index) => (
+                          <Chip
+                            key={`${key}-${index}`}
+                            size="small"
+                            className={styles.filterFieldChip}
+                            label={`${key.replaceAll('_', ' ')}: ${ent}`}
+                            onDelete={() => Array.isArray(val.value) ? deleteFilterValue(key, ent) : deleteFilter(key)}
+                            deleteIcon={<Delete fontSize="small" />}
+                            sx={{ backgroundColor: color.bg, color: color.text }}
+                          />
+                        ))
+                      })}
+                    </Box>
+                  )}
+                </Box>
+              </Box>
 
+              <Box className={styles.downloadRow}>
+                <Typography className={styles.downloadRowText}>
+                  Includes all GLIF data for branch {user?.branch?.toString().padStart(5, 0)} on {formattedDate} with the applied filters.
+                </Typography>
+                <Button
+                  variant="contained"
+                  size="small"
+                  className={styles.downloadRowButton}
+                  startIcon={<Download fontSize="small" />}
+                  onClick={() => exportGlifData()}
+                >
+                  Download GLIF Data
+                </Button>
+              </Box>
+            </>
+          )}
+        </Box>
+      </Box>
+{/* CHANGE 5: maxWidth="xl" — dialogPaper CSS also forces a wide fixed
+          width so wide financial tables fit without columns spilling out.
+          CHANGE 6: category view now also has a Download icon next to Close. */}
+      <Dialog
+        open={isDialogOpen}
+        onClose={closeDialog}
+        maxWidth="xl"
+        fullWidth
+        PaperProps={{ className: styles.dialogPaper }}
+      >
+        <DialogTitle className={styles.dialogTitle}>
+          {dialogView === 'breakup' && (
+            <IconButton className={styles.dialogButton} onClick={goBackToCategory} size="small" title="Back">
+              <ArrowBackOutlined fontSize="small" />
+            </IconButton>
+          )}
+          <Typography className={styles.dialogTitleText}>
+            {dialogView === 'category' ? (activeMeta?.category || 'Details') : 'Difference Break-up'}
+          </Typography>
+
+          {dialogView === 'category' && (
+            <IconButton
+              className={styles.dialogButton}
+              disabled={!dialogCategoryCount}
+              onClick={() => exportData(dialogType, dialogType)}
+              size="small"
+              title="Download"
+            >
+              <Download fontSize="small" />
+            </IconButton>
+          )}
+          {dialogView === 'breakup' && (
+            <IconButton
+              className={styles.dialogButton}
+              disabled={breakupDataRows?.data?.length == 0}
+              onClick={exportDetailedData}
+              size="small"
+              title="Download breakup"
+            >
+              <Download fontSize="small" />
+            </IconButton>
+          )}
+
+          <IconButton className={styles.dialogButton} onClick={closeDialog} size="small" title="Close">
+            <Close fontSize="small" />
+          </IconButton>
+        </DialogTitle>
+        <DialogContent>
+          {dialogView === 'category' && dialogType && (
+            <DisplayTab
+              category={activeMeta.category}
+              type={dialogType}
+              level={1}
+              hideHeader
+              flat
+              data={dataRows[dialogType] || []}
+              clickHandler={fetchDetailedData}
+              downloadHandler={exportData}
+              loading={loading === "Y" || loading === dialogType}
+              requestData={fetchIndividualDifference}
+            />
+          )}
+          {dialogView === 'breakup' && (
+            <DisplayTab
+              data={breakupDataRows || []}
+              category={"Difference Breakup"}
+              type={breakupDataRows?.type}
+              level={2}
+              hideHeader
+              flat
+            />
+          )}
+        </DialogContent>
+      </Dialog>
+    </>
+  )
+}
