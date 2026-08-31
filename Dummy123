@@ -1,1 +1,9 @@
-
+"& .MuiPickersInputBase-sectionsContainer": {
+  filter: "none !important",
+  backdropFilter: "none !important",
+},
+"& .MuiPickersSectionList-sectionContent": {
+  filter: "none !important",
+  color: "rgba(0, 0, 0, 0.87) !important",
+  WebkitTextFillColor: "rgba(0, 0, 0, 0.87) !important",
+},
