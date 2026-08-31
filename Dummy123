@@ -1,6 +1,169 @@
-"& .MuiPickersSectionList-sectionContent": {
-  color: "rgba(0, 0, 0, 0.87) !important",
-  WebkitTextFillColor: "rgba(0, 0, 0, 0.87) !important",
-  opacity: "1 !important",
-  filter: "none !important",
-},
+import { alpha } from "@mui/material/styles";
+import { liftOnHover, softIconButtonBg } from "../mixins/glass";
+import { Opacity } from "@mui/icons-material";
+
+export const inputsCustomizations = {
+  MuiTextField: {
+    styleOverrides: {
+      root: ({ theme }) => ({
+        "& .MuiOutlinedInput-root": {
+          borderRadius: theme.shape.borderRadius - 2,
+          backgroundColor:
+            theme.palette.mode === "dark"
+              ? alpha("#fff", 0.06)
+              : "rgba(255,255,255,0.35)",
+          backdropFilter: "blur(8px)",
+          "& fieldset": { borderColor: alpha(theme.palette.primary.main, 0.3) },
+          "&:hover fieldset": { borderColor: theme.palette.primary.main },
+          "&.Mui-focused fieldset": {
+            borderColor: theme.palette.secondary.main,
+          },
+        },
+      }),
+    },
+  },
+  MuiSelect: {
+    styleOverrides: {
+      select: { borderRadius: 10, backdropFilter: "blur(8px)" },
+    },
+  },
+  MuiAutocomplete: {
+    styleOverrides: { paper: { backdropFilter: "blur(10px)" } },
+  },
+
+  MuiPickersTextField: {
+    styleOverrides: {
+      root: ({ theme }) => ({
+        "& .MuiPickersOutlinedInput-root": {
+          borderRadius: theme.shape.borderRadius - 2,
+          backgroundColor:
+            theme.palette.mode === "dark"
+              ? alpha("#fff", 0.06)
+              : "rgba(255,255,255,0.35)",
+          backdropFilter: "none",
+        },
+        "& .MuiPickersOutlinedInput-notchedOutline": {
+          borderColor: alpha(theme.palette.primary.main, 0.4),
+        },
+        "& .MuiPickersOutlinedInput-root:hover .MuiPickersOutlinedInput-notchedOutline":
+          {
+            borderColor: theme.palette.primary.main,
+          },
+        "& .MuiPickersOutlinedInput-root.Mui-focused .MuiPickersOutlinedInput-notchedOutline":
+          {
+            borderColor: theme.palette.secondary.main,
+            borderWidth: 2,
+          },
+        "& .MuiPickersSectionList-sectionContent": {
+          color:
+            theme.palette.mode === "dark"
+              ? "rgba(255,255,255,0.7)"
+              : "rgba(0,0,0,0.7)",
+          fontWeight: 500,
+        },
+      }),
+    },
+  },
+  // MuiButton: {
+  //   styleOverrides: {
+  //     root: ({ theme }) => ({
+  //       borderRadius: 10,
+  //       fontWeight: 600,
+  //       boxShadow: "none",
+  //       transition: "0.3s ease",
+  //       ...liftOnHover("0 4px 15px rgba(93,63,211,0.3)"),
+  //     }),
+  //     containedPrimary: ({ theme }) => ({
+  //       background: `linear-gradient(90deg, ${theme.palette.primary.main}, ${theme.palette.primary.light})`,
+  //       color: theme.palette.getContrastText(theme.palette.primary.main),
+  //       "&:hover": {
+  //         background: `linear-gradient(90deg, ${theme.palette.primary.dark}, ${theme.palette.primary.main})`,
+  //       },
+  //     }),
+  //     containedSecondary: ({ theme }) => ({
+  //       background: `linear-gradient(90deg, ${theme.palette.secondary.main}, ${theme.palette.secondary.light})`,
+  //       color: theme.palette.secondary.contrastText,
+  //     }),
+  //   },
+  // },
+
+  MuiButton: {
+    styleOverrides: {
+      root: ({ theme }) => ({
+        borderRadius: 10,
+        fontWeight: 600,
+        boxShadow: "none",
+        transition: "0.3s ease",
+        ...liftOnHover("0 4px 15px linear-gradient(90deg, #8b7aecff)"),
+        // Hover effect only when NOT disabled
+        "&:hover": {
+          background: `linear-gradient(90deg,${theme.palette.primary.main},${theme.palette.primary.light})`,
+          backShadow: "none",
+        },
+
+        // ⭐ DISABLED BUTTON STYLE (Matches your UI sample)
+        "&.Mui-disabled": {
+          background: "linear-gradient(90deg, #8b7aecff)", // Light lavender gradient
+          color: "#ffffff",
+          opacity: 0.8,
+          boxShadow: "none",
+          cursor: "not-allowed",
+        },
+      }),
+
+      // PRIMARY BUTTON
+      containedPrimary: ({ theme }) => ({
+        background: `linear-gradient(90deg, ${theme.palette.primary.main}, ${theme.palette.primary.light})`,
+        color: theme.palette.getContrastText(theme.palette.primary.main),
+      }),
+
+      // SECONDARY BUTTON
+      containedSecondary: ({ theme }) => ({
+        background: `linear-gradient(90deg, ${theme.palette.secondary.main}, ${theme.palette.secondary.light})`,
+        color: theme.palette.secondary.contrastText,
+      }),
+    },
+  },
+  MuiIconButton: {
+    styleOverrides: {
+      root: ({ theme }) => ({
+        borderRadius: "50%",
+        ...softIconButtonBg(theme.palette.primary.main),
+      }),
+    },
+  },
+  //   MuiPaper: {
+  //   styleOverrides: {
+  //     root: ({ theme }) => ({
+  //       backgroundColor: "#ffd54f",
+  //      '&.muiMenu-Paper':{
+  //       backgroundColor:"#fff8e1",
+  //       backdropFilter:'none',
+  //       Opacity:1
+  //      }
+  //     }),
+  //   },
+  // },
+  MuiPaper: {
+    styleOverrides: {
+      root: ({ theme }) => ({
+        // Don't set a global bg here — it affects ALL papers
+        // If you only want the dropdown menu styled:
+        "&.MuiMenu-paper": {
+          backgroundColor: "#fff8e1",
+          backdropFilter: "none",
+          opacity: 1,
+        },
+      }),
+    },
+  },
+  MuiMenuItem: {
+    styleOverrides: {
+      root: ({ theme }) => ({
+        // backgroundColor: "#500f0f0c",
+        "&:hover": { backgroundColor: "#ffe0b2" },
+        "&.Mui-selected": { backgroundColor: "#ffd54f" },
+      }),
+    },
+  },
+};
