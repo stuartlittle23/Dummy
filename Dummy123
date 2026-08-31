@@ -1,1 +1,129 @@
+<div class="MuiBox-root css-1cglqql"><div class="MuiFormControl-root MuiFormControl-fullWidth MuiTextField-root css-fgvt7a-MuiFormControl-root-MuiTextField-root"><label class="MuiFormLabel-root MuiInputLabel-root MuiInputLabel-formControl MuiInputLabel-animated MuiInputLabel-shrink MuiInputLabel-outlined MuiFormLabel-colorPrimary MuiFormLabel-filled MuiInputLabel-root MuiInputLabel-formControl MuiInputLabel-animated MuiInputLabel-shrink MuiInputLabel-outlined css-19ik71z-MuiFormLabel-root-MuiInputLabel-root" data-shrink="true" for="_r_1o_" id="_r_1o_-label">Date Range</label><div class="MuiInputBase-root MuiOutlinedInput-root MuiInputBase-colorPrimary MuiInputBase-fullWidth MuiInputBase-formControl MuiSelect-root css-1996yfr-MuiInputBase-root-MuiOutlinedInput-root"><div tabindex="0" role="combobox" aria-expanded="false" aria-haspopup="listbox" aria-labelledby="_r_1o_-label _r_1o_" id="_r_1o_" class="MuiSelect-select MuiSelect-outlined MuiInputBase-input MuiOutlinedInput-input css-mp98dz-MuiNativeSelect-root-MuiSelect-select-MuiInputBase-input-MuiOutlinedInput-input">Custom Range</div><input aria-invalid="false" aria-hidden="true" tabindex="-1" class="MuiSelect-nativeInput css-j0riat-MuiSelect-nativeInput" value="custom"><svg class="MuiSvgIcon-root MuiSvgIcon-fontSizeMedium MuiSelect-icon MuiSelect-iconOutlined css-1k8gy0z-MuiSvgIcon-root-MuiNativeSelect-root-MuiSelect-icon" focusable="false" aria-hidden="true" viewBox="0 0 24 24" data-testid="ArrowDropDownIcon"><path d="M7 10l5 5 5-5z"></path></svg><fieldset aria-hidden="true" class="MuiOutlinedInput-notchedOutline css-1ufes6w-MuiNotchedOutlined-root-MuiOutlinedInput-notchedOutline"><legend class="css-ex8a5f-MuiNotchedOutlined-root"><span>Date Range</span></legend></fieldset></div></div><div class="MuiFormControl-root MuiFormControl-fullWidth MuiPickersTextField-root Mui-focused css-10bn3an-MuiFormControl-root-MuiPickersTextField-root" placeholder="DD-MM-YYYY"><label class="MuiFormLabel-root MuiInputLabel-root MuiInputLabel-formControl MuiInputLabel-animated MuiInputLabel-shrink MuiInputLabel-outlined MuiFormLabel-colorPrimary Mui-focused MuiInputLabel-root MuiInputLabel-formControl MuiInputLabel-animated MuiInputLabel-shrink MuiInputLabel-outlined css-19ik71z-MuiFormLabel-root-MuiInputLabel-root" data-shrink="true" for="_r_1q_" id="_r_1q_-label">From Date*</label><div aria-invalid="false" role="group" aria-labelledby="_r_1q_-label" class="MuiPickersInputBase-root MuiPickersOutlinedInput-root Mui-focused MuiPickersInputBase-fullWidth MuiPickersInputBase-colorPrimary MuiPickersInputBase-adornedEnd css-463dcd-MuiPickersInputBase-root-MuiPickersOutlinedInput-root"><div contenteditable="false" tabindex="0" class="MuiPickersSectionList-root MuiPickersInputBase-sectionsContainer css-1lzskca-MuiPickersSectionList-root-MuiPickersInputBase-sectionsContainer-MuiPickersOutlinedInput-sectionsContainer"><span data-sectionindex="0" class="MuiPickersSectionList-section css-6nuub7-MuiPickersSectionList-section-MuiPickersInputBase-section"><span class="MuiPickersInputBase-sectionBefore css-w1q93y-MuiPickersSectionList-sectionSeparator-MuiPickersInputBase-separator"></span><span aria-readonly="false" aria-valuemin="1" aria-valuemax="31" aria-valuetext="Empty" aria-label="Day" aria-disabled="false" tabindex="0" contenteditable="true" role="spinbutton" spellcheck="false" autocapitalize="none" autocorrect="off" inputmode="numeric" class="MuiPickersSectionList-sectionContent MuiPickersInputBase-sectionContent css-1bucoev-MuiPickersSectionList-sectionContent-MuiPickersInputBase-sectionContent">DD</span><span class="MuiPickersInputBase-sectionAfter css-w1q93y-MuiPickersSectionList-sectionSeparator-MuiPickersInputBase-separator">-</span></span><span data-sectionindex="1" class="MuiPickersSectionList-section css-6nuub7-MuiPickersSectionList-section-MuiPickersInputBase-section"><span class="MuiPickersInputBase-sectionBefore css-w1q93y-MuiPickersSectionList-sectionSeparator-MuiPickersInputBase-separator"></span><span aria-readonly="false" aria-valuemin="1" aria-valuemax="12" aria-valuetext="Empty" aria-label="Month" aria-disabled="false" tabindex="-1" contenteditable="true" role="spinbutton" spellcheck="false" autocapitalize="none" autocorrect="off" inputmode="numeric" class="MuiPickersSectionList-sectionContent MuiPickersInputBase-sectionContent css-1bucoev-MuiPickersSectionList-sectionContent-MuiPickersInputBase-sectionContent">MM</span><span class="MuiPickersInputBase-sectionAfter css-w1q93y-MuiPickersSectionList-sectionSeparator-MuiPickersInputBase-separator">-</span></span><span data-sectionindex="2" class="MuiPickersSectionList-section css-6nuub7-MuiPickersSectionList-section-MuiPickersInputBase-section"><span class="MuiPickersInputBase-sectionBefore css-w1q93y-MuiPickersSectionList-sectionSeparator-MuiPickersInputBase-separator"></span><span aria-readonly="false" aria-valuemin="0" aria-valuemax="9999" aria-valuetext="Empty" aria-label="Year" aria-disabled="false" tabindex="-1" contenteditable="true" role="spinbutton" spellcheck="false" autocapitalize="none" autocorrect="off" inputmode="numeric" class="MuiPickersSectionList-sectionContent MuiPickersInputBase-sectionContent css-1bucoev-MuiPickersSectionList-sectionContent-MuiPickersInputBase-sectionContent">YYYY</span><span class="MuiPickersInputBase-sectionAfter css-w1q93y-MuiPickersSectionList-sectionSeparator-MuiPickersInputBase-separator"></span></span></div><div class="MuiInputAdornment-root MuiInputAdornment-positionEnd MuiInputAdornment-outlined MuiInputAdornment-sizeMedium css-1l4ilho-MuiInputAdornment-root"><button class="MuiButtonBase-root MuiIconButton-root MuiIconButton-edgeEnd MuiIconButton-sizeMedium css-16v1lsv-MuiButtonBase-root-MuiIconButton-root" tabindex="0" type="button" aria-label="Choose date"><svg class="MuiSvgIcon-root MuiSvgIcon-fontSizeMedium css-4uxqju-MuiSvgIcon-root" focusable="false" aria-hidden="true" viewBox="0 0 24 24" data-testid="CalendarIcon"><path d="M17 12h-5v5h5v-5zM16 1v2H8V1H6v2H5c-1.11 0-1.99.9-1.99 2L3 19c0 1.1.89 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2h-1V1h-2zm3 18H5V8h14v11z"></path></svg><span class="MuiTouchRipple-root css-r3djoj-MuiTouchRipple-root"></span></button></div><fieldset aria-hidden="true" class="MuiPickersOutlinedInput-notchedOutline css-23hxx5-MuiPickersOutlinedInput-notchedOutline"><legend class="css-kg5swy"><span class="css-bn0w3z">From Date*</span></legend></fieldset><input class="MuiPickersInputBase-input MuiPickersOutlinedInput-input css-31lcvl-MuiPickersInputBase-input" id="_r_1q_" aria-hidden="true" tabindex="-1" value=""></div></div><div class="MuiFormControl-root MuiFormControl-fullWidth MuiPickersTextField-root Mui-disabled css-10bn3an-MuiFormControl-root-MuiPickersTextField-root" placeholder="DD-MM-YYYY"><label class="MuiFormLabel-root MuiInputLabel-root MuiInputLabel-formControl MuiInputLabel-animated MuiInputLabel-shrink MuiInputLabel-outlined MuiFormLabel-colorPrimary Mui-disabled MuiInputLabel-root MuiInputLabel-formControl MuiInputLabel-animated MuiInputLabel-shrink MuiInputLabel-outlined css-19ik71z-MuiFormLabel-root-MuiInputLabel-root" data-shrink="true" for="_r_1t_" id="_r_1t_-label">To Date*</label><div aria-invalid="false" role="group" aria-labelledby="_r_1t_-label" class="MuiPickersInputBase-root MuiPickersOutlinedInput-root Mui-disabled MuiPickersInputBase-fullWidth MuiPickersInputBase-colorPrimary MuiPickersInputBase-adornedEnd css-463dcd-MuiPickersInputBase-root-MuiPickersOutlinedInput-root"><div contenteditable="false" tabindex="-1" class="MuiPickersSectionList-root MuiPickersInputBase-sectionsContainer css-1nbcp45-MuiPickersSectionList-root-MuiPickersInputBase-sectionsContainer-MuiPickersOutlinedInput-sectionsContainer"><span data-sectionindex="0" class="MuiPickersSectionList-section css-6nuub7-MuiPickersSectionList-section-MuiPickersInputBase-section"><span class="MuiPickersInputBase-sectionBefore css-w1q93y-MuiPickersSectionList-sectionSeparator-MuiPickersInputBase-separator"></span><span aria-readonly="false" aria-valuemin="1" aria-valuemax="31" aria-valuetext="Empty" aria-label="Day" aria-disabled="true" tabindex="-1" contenteditable="false" role="spinbutton" inputmode="numeric" class="MuiPickersSectionList-sectionContent MuiPickersInputBase-sectionContent css-1bucoev-MuiPickersSectionList-sectionContent-MuiPickersInputBase-sectionContent">DD</span><span class="MuiPickersInputBase-sectionAfter css-w1q93y-MuiPickersSectionList-sectionSeparator-MuiPickersInputBase-separator">-</span></span><span data-sectionindex="1" class="MuiPickersSectionList-section css-6nuub7-MuiPickersSectionList-section-MuiPickersInputBase-section"><span class="MuiPickersInputBase-sectionBefore css-w1q93y-MuiPickersSectionList-sectionSeparator-MuiPickersInputBase-separator"></span><span aria-readonly="false" aria-valuemin="1" aria-valuemax="12" aria-valuetext="Empty" aria-label="Month" aria-disabled="true" tabindex="-1" contenteditable="false" role="spinbutton" inputmode="numeric" class="MuiPickersSectionList-sectionContent MuiPickersInputBase-sectionContent css-1bucoev-MuiPickersSectionList-sectionContent-MuiPickersInputBase-sectionContent">MM</span><span class="MuiPickersInputBase-sectionAfter css-w1q93y-MuiPickersSectionList-sectionSeparator-MuiPickersInputBase-separator">-</span></span><span data-sectionindex="2" class="MuiPickersSectionList-section css-6nuub7-MuiPickersSectionList-section-MuiPickersInputBase-section"><span class="MuiPickersInputBase-sectionBefore css-w1q93y-MuiPickersSectionList-sectionSeparator-MuiPickersInputBase-separator"></span><span aria-readonly="false" aria-valuemin="0" aria-valuemax="9999" aria-valuetext="Empty" aria-label="Year" aria-disabled="true" tabindex="-1" contenteditable="false" role="spinbutton" inputmode="numeric" class="MuiPickersSectionList-sectionContent MuiPickersInputBase-sectionContent css-1bucoev-MuiPickersSectionList-sectionContent-MuiPickersInputBase-sectionContent">YYYY</span><span class="MuiPickersInputBase-sectionAfter css-w1q93y-MuiPickersSectionList-sectionSeparator-MuiPickersInputBase-separator"></span></span></div><div class="MuiInputAdornment-root MuiInputAdornment-positionEnd MuiInputAdornment-outlined MuiInputAdornment-sizeMedium css-1l4ilho-MuiInputAdornment-root"><button class="MuiButtonBase-root Mui-disabled MuiIconButton-root Mui-disabled MuiIconButton-edgeEnd MuiIconButton-sizeMedium css-16v1lsv-MuiButtonBase-root-MuiIconButton-root" tabindex="-1" type="button" disabled="" aria-label="Choose date"><svg class="MuiSvgIcon-root MuiSvgIcon-fontSizeMedium css-4uxqju-MuiSvgIcon-root" focusable="false" aria-hidden="true" viewBox="0 0 24 24" data-testid="CalendarIcon"><path d="M17 12h-5v5h5v-5zM16 1v2H8V1H6v2H5c-1.11 0-1.99.9-1.99 2L3 19c0 1.1.89 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2h-1V1h-2zm3 18H5V8h14v11z"></path></svg></button></div><fieldset aria-hidden="true" class="MuiPickersOutlinedInput-notchedOutline css-23hxx5-MuiPickersOutlinedInput-notchedOutline"><legend class="css-kg5swy"><span class="css-bn0w3z">To Date*</span></legend></fieldset><input class="MuiPickersInputBase-input MuiPickersOutlinedInput-input css-31lcvl-MuiPickersInputBase-input" id="_r_1t_" aria-hidden="true" tabindex="-1" disabled="" value=""></div></div><div class="MuiBox-root css-1cwqdck"><button class="MuiButtonBase-root MuiButton-root MuiButton-contained MuiButton-containedPrimary MuiButton-sizeMedium MuiButton-containedSizeMedium MuiButton-colorPrimary css-1s00hp6-MuiButtonBase-root-MuiButton-root" tabindex="0" type="button"><span class="MuiButton-icon MuiButton-startIcon MuiButton-iconSizeMedium css-1v1j2p3-MuiButton-startIcon"><svg class="MuiSvgIcon-root MuiSvgIcon-fontSizeMedium css-4uxqju-MuiSvgIcon-root" focusable="false" aria-hidden="true" viewBox="0 0 24 24" data-testid="RestartAltIcon"><path d="M12 5V2L8 6l4 4V7c3.31 0 6 2.69 6 6 0 2.97-2.17 5.43-5 5.91v2.02c3.95-.49 7-3.85 7-7.93 0-4.42-3.58-8-8-8m-6 8c0-1.65.67-3.15 1.76-4.24L6.34 7.34C4.9 8.79 4 10.79 4 13c0 4.08 3.05 7.44 7 7.93v-2.02c-2.83-.48-5-2.94-5-5.91"></path></svg></span>Reset</button><button class="MuiButtonBase-root Mui-disabled MuiButton-root MuiButton-contained MuiButton-containedPrimary MuiButton-sizeMedium MuiButton-containedSizeMedium MuiButton-colorPrimary css-1s00hp6-MuiButtonBase-root-MuiButton-root" tabindex="-1" type="button" disabled=""><span class="MuiButton-icon MuiButton-startIcon MuiButton-iconSizeMedium css-1v1j2p3-MuiButton-startIcon"><svg class="MuiSvgIcon-root MuiSvgIcon-fontSizeMedium css-4uxqju-MuiSvgIcon-root" focusable="false" aria-hidden="true" viewBox="0 0 24 24" data-testid="SearchIcon"><path d="M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14"></path></svg></span>Search</button></div></div>
 
+
+
+
+<LocalizationProvider dateAdapter={AdapterDayjs}>
+        <Box
+          sx={{
+            display: "grid",
+            mt: 3,
+            mb: 0.5,
+            gridTemplateColumns: {
+              xs: "1fr",
+              sm: "repeat(2, 1fr)",
+              md: "repeat(4, 1fr)",
+            },
+            gap: 2,
+            alignItems: "start",
+            "& .MuiPickersOutlinedInput-root": {
+              backgroundColor: "#fff !important",
+              backdropFilter: "none !important",
+            },
+            "& .MuiPickersOutlinedInput-notchedOutline": {
+              borderColor: "#b0bec5 !important",
+            },
+            "& .MuiPickersOutlinedInput-root:hover .MuiPickersOutlinedInput-notchedOutline":
+              {
+                borderColor: "#90a4ae !important",
+              },
+            "& .MuiPickersSectionList-sectionContent[aria-valuetext='Empty']": {
+              opacity: 1,
+              color: "rgba(0, 0, 0, 0.85) !important",
+              fontWeight: 700,
+            },
+          }}
+        >
+          <TextField
+            select
+            label="Date Range"
+            value={quickFilter}
+            onChange={handleQuickFilter}
+            InputLabelProps={{ shrink: true }}
+            fullWidth
+          >
+            {availableFilters.map((opt) => (
+              <MenuItem key={opt.value} value={opt.value}>
+                {opt.label}
+              </MenuItem>
+            ))}
+          </TextField>
+
+          <DatePicker
+            value={start}
+            format="DD-MM-YYYY"
+            minDate={MIN_ALLOWED_DATE}
+            maxDate={etlDate}
+            views={["year", "month", "day"]}
+            disableHighlightToday
+            onChange={(value) => {
+              setStart(value);
+              setQuickFilter("custom");
+            }}
+            slotProps={{
+              textField: {
+                label: "From Date*",
+                InputLabelProps: { shrink: true },
+                placeholder: "DD-MM-YYYY",
+                error: !!fromDateError,
+                fullWidth: true,
+              },
+            }}
+          />
+
+          <DatePicker
+            value={end}
+            format="DD-MM-YYYY"
+            minDate={start || MIN_ALLOWED_DATE}
+            maxDate={etlDate}
+            views={["year", "month", "day"]}
+            disableHighlightToday
+            disabled={!start}
+            onChange={(value) => {
+              setEnd(value);
+              setQuickFilter("custom");
+            }}
+            slotProps={{
+              textField: {
+                label: "To Date*",
+                InputLabelProps: { shrink: true },
+                placeholder: "DD-MM-YYYY",
+                error: !!toDateError,
+                fullWidth: true,
+              },
+            }}
+          />
+
+          <Box
+            sx={{
+              display: "flex",
+              justifyContent: { xs: "stretch", sm: "flex-end" },
+              gap: 1.5,
+              height: "100%",
+              alignItems: "center",
+            }}
+          >
+            <StyledButton
+              variant="contained"
+              startIcon={<RestartAltIcon />}
+              onClick={handleReset}
+              sx={{ flex: { xs: 1, sm: "unset" } }}
+            >
+              Reset
+            </StyledButton>
+            <StyledButton
+              variant="contained"
+              startIcon={<SearchIcon />}
+              disabled={
+                !(cgl && currency && branch && start && end) ||
+                fromDateError !== null ||
+                toDateError !== null
+              }
+              onClick={handleSubmit}
+              sx={{ flex: { xs: 1, sm: "unset" } }}
+            >
+              Search
+            </StyledButton>
+          </Box>
+        </Box>
+      </LocalizationProvider>
