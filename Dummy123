@@ -1,29 +1,15 @@
-{filterField === "CGL" &&
-    <Autocomplete
-        options={values || []}
-        value={values.find((v) => v.cglNumber === inputInstance) || null}
-        size="small"
-        getOptionLabel={(option) => option ? `${option.cglNumber} (${option.description})` : ''}
-        isOptionEqualToValue={(option, value) => option.cglNumber === value?.cglNumber}
-        onInputChange={(event, value, reason) => {
-            debouncedFetchCgls(value, reason, isMinInput)
-        }}
-        renderInput={(params) => <TextField {...params} label="CGL" error={!!fieldError} helperText={fieldError} />}
-        filterOptions={(options) => {
-            return options.filter((val) => !getValues("CGL")?.includes(val.cglNumber))
-        }}
-        onChange={(e, v, r) => {
-            setFieldError(null);
-            if (r === "selectOption") {
-                setInputInstance(v.cglNumber);
-                setValues([]);
-            } else if (r === "clear") {
-                setInputInstance('');
-                setValues([]);
-            }
-        }}
-        noOptionsText={
-            (!isMinInput) ? "Please enter at least 3 characters" : "No Options"
-        }
-    />
-}
+<Box sx={{ display: 'flex', alignItems: 'center', gap: 1, flexGrow: 1 }}>
+  <Typography className={styles.dialogTitleText}>
+    {dialogView === 'category' ? (activeMeta?.category || 'Details') : 'Difference Break-up'}
+  </Typography>
+  <Chip
+    label={rowCount > 0 ? `${rowCount.toLocaleString("en-IN")} Records Found` : "No Records"}
+    size="small"
+    sx={{
+      fontWeight: 700,
+      color: "#58469f",
+      bgcolor: "rgba(88, 70, 159, 0.1)",
+      borderRadius: "8px",
+    }}
+  />
+</Box>
