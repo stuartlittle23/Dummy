@@ -1,15 +1,53 @@
-<Box sx={{ display: 'flex', alignItems: 'center', gap: 1, flexGrow: 1 }}>
-  <Typography className={styles.dialogTitleText}>
-    {dialogView === 'category' ? (activeMeta?.category || 'Details') : 'Difference Break-up'}
-  </Typography>
-  <Chip
-    label={rowCount > 0 ? `${rowCount.toLocaleString("en-IN")} Records Found` : "No Records"}
-    size="small"
-    sx={{
-      fontWeight: 700,
-      color: "#58469f",
-      bgcolor: "rgba(88, 70, 159, 0.1)",
-      borderRadius: "8px",
-    }}
-  />
-</Box>
+<DialogTitle className={styles.dialogTitle}>
+  {dialogView === 'breakup' && (
+    <IconButton className={styles.dialogButton} onClick={goBackToCategory} size="small" title="Back">
+      <ArrowBackOutlined fontSize="small" />
+    </IconButton>
+  )}
+
+  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+    <Typography className={styles.dialogTitleText}>
+      {dialogView === 'category' ? (activeMeta?.category || 'Details') : 'Difference Break-up'}
+    </Typography>
+    <Chip
+      label={rowCount > 0 ? `${rowCount.toLocaleString("en-IN")} Records Found` : "No Records"}
+      size="small"
+      sx={{
+        fontWeight: 700,
+        color: "#58469f",
+        bgcolor: "rgba(88, 70, 159, 0.1)",
+        borderRadius: "8px",
+      }}
+    />
+  </Box>
+
+  {/* This empty Box is the spacer that pushes everything after it to the right */}
+  <Box sx={{ flexGrow: 1 }} />
+
+  {dialogView === 'category' && (
+    <IconButton
+      className={styles.dialogButton}
+      disabled={!dialogCategoryCount}
+      onClick={() => exportData(dialogType, dialogType)}
+      size="small"
+      title="Download"
+    >
+      <Download fontSize="small" />
+    </IconButton>
+  )}
+  {dialogView === 'breakup' && (
+    <IconButton
+      className={styles.dialogButton}
+      disabled={breakupDataRows?.data?.length == 0}
+      onClick={exportDetailedData}
+      size="small"
+      title="Download breakup"
+    >
+      <Download fontSize="small" />
+    </IconButton>
+  )}
+
+  <IconButton className={styles.dialogButton} onClick={closeDialog} size="small" title="Close">
+    <Close fontSize="small" />
+  </IconButton>
+</DialogTitle>
