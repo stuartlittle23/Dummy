@@ -1,28 +1,29 @@
-{filterField === "CURRENCY" &&
+{filterField === "CGL" &&
     <Autocomplete
         options={values || []}
-        value={values.find((v) => v.currencyCode === inputInstance) || null}
+        value={values.find((v) => v.cglNumber === inputInstance) || null}
         size="small"
-        getOptionLabel={(option) => option ? `${option.currencyCode} (${option.currencyName})` : ''}
-        isOptionEqualToValue={(option, value) => option.currencyCode === value?.currencyCode}
+        getOptionLabel={(option) => option ? `${option.cglNumber} (${option.description})` : ''}
+        isOptionEqualToValue={(option, value) => option.cglNumber === value?.cglNumber}
         onInputChange={(event, value, reason) => {
-            setInputInstance('')
+            debouncedFetchCgls(value, reason, isMinInput)
         }}
-        renderInput={(params) => <TextField {...params} label="Currency" error={!!fieldError} helperText={fieldError} />}
-        filterOptions={(options, { inputValue }) => {
-            return options.filter((val) =>
-                (val.currencyCode.startsWith(inputValue.toUpperCase()) || val.currencyName.toUpperCase().includes(inputValue.toUpperCase()))
-                && !getValues("CURRENCY")?.includes(val.currencyCode)
-            )
+        renderInput={(params) => <TextField {...params} label="CGL" error={!!fieldError} helperText={fieldError} />}
+        filterOptions={(options) => {
+            return options.filter((val) => !getValues("CGL")?.includes(val.cglNumber))
         }}
         onChange={(e, v, r) => {
             setFieldError(null);
             if (r === "selectOption") {
-                setInputInstance(v.currencyCode);
+                setInputInstance(v.cglNumber);
+                setValues([]);
             } else if (r === "clear") {
-                setInputInstance('')
+                setInputInstance('');
+                setValues([]);
             }
         }}
-        noOptionsText={"No Options"}
+        noOptionsText={
+            (!isMinInput) ? "Please enter at least 3 characters" : "No Options"
+        }
     />
 }
