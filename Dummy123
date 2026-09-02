@@ -1,1 +1,88 @@
+import { useSelector } from 'react-redux';
+import { Autocomplete, TextField } from '@mui/material';
+import getPermissions from '../../utils/getPermissions'; // adjust path to your existing util
+
+// inside BranchPosition component, replace:
+// const user = JSON.parse(localStorage.getItem('user'));
+// with:
+const user = useSelector((state) => state.auth.user);
+const selectedMenu = useSelector((state) => state.menus.selectedMenuItem);
+const permissions = getPermissions(selectedMenu);
+
+const hasWholeBank = permissions?.wholebank === true;
+const isCircleUser = user?.isCircle === true;
+const isBranchUser = !hasWholeBank && !isCircleUser;
+
+const [selectedBranch, setSelectedBranch] = useState(null); // { code, name } or null
+const [branchInput, setBranchInput] = useState('');
+const [branchOptions, setBranchOptions] = useState([]);
+const [branchLoading, setBranchLoading] = useState(false);
+
+const effectiveBranchCode = (selectedBranch?.code || user?.branch)?.toString().padStart(5, 0);
+const effectiveBranchName = selectedBranch?.name || user?.branchName;
+
+const fetchBranchOptions = async (term) => {
+  if (isBranchUser) return;
+  if (!term || term.length < 3) { setBranchOptions([]); return; }
+  try {
+    setBranchLoading(true);
+    const circleValue = hasWholeBank ? '' : (user?.circleCode || '');
+    const url = `/CM/common-master/branches-code-name-only?q=${encodeURIComponent(term)}&circleCode=${circleValue}`;
+    const res = await callApi(url, null, 'GET');
+    if (res?.data?.length > 0) {
+      setBranchOptions(res.data.map((i) => ({ code: i.code, name: i.name })));
+    } else {
+      setBranchOptions([]);
+    }
+  } catch (e) {
+    showSnackBar(e.message, 'error');
+  } finally {
+    setBranchLoading(false);
+  }
+};
+
+
+
+effectiveBranchCode
+
+<Box className={styles.infoCard}>
+  <Box className={styles.infoCardIcon}><AccountBalance fontSize="small" /></Box>
+  <Box sx={{ flexGrow: 1 }}>
+    <Typography className={styles.infoCardLabel}>Branch</Typography>
+    {isBranchUser ? (
+      <>
+        <Typography className={styles.infoCardValue}>{effectiveBranchCode}</Typography>
+        <Typography className={styles.infoCardSubvalue}>{effectiveBranchName}</Typography>
+      </>
+    ) : (
+      <Autocomplete
+        size="small"
+        value={selectedBranch}
+        options={branchOptions}
+        loading={branchLoading}
+        getOptionLabel={(o) => o ? `${o.code} - ${o.name}` : ''}
+        isOptionEqualToValue={(o, v) => o.code === v?.code}
+        inputValue={branchInput}
+        onInputChange={(e, val, reason) => {
+          setBranchInput(val);
+          if (reason === 'input') fetchBranchOptions(val);
+        }}
+        onChange={(e, val) => setSelectedBranch(val)}
+        noOptionsText={branchInput.length < 3 ? "Enter at least 3 characters" : "No Options"}
+        renderInput={(params) => <TextField {...params} placeholder="Search branch" />}
+      />
+    )}
+  </Box>
+</Box>
+
+
+<Box className={styles.infoCard}>
+  <Box className={styles.infoCardIcon}><Public fontSize="small" /></Box>
+  <Box>
+    <Typography className={styles.infoCardLabel}>Circle</Typography>
+    <Typography className={styles.infoCardValue}>{user?.circleCode}</Typography>
+    <Typography className={styles.infoCardSubvalue}>{user?.circleName}</Typography>
+  </Box>
+</Box>
+
 
