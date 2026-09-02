@@ -1,1 +1,97 @@
+<Box className={styles.dateCard}>
+  <Box sx={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '2px' }}>
+    <Public sx={{ fontSize: 15, color: '#6C5CE7' }} />
+    <Typography className={styles.infoCardLabel} sx={{ margin: 0 }}>Circle</Typography>
+  </Box>
+
+  {!hasWholeBank ? (
+    <TextField
+      size="small"
+      fullWidth
+      disabled
+      value={`${user?.circleCode} - ${user?.circleName}`}
+    />
+  ) : (
+    <Autocomplete
+      size="small"
+      fullWidth
+      value={selectedCircle}
+      options={circleOptions}
+      loading={circleLoading}
+      getOptionLabel={(o) => o ? `${o.code} - ${o.name}` : ''}
+      isOptionEqualToValue={(o, v) => o.code === v?.code}
+      inputValue={circleInput}
+      onInputChange={(e, val, reason) => {
+        setCircleInput(val);
+        if (reason === 'input') fetchCircleOptions(val);
+      }}
+      onChange={(e, val) => setSelectedCircle(val)}
+      noOptionsText={circleInput.length < 3 ? "Enter at least 3 characters" : "No Options"}
+      renderInput={(params) => <TextField {...params} placeholder="Search circle" />}
+    />
+  )}
+</Box>
+
+
+
+const [selectedCircle, setSelectedCircle] = useState(null);
+const [circleInput, setCircleInput] = useState('');
+const [circleOptions, setCircleOptions] = useState([]);
+const [circleLoading, setCircleLoading] = useState(false);
+
+const fetchCircleOptions = async (term) => {
+  if (!hasWholeBank) return;
+  if (!term || term.length < 3) { setCircleOptions([]); return; }
+  try {
+    setCircleLoading(true);
+    const url = `/CM/common-master/circles-code-name-only?q=${encodeURIComponent(term)}`;
+    const res = await callApi(url, null, 'GET');
+    if (res?.data?.length > 0) {
+      setCircleOptions(res.data.map((i) => ({ code: i.code, name: i.name })));
+    } else {
+      setCircleOptions([]);
+    }
+  } catch (e) {
+    showSnackBar(e.message, 'error');
+  } finally {
+    setCircleLoading(false);
+  }
+};
+
+<Box className={styles.dateCard}>
+  <Box sx={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '2px' }}>
+    <AccountBalance sx={{ fontSize: 15, color: '#6C5CE7' }} />
+    <Typography className={styles.infoCardLabel} sx={{ margin: 0 }}>Branch</Typography>
+  </Box>
+
+  {isBranchUser ? (
+    <TextField
+      size="small"
+      fullWidth
+      disabled
+      value={`${effectiveBranchCode} - ${effectiveBranchName}`}
+    />
+  ) : (
+    <Autocomplete
+      size="small"
+      fullWidth
+      value={selectedBranch}
+      options={branchOptions}
+      loading={branchLoading}
+      getOptionLabel={(o) => o ? `${o.code} - ${o.name}` : ''}
+      isOptionEqualToValue={(o, v) => o.code === v?.code}
+      inputValue={branchInput}
+      onInputChange={(e, val, reason) => {
+        setBranchInput(val);
+        if (reason === 'input') fetchBranchOptions(val);
+      }}
+      onChange={(e, val) => setSelectedBranch(val)}
+      noOptionsText={branchInput.length < 3 ? "Enter at least 3 characters" : "No Options"}
+      renderInput={(params) => <TextField {...params} placeholder="Search branch" />}
+    />
+  )}
+</Box>
+
+
+
 
