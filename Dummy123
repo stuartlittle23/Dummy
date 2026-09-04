@@ -1,1 +1,125 @@
+public List<Map<String, Object>> fetchHighValueTransactions(BranchPosGlifExtractReqDTO dto) {
+    List<Map<String, Object>> transactions =
+            druidRestClient.executeQuery(
+                    DruidQueryBuilder.buildQuery(dto.getFilters(), Map.of())
+            );
+
+    return transactions.stream()
+            .filter(this::isHighValueTransaction)
+            .toList();
+}
+
+private boolean isHighValueTransaction(Map<String, Object> transaction) {
+    Object amountObject = transaction.get("AMOUNT");
+
+    if (amountObject == null) {
+        return false;
+    }
+
+    String amount = amountObject.toString().trim();
+    String amountDigits = amount.startsWith("-")
+            ? amount.substring(1)
+            : amount;
+
+    if (amountDigits.contains(".")) {
+        amountDigits = amountDigits.substring(0, amountDigits.indexOf("."));
+    }
+
+    int digitCount = amountDigits.length();
+
+    String cgl = String.valueOf(transaction.getOrDefault("CGL", ""));
+    String branchCode = String.valueOf(
+            transaction.getOrDefault("BRANCH_CODE", "")
+    );
+
+    if (digitCount >= 14) {
+        return true;
+    }
+
+    if (!cgl.startsWith("7") && !cgl.startsWith("8")) {
+        return false;
+    }
+
+    if (digitCount == 11) {
+        return isValid11DigitChecksum(amountDigits);
+    }
+
+    if (digitCount == 12 || digitCount == 13) {
+        return true;
+    }
+
+    if (isDebit(amountObject) && digitCount >= 8 && digitCount <= 10) {
+        return !branchCode.equals("01111")
+                && !branchCode.equals("04343");
+    }
+
+    return false;
+}
+
+private boolean isDebit(Object amount) {
+    return new java.math.BigDecimal(amount.toString())
+            .compareTo(java.math.BigDecimal.ZERO) < 0;
+}
+
+private boolean isValid11DigitChecksum(String amount) {
+    if (amount.length() != 11) {
+        return false;
+    }
+
+    int[] digit10 = {1, 2, 3, 4, 5, 6, 7, 8, 9, 0};
+    int[] digit9 = {2, 4, 6, 8, 10, 1, 3, 5, 7, 0};
+    int[] digit8 = {4, 8, 1, 5, 9, 2, 6, 10, 3, 0};
+    int[] digit7 = {8, 5, 2, 10, 7, 4, 1, 9, 6, 0};
+    int[] digit6 = {5, 10, 4, 9, 3, 8, 2, 7, 1, 0};
+    int[] digit5 = {10, 9, 8, 7, 6, 5, 4, 3, 2, 0};
+    int[] digit4 = {9, 7, 5, 3, 1, 10, 8, 6, 4, 0};
+    int[] digit3 = {7, 3, 10, 6, 2, 9, 5, 1, 8, 0};
+    int[] digit2 = {3, 6, 9, 1, 4, 7, 10, 2, 5, 0};
+    int[] digit1 = {6, 1, 7, 2, 8, 3, 9, 4, 10, 0};
+
+    int sum = 0;
+
+    sum += getChecksumValue(amount.charAt(9), digit10);
+    sum += getChecksumValue(amount.charAt(8), digit9);
+    sum += getChecksumValue(amount.charAt(7), digit8);
+    sum += getChecksumValue(amount.charAt(6), digit7);
+    sum += getChecksumValue(amount.charAt(5), digit6);
+    sum += getChecksumValue(amount.charAt(4), digit5);
+    sum += getChecksumValue(amount.charAt(3), digit4);
+    sum += getChecksumValue(amount.charAt(2), digit3);
+    sum += getChecksumValue(amount.charAt(1), digit2);
+    sum += getChecksumValue(amount.charAt(0), digit1);
+
+    int calculatedChecksum = sum % 10;
+    int lastDigit = Character.digit(amount.charAt(10), 10);
+
+    return calculatedChecksum == lastDigit;
+}
+
+private int getChecksumValue(char digit, int[] values) {
+    int index = Character.digit(digit, 10);
+    return index >= 0 ? values[index] : 0;
+}
+
+
+
+
+
+@PostMapping("/get-high-value-transactions")
+public ResponseEntity<ApiResponse<List<Map<String, Object>>>> getHighValueTransactions(
+        @RequestBody BranchPosGlifExtractReqDTO dto) {
+
+    return ResponseEntity.ok(
+            ApiResponse.success(
+                    branchPositionService.fetchHighValueTransactions(dto),
+                    "High value transaction data fetched successfully!"
+            )
+    );
+}
+
+
+
+
+
+
 
