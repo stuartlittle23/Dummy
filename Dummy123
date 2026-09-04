@@ -1,1 +1,81 @@
-=MOD(IF(MID(a2,10,1)-1=0,1,(IF(MID(a2,10,1)-1=1,2,(IF(MID(a2,10,1)-1=2,3,(IF(MID(a2,10,1)-1=3,4,(IF(MID(a2,10,1)-1=4,5,(IF(MID(a2,10,1)-1=5,6,(IF(MID(a2,10,1)-1=6,7,(IF(MID(a2,10,1)-1=7,8,(IF(MID(a2,10,1)-1=8,9,0)))))))))))))))))+IF(MID(a2,9,1)-1=0,2,(IF(MID(a2,9,1)-1=1,4,(IF(MID(a2,9,1)-1=2,6,(IF(MID(a2,9,1)-1=3,8,(IF(MID(a2,9,1)-1=4,10,(IF(MID(a2,9,1)-1=5,1,(IF(MID(a2,9,1)-1=6,3,(IF(MID(a2,9,1)-1=7,5,(IF(MID(a2,9,1)-1=8,7,0)))))))))))))))))+IF(MID(a2,8,1)-1=0,4,(IF(MID(a2,8,1)-1=1,8,(IF(MID(a2,8,1)-1=2,1,(IF(MID(a2,8,1)-1=3,5,(IF(MID(a2,8,1)-1=4,9,(IF(MID(a2,8,1)-1=5,2,(IF(MID(a2,8,1)-1=6,6,(IF(MID(a2,8,1)-1=7,10,(IF(MID(a2,8,1)-1=8,3,0)))))))))))))))))+IF(MID(a2,7,1)-1=0,8,(IF(MID(a2,7,1)-1=1,5,(IF(MID(a2,7,1)-1=2,2,(IF(MID(a2,7,1)-1=3,10,(IF(MID(a2,7,1)-1=4,7,(IF(MID(a2,7,1)-1=5,4,(IF(MID(a2,7,1)-1=6,1,(IF(MID(a2,7,1)-1=7,9,(IF(MID(a2,7,1)-1=8,6,0)))))))))))))))))+IF(MID(a2,6,1)-1=0,5,(IF(MID(a2,6,1)-1=1,10,(IF(MID(a2,6,1)-1=2,4,(IF(MID(a2,6,1)-1=3,9,(IF(MID(a2,6,1)-1=4,3,(IF(MID(a2,6,1)-1=5,8,(IF(MID(a2,6,1)-1=6,2,(IF(MID(a2,6,1)-1=7,7,(IF(MID(a2,6,1)-1=8,1,0)))))))))))))))))+IF(MID(a2,5,1)-1=0,10,(IF(MID(a2,5,1)-1=1,9,(IF(MID(a2,5,1)-1=2,8,(IF(MID(a2,5,1)-1=3,7,(IF(MID(a2,5,1)-1=4,6,(IF(MID(a2,5,1)-1=5,5,(IF(MID(a2,5,1)-1=6,4,(IF(MID(a2,5,1)-1=7,3,(IF(MID(a2,5,1)-1=8,2,0)))))))))))))))))+IF(MID(a2,4,1)-1=0,9,(IF(MID(a2,4,1)-1=1,7,(IF(MID(a2,4,1)-1=2,5,(IF(MID(a2,4,1)-1=3,3,(IF(MID(a2,4,1)-1=4,1,(IF(MID(a2,4,1)-1=5,10,(IF(MID(a2,4,1)-1=6,8,(IF(MID(a2,4,1)-1=7,6,(IF(MID(a2,4,1)-1=8,4,0)))))))))))))))))+IF(MID(a2,3,1)-1=0,7,(IF(MID(a2,3,1)-1=1,3,(IF(MID(a2,3,1)-1=2,10,(IF(MID(a2,3,1)-1=3,6,(IF(MID(a2,3,1)-1=4,2,(IF(MID(a2,3,1)-1=5,9,(IF(MID(a2,3,1)-1=6,5,(IF(MID(a2,3,1)-1=7,1,(IF(MID(a2,3,1)-1=8,8,0)))))))))))))))))+IF(MID(a2,2,1)-1=0,3,(IF(MID(a2,2,1)-1=1,6,(IF(MID(a2,2,1)-1=2,9,(IF(MID(a2,2,1)-1=3,1,(IF(MID(a2,2,1)-1=4,4,(IF(MID(a2,2,1)-1=5,7,(IF(MID(a2,2,1)-1=6,10,(IF(MID(a2,2,1)-1=7,2,(IF(MID(a2,2,1)-1=8,5,0)))))))))))))))))+IF(MID(a2,1,1)-1=0,6,(IF(MID(a2,1,1)-1=1,1,(IF(MID(a2,1,1)-1=2,7,(IF(MID(a2,1,1)-1=3,2,(IF(MID(a2,1,1)-1=4,8,(IF(MID(a2,1,1)-1=5,3,(IF(MID(a2,1,1)-1=6,9,(IF(MID(a2,1,1)-1=7,4,(IF(MID(a2,1,1)-1=8,10,0))))))))))))))))),10)
+package com.fincore.enquiry_service.service.utils;
+
+import com.fincore.enquiry_service.dto.GridFilter;
+
+import java.util.*;
+
+public class DruidQueryBuilder {
+    public static Map<String, Object> buildQuery(List<GridFilter> filters,Map<String,Object> resultType) {
+        StringBuilder sql = new StringBuilder("SELECT TIME_FORMAT(MILLIS_TO_TIMESTAMP(POST_DATE),'dd-MM-yyyy') as POST_DATE, " +
+                "JOURNAL_NUMBER, " +
+                "BRCH, " +
+                "FCY_CODE, " +
+                "BRANCH_CODE, " +
+                "CURRENCY, " +
+                "CGL, " +
+                "TRANSACTION_CODE, " +
+                "DESCRIPTION, " +
+//                "BATCH_ID, " +
+                "TIME_FORMAT(MILLIS_TO_TIMESTAMP(TRANS_DATE), 'dd-MM-yyyy') as TRANSACTION_DATE, " +
+                "AMOUNT, " +
+                "LCY_AMT, " +
+                "FCY_AMT, " +
+                "ACCOUNT, " +
+                "SOURCE FROM GLIF");
+        List<Map<String, String>> parameters = new ArrayList<>();
+        if (filters.size() != 0) {
+            sql.append(" WHERE ");
+            boolean isFirst=true;
+            for (GridFilter filter : filters) {
+                appendFilterCondition(sql,parameters,filter,isFirst);
+                if(isFirst){
+                    isFirst=false;
+                }
+            }
+        }
+//        sql.append("GROUP BY CGL,TRANSACTION_CODE,JOURNAl_NUMBER");
+        System.out.println(sql);
+        Map<String,Object> queryMeta=new HashMap<>();
+
+        queryMeta.put("query", sql.toString());
+        queryMeta.put("parameters", parameters);
+        queryMeta.putAll(resultType);
+        return Collections.unmodifiableMap(queryMeta);
+    }
+
+
+    private static void appendFilterCondition(StringBuilder sql, List<Map<String, String>> parameters, GridFilter filter,boolean isFirst) {
+        if(!isFirst){
+            sql.append(" AND ");
+        }
+        if ("EQUALS".equalsIgnoreCase(filter.getOperator())) {
+            sql.append(filter.getField()).append(" = ? ");
+            if(((String) filter.getValue()).matches("^\\d{4}-\\d{2}-\\d{2}$")){
+                parameters.add(Map.of("type", "DATE", "value", String.valueOf(filter.getValue())));
+                return;
+            }
+            parameters.add(Map.of("type", "VARCHAR", "value", String.valueOf(filter.getValue())));
+            return;
+        }
+        if("IN".equalsIgnoreCase(filter.getOperator())){
+            sql.append(filter.getField()).append(" IN (");
+            ArrayList<?> list;
+            if(filter.getValue() instanceof ArrayList<?> arrayList){
+                list=arrayList;
+            }else{
+                list=new ArrayList<>();
+            }
+            for(int i=0;i<list.size();i++){
+                if(i==0){
+                    sql.append(" ? ");
+                }else {
+                    sql.append(",? ");
+                }
+                parameters.add(Map.of("type", "VARCHAR", "value", String.valueOf(list.get(i))));
+            }
+            sql.append(")");
+            return;
+        }
+        throw new IllegalArgumentException("Unsupported filter operator: " + filter.getValue());
+    }
+}
