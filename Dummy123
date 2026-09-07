@@ -1,482 +1,443 @@
-import React, { useState, useCallback, useEffect, useMemo } from "react";
-import { useSelector } from "react-redux";
-import { Box } from "@mui/material";
-import { LocalizationProvider } from "@mui/x-date-pickers";
-import { AdapterDayjs } from "@mui/x-date-pickers/AdapterDayjs";
-import dayjs from "dayjs";
-import debounce from "lodash/debounce";
-import LedgerForm from "./components/BalanceLedgerForm";
-import LedgerDataGrid from "./components/BalanceLedgerDataGrid";
-import { getPermissions } from "../../utils/CommonUtilities";
-import useApi from "../../hooks/useApi";
-import useCustomSnackbar from "../../utils/useCustomSnackbar";
-import downloadFile from "../../utils/DownloadUtils";
 
-const DEFAULT_PAGE_SIZE = 20;
-const FOREIGN_CIRCLE_CODE = "021";
-
-const CIRCLE_GROUPS = {
-  ALL: "ALL",
-  DOMESTIC: "DOMESTIC",
-  FOREIGN: "FOREIGN",
-};
-
-const LedgerWiseBalanceEnquiry = () => {
+const BalanceLedgerForm = ({
+  filters,
+  onFilterChange,
+  onReset,
+  onFetch,
+  permissions,
+  user,
+  circles,
+  currencies,
+  FOREIGN_CIRCLE_CODE,
+  CIRCLE_GROUPS,
+  minLimit,
+  maxLimit,
+  fetchLoading,
+}) => {
   const { callApi } = useApi();
-  const showSnackBar = useCustomSnackbar();
-  const user = useSelector((state) => state.auth.user);
-  const menu = useSelector((state) => state.menus.selectedMenuItem);
-  const permissions = getPermissions(menu);
+  const { hasWholeBank, hasCircle } = permissions;
+  const [branchSearch, setBranchSearch] = useState(null);
+  const [branches, setBranches] = useState([]);
+  const [cgls, setCgls] = useState(["All CGLs"]);
+  const [loading, setLoading] = useState({
+    branch: false,
+    cgl: false,
+    currency: false,
+  });
+  const [viewList, setViewList] = useState(null);
+  const [balanceDateError, setBalanceDateError] = useState(null);
+  const [currencyOptions, setCurrencyOptions] = useState([
+    "All Currencies",
+    ...(currencies || []),
+  ]);
 
-  const MIN_ALLOWED_DATE = dayjs("2026-03-31");
-  const DATE_FORMAT = "DD/MM/YYYY";
+  useEffect(() => {
+    const allCurrencies = ["All Currencies", ...(currencies || [])];
 
-  const hasWholeBank = !!permissions.wholebank;
-  const hasCircle = user?.isCircle || !!permissions.circle;
+    setCurrencyOptions(allCurrencies);
+
+    if (filters.currencies?.includes("All Currencies")) {
+      onFilterChange("currencies", allCurrencies);
+    }
+  }, [currencies]);
+
+  const isCircleVisible = !!hasWholeBank;
+  const isBranchVisible =
+    !permissions.hasWholeBank || filters.enquiryType === "COLLATION";
+
+  const isBranchUser = !hasWholeBank && !user?.isCircle;
   const isCircleUser = user?.isCircle && !hasWholeBank;
 
-  const [circles, setCircles] = useState([]);
-  const [initialState, setInitialState] = useState({
-    enquiryType: "COLLATION",
-    level: "BRANCH",
-    circle: "ALL",
-    branches: ["All Branches"],
-    currencies: ["All Currencies"],
-    cgl: [],
-    balanceDate: null,
-  });
+  const branch = filters.branches || [];
+  const hasSelectedBranches =
+    !branch.includes("All Branches") && branch.length > 0;
 
-  const [currencies, setCurrencies] = useState([]);
-  const [etlDate, setEtlDate] = useState(null);
+  const cgl = filters.cgl || [];
+  const hasSelectedCgls = !cgl.includes("All CGLs") && cgl.length > 0;
 
-  const [rows, setRows] = useState(null);
-  const [rowCount, setRowCount] = useState(0);
+  const currency = filters.currencies || [];
+  const hasSelectedCurrencies =
+    !currency.includes("All Currencies") && currency.length > 0;
 
-  const [loading, setLoading] = useState(false);
-  const [exporting, setExporting] = useState(false);
+  const searchLogic = useCallback(
+    async (type, term) => {
+      if (!term || term.length < 3) return;
+      try {
+        setLoading((p) => ({ ...p, [type]: true }));
+        let cp = "";
 
-  const [paginationModel, setPaginationModel] = useState({
-    page: 0,
-    pageSize: DEFAULT_PAGE_SIZE,
-  });
+        if (hasWholeBank) {
+          if (
+            filters.circle !== CIRCLE_GROUPS.ALL &&
+            filters.circle !== CIRCLE_GROUPS.DOMESTIC &&
+            filters.circle !== CIRCLE_GROUPS.FOREIGN
+          ) {
+            cp = `&circleCode=${filters.circle}`;
+          } else if (filters.circle === CIRCLE_GROUPS.FOREIGN) {
+            cp = `&circleCode=${FOREIGN_CIRCLE_CODE}`;
+          } else if (filters.circle === CIRCLE_GROUPS.DOMESTIC) {
+            cp = `&circleCode=${CIRCLE_GROUPS.DOMESTIC}`;
+          } else {
+            cp = `&circleCode=${CIRCLE_GROUPS.ALL}`;
+          }
+        } else if (!hasWholeBank) {
+          cp = `&circleCode=${user.circleCode}`;
+        }
 
-  const [sortModel, setSortModel] = useState([
-    {
-      field: "balanceDate",
-      sort: "desc",
+        const url =
+          type === "branch"
+            ? `/CM/common-master/branches-code-name-only?q=${encodeURIComponent(term)}${cp}`
+            : type === "cgl"
+              ? `/CM/common-master/cgl-code-description-only?q=${encodeURIComponent(term)}`
+              : `/CM/common-master/currency-code-name-only?q=${encodeURIComponent(term)}`;
+
+        const res = await callApi(url, null, "GET");
+
+        if (res?.data) {
+          let opts = [];
+          if (type === "branch") {
+            opts = res.data.map((i) => `${i.code}-${i.name}`);
+            setBranches(opts);
+          } else if (type === "cgl") {
+            opts = res.data.map((i) => `${i.cglNumber} - ${i.description}`);
+            setCgls(opts);
+          } else if (type === "currency") {
+            opts = res.data.map((i) => `${i.currencyCode} (${i.currencyName})`);
+            setCurrencyOptions(opts);
+          }
+        }
+      } catch (e) {
+        console.error(e);
+      } finally {
+        setLoading((p) => ({ ...p, [type]: false }));
+      }
     },
-  ]);
-
-  const [filterModel, setFilterModel] = useState({
-    items: [],
-  });
-
-  /* INITIAL FILTERS */
-  const initialDetails = useMemo(() => {
-    return {
-      enquiryType: "COLLATION",
-      level: hasWholeBank ? "BANK" : isCircleUser ? "CIRCLE" : "BRANCH",
-      circle: hasWholeBank ? "ALL" : user?.circleCode,
-      branches:
-        !user?.isCircle && !hasWholeBank
-          ? [`${user?.branch}-${user?.branchName}`]
-          : ["All Branches"],
-      currencies: ["All Currencies", ...(currencies || []),],
-      cgl: ["All CGLs"],
-      fromDate: null,
-      toDate: null,
-    };
-  }, [
-    hasWholeBank,
-    user?.circleCode,
-    user?.isCircle,
-    user?.branch,
-    user?.branchName,
-    isCircleUser,
-    currencies,
-  ]);
-
-  const [filters, setFilters] = useState(initialState);
-  const [searchQuery, setSearchQuery] = useState(null);
-
-  useEffect(() => {
-    setInitialState(initialDetails);
-    setFilters(initialDetails);
-  }, [initialDetails]);
-
-  const isCollationMode = !hasWholeBank || filters.enquiryType === "COLLATION";
-
-  /* FETCH MASTERS */
-  const fetchMasters = useCallback(async () => {
-    try {
-      const [dateRes, currRes] = await Promise.all([
-        callApi("/PS/file/fincore-date", {}, "GET"),
-        callApi("/CM/common-master/currency-code-name-only", null, "GET"),
-      ]);
-
-      /* ETL DATE */
-      if (dateRes?.data?.userDate) {
-        setEtlDate(dayjs(dateRes.data.userDate, "YYYY-MM-DD"));
-      }
-
-      /* CURRENCIES */
-      const formattedCurrencies =
-        currRes?.data?.map((c) => `${c.currencyCode} (${c.currencyName})`) ||
-        [];
-
-      const sortedCurrencies = formattedCurrencies.sort((a, b) => {
-        const aCode = a.split(" ")[0];
-        const bCode = b.split(" ")[0];
-
-        // INR always on top
-        if (aCode === "INR") return -1;
-        if (bCode === "INR") return 1;
-
-        // Remaining alphabetical
-        return a.localeCompare(b);
-      });
-
-      setCurrencies(sortedCurrencies);
-
-      /* CIRCLES */
-      if (hasWholeBank) {
-        const circleRes = await callApi(
-          "/CM/common-master/circle-codes",
-          null,
-          "GET",
-        );
-        setCircles(circleRes?.data || []);
-      }
-    } catch (error) {
-      console.error(error);
-      showSnackBar("Failed to load master configuration", "error");
-    }
-  }, [callApi, hasWholeBank, showSnackBar]);
-
-  useEffect(() => {
-    fetchMasters();
-  }, [fetchMasters]);
-
-  /* BRANCH OPTIONS */
-  const selectedBranchOptions = useMemo(() => {
-    if (!filters.branches?.length || filters.branches.includes("All Branches")) {
-      return [];
-    }
-    return filters.branches.map((branch) => ({
-      value: branch.split("-")[0],
-      label: branch,
-    }));
-  }, [filters.branches]);
-
-  /* CIRCLE OPTIONS */
-  const selectedCircleOptions = useMemo(() => {
-    const formattedCircles = circles.map((circle) => ({
-      value: circle.circleCode,
-      label:
-        circle.circleCode === FOREIGN_CIRCLE_CODE
-          ? `${circle.circleCode} - Foreign`
-          : `${circle.circleCode} - ${circle.circleName}`,
-    }));
-
-    // ALL/GROUP OPTIONS
-    if (
-      filters.circle === CIRCLE_GROUPS.ALL ||
-      filters.circle === CIRCLE_GROUPS.DOMESTIC ||
-      filters.circle === CIRCLE_GROUPS.FOREIGN
-    ) {
-      return formattedCircles;
-    }
-
-    return formattedCircles.filter((circle) => circle.value === filters.circle);
-  }, [filters.circle, circles]);
-
-  /* CURRENCY OPTIONS */
-  const selectedCurrencyOptions = useMemo(() => {
-    if (
-      !filters.currencies?.length ||
-      filters.currencies.includes("All Currencies")
-    ) {
-      return currencies.map((currency) => ({
-        value: currency.split(" (")[0],
-        label: currency,
-      }));
-    }
-    return (filters.currencies || []).map((currency) => ({
-      value: currency.split(" (")[0],
-      label: currency,
-    }));
-  }, [filters.currencies, currencies]);
-
-  /* PAYLOAD */
-  const buildPayload = useCallback(() => {
-    if (!searchQuery) return null;
-
-    const gridFilters =
-      filterModel.items
-        ?.filter(
-          (item) =>
-            item.field &&
-            item.operator &&
-            item.value !== undefined &&
-            item.value !== null &&
-            item.value !== "",
-        )
-        .map((item) => ({
-          field: item.field,
-          operator: item.operator,
-          value: item.value,
-        })) || [];
-
-    return {
-      enquiryType: searchQuery.enquiryType,
-      circle: searchQuery.circle,
-      cgls: searchQuery.cgl?.includes("All CGLs")
-        ? ["ALL"]
-        : searchQuery.cgl?.map((c) => c.split("-")[0].trim()) || [],
-      cglName: searchQuery.cgl?.includes("All CGLs")
-        ? ["ALL"]
-        : searchQuery.cgl?.map((c) => c.split("-")[1]) || [],
-      currencies: searchQuery.currencies?.includes("All Currencies")
-        ? ["ALL"]
-        : searchQuery.currencies?.map((currency) => currency.split("(")[0]) ||
-          [],
-      branches:
-        searchQuery.enquiryType === "CONSOLIDATED"
-          ? []
-          : searchQuery.branches.includes("All Branches")
-            ? ["ALL"]
-            : searchQuery.branches.map((b) => b.split("-")[0]),
-      balanceDate: dayjs(searchQuery.balanceDate).format("DD/MM/YYYY"),
-      page: paginationModel.page,
-      size: paginationModel.pageSize,
-      sortField: sortModel?.[0]?.field || "balanceDate",
-      sortOrder: sortModel?.[0]?.sort || "desc",
-      gridFilters,
-    };
-  }, [searchQuery, paginationModel, sortModel, filterModel]);
-
-  /* FETCH ROWS */
-  const fetchRows = useCallback(async () => {
-    const payload = buildPayload();
-    console.log("payload",payload)
-    if (!payload) return;
-    try {
-      setLoading(true);
-      console.log(payload);
-      const res = await callApi(
-        "/ES/ledger-wise-balances/search",
-        payload,
-        "POST",
-      );
-      console.log("api response", res);
-      setRows(res?.data?.content || []);
-      setRowCount(res?.data?.page?.totalElements || 0);
-    } catch (error) {
-      console.error(error);
-      showSnackBar(error?.message || "Enquiry failed", "error");
-    } finally {
-      setLoading(false);
-    }
-  }, [callApi, buildPayload, showSnackBar]);
-
-  /* DEBOUNCED FETCH */
-  const debouncedFetch = useMemo(
-    () =>
-      debounce(() => {
-        fetchRows();
-      }, 300),
-    [fetchRows],
+    [
+      hasWholeBank,
+      callApi,
+      filters.circle,
+      CIRCLE_GROUPS.ALL,
+      CIRCLE_GROUPS.DOMESTIC,
+      CIRCLE_GROUPS.FOREIGN,
+      FOREIGN_CIRCLE_CODE,
+      user.circleCode,
+    ],
   );
 
-  useEffect(() => {
-    if (!searchQuery) return;
-    debouncedFetch();
-    return () => {
-      debouncedFetch.cancel();
-    };
-  }, [paginationModel, sortModel, filterModel, searchQuery, debouncedFetch]);
+  const fetchSearchData = useMemo(
+    () => debounce((t, v) => searchLogic(t, v), 300),
+    [searchLogic],
+  );
 
-  const handleSearch = useCallback(() => {
-    const { cgl, balanceDate } = filters;
+  useEffect(() => () => fetchSearchData.cancel(), [fetchSearchData]);
 
-    if (cgl.length === 0 || filters.currencies.length ===0 || !balanceDate) {
-      showSnackBar("Please fill all required fields", "warning");
+  const handleBranchChange = (val) => {
+    const clickedAll =
+      val.includes("All Branches") &&
+      !filters.branches.includes("All Branches");
+    const isEmpty = val.length === 0;
+
+    if (clickedAll || isEmpty) {
+      onFilterChange("branches", ["All Branches"]);
+      setViewList(null);
       return;
     }
 
-    if (!balanceDate?.isValid?.()) {
-      showSnackBar("Invalid date selected", "warning");
+    const valWithoutAll = val.filter((v) => v !== "All Branches");
+    onFilterChange("branches", valWithoutAll);
+  };
+
+  const removeBranch = (branchToRemove) => {
+    const updated = filters.branches.filter((b) => b !== branchToRemove);
+
+    if (updated.length === 0) {
+      onFilterChange("branches", ["All Branches"]);
+      setViewList(null);
+    } else {
+      onFilterChange("branches", updated);
+    }
+  };
+
+  const handleCglChange = (val) => {
+    const clickedAll =
+      val.includes("All CGLs") && !filters.cgl.includes("All CGLs");
+    const isEmpty = val.length === 0;
+
+    if (clickedAll || isEmpty) {
+      onFilterChange("cgl", ["All CGLs"]);
+      setViewList(null);
       return;
     }
 
-    if (balanceDate.isBefore(MIN_ALLOWED_DATE, "day")) {
-      showSnackBar(
-        `Date cannot be earlier than ${MIN_ALLOWED_DATE.format(DATE_FORMAT)}`,
-        "warning",
-      );
+    onFilterChange(
+      "cgl",
+      val.filter((v) => v !== "All CGLs"),
+    );
+  };
+
+  const removeCgl = (item) => {
+    const updated = filters.cgl.filter((c) => c !== item);
+
+    if (updated.length === 0) {
+      onFilterChange("cgl", ["All CGLs"]);
+      setViewList(null);
+    } else {
+      onFilterChange("cgl", updated);
+    }
+  };
+
+  const handleCurrencyChange = (val) => {
+    const hadAll = filters.currencies.includes("All Currencies");
+    const hasAll = val.includes("All Currencies");
+
+    // User clicked "All Currencies" -> select everything
+    if (!hadAll && hasAll) {
+      onFilterChange("currencies", [
+        "All Currencies",
+        ...currencies.filter((c) => c !== "All Currencies"),
+      ]);
+      setViewList(null);
       return;
     }
 
-    if (etlDate?.isValid?.() && balanceDate.isAfter(etlDate, "day")) {
-      showSnackBar(
-        `Date cannot exceed ETL date ${etlDate.format(DATE_FORMAT)}`,
-        "warning",
-      );
+    // User unchecked "All Currencies" -> clear everything
+    if (hadAll && !hasAll) {
+      onFilterChange("currencies", []);
+      setViewList(null);
       return;
     }
 
-    setPaginationModel({
-      page: 0,
-      pageSize: paginationModel.pageSize,
-    });
+    // Normal selection
 
-    setSortModel([
-      {
-        field: "balanceDate",
-        sort: "desc",
-      },
-    ]);
+    const updated = val.filter((v) => v !== "All Currencies");
 
-    setFilterModel({
-      items: [],
-    });
+    const actualCurrencies = currencyOptions.filter(
+      (c) => c !== "All Currencies",
+    );
 
-    setSearchQuery({
-      ...filters,
-    });
-  }, [
-    filters,
-    etlDate,
-    MIN_ALLOWED_DATE,
-    DATE_FORMAT,
-    paginationModel.pageSize,
-    showSnackBar,
-  ]);
-
-  /* RESET */
-  const handleReset = useCallback(() => {
-    setFilters(initialState);
-    setSearchQuery(null);
-    setRows(null);
-    setRowCount(0);
-    setPaginationModel({
-      page: 0,
-      pageSize: DEFAULT_PAGE_SIZE,
-    });
-    setSortModel([
-      {
-        field: "balanceDate",
-        sort: "desc",
-      },
-    ]);
-    setFilterModel({
-      items: [],
-    });
-  }, [initialState]);
-
-  /* EXPORT */
-  const handleExcelExport = useCallback(async () => {
-    const payload = { ...buildPayload(), menuId: menu.id };
-    if (!payload) return;
-    try {
-      setExporting(true);
-      console.log(payload);
-      const response = await callApi(
-        "/ES/ledger-wise-balances/export-excel",
-        payload,
-        "POST",
-        "arraybuffer",
-      );
-      const fileName = `GL_Balance_${payload?.enquiryType === "COLLATION" ? "Collation" : "Consolidation"}_Report`;
-      if (response?.byteLength) {
-        downloadFile(response, "excel", fileName);
-      } else {
-        showSnackBar(
-          "Failed to download, Something went wrong Kindly try again",
-          "error",
-        );
-      }
-    } catch (error) {
-      showSnackBar(
-        error?.message ||
-          "Failed to export, Something went wrong Kindly try again",
-        "error",
-      );
-    } finally {
-      setExporting(false);
+    if (
+      updated.length === actualCurrencies.length &&
+      actualCurrencies.every((c) => updated.includes(c))
+    ) {
+      onFilterChange("currencies", ["All Currencies", ...actualCurrencies]);
+      return;
     }
-  }, [buildPayload, callApi, searchQuery, showSnackBar, menu.id]);
 
-  return (
-    <LocalizationProvider dateAdapter={AdapterDayjs}>
+    onFilterChange("currencies", updated);
+  };
+
+  const removeCurrency = (item) => {
+    const updated = filters.currencies.filter((c) => c !== item);
+
+    if (updated.length === 0) {
+      onFilterChange("currencies", ["All Currencies"]);
+      setViewList(null);
+    } else {
+      onFilterChange("currencies", updated);
+    }
+  };
+
+  const handleCircleChange = (value) => {
+    onFilterChange("branches", ["All Branches"]);
+    setBranches([]);
+    setViewList(null);
+    onFilterChange("circle", value?.value || null);
+  };
+
+  const SectionHeader = ({ icon, title }) => (
+    <Stack direction="row" spacing={1} alignItems="center" sx={{ mb: 2 }}>
       <Box
         sx={{
-          p: { xs: 1, sm: 2, md: 2.5 },
-          width: "100%",
-          boxSizing: "border-box",
+          p: 0.5,
+          bgcolor: "primary.main",
+          borderRadius: 1,
+          color: "white",
+          display: "flex",
         }}
       >
-        <LedgerForm
-          filters={filters}
-          onFilterChange={(field, value) => {
-            if (field === "enquiryType") {
-              setRows(null);
-              setRowCount(0);
-              setSearchQuery(null);
-              setFilters({
-                ...initialDetails,
-                enquiryType: value,
-              });
-              return;
-            }
-            setFilters((prev) => ({
-              ...prev,
-              [field]: value,
-            }));
-          }}
-          onReset={handleReset}
-          onFetch={handleSearch}
-          permissions={{
-            hasWholeBank,
-            hasCircle,
-          }}
-          user={user}
-          circles={circles}
-          currencies={currencies}
-          FOREIGN_CIRCLE_CODE={FOREIGN_CIRCLE_CODE}
-          CIRCLE_GROUPS={CIRCLE_GROUPS}
-          minLimit={MIN_ALLOWED_DATE}
-          maxLimit={etlDate || dayjs()}
-          fetchLoading={loading}
-          isCollationMode={isCollationMode}
-        />
-
-        {rows && (
-          <LedgerDataGrid
-            rows={rows}
-            loading={loading}
-            rowCount={rowCount}
-            paginationModel={paginationModel}
-            setPaginationModel={setPaginationModel}
-            sortModel={sortModel}
-            setSortModel={setSortModel}
-            filterModel={filterModel}
-            setFilterModel={setFilterModel}
-            onExcelExport={handleExcelExport}
-            exporting={exporting}
-            selectedCurrency={searchQuery?.currencies || "ALL"}
-            selectedCircle={searchQuery?.circle || "ALL"}
-            branchOptions={selectedBranchOptions}
-            circleOptions={selectedCircleOptions}
-            currencyOptions={selectedCurrencyOptions}
-            searchPerformed={!!searchQuery}
-            enquiryType={filters.enquiryType}
-            selectedCgl={filters.cgl}
-          />
-        )}
+        {icon}
       </Box>
-    </LocalizationProvider>
+      <Typography
+        variant="subtitle2"
+        sx={{ fontWeight: 800, color: "text.primary", letterSpacing: 1 }}
+      >
+        {title}
+      </Typography>
+    </Stack>
   );
-};
 
-export default React.memo(LedgerWiseBalanceEnquiry);
+  const getDateErrorMessage = (field, error) => {
+    switch (error) {
+      case "maxDate":
+        return `${field} cannot be in future`;
+      case "minDate":
+        return `${field} cannot be before ${minLimit.format("DD/MM/YYYY")}`;
+      case "invalidDate":
+        return `Please enter a valid ${field}`;
+      default:
+        return "";
+    }
+  };
+
+  const validationMessages = [
+    balanceDateError && getDateErrorMessage("Balance Date", balanceDateError),
+  ].filter(Boolean);
+
+  return (
+    <Box sx={{ position: "relative", mb: 2 }}>
+      <Card
+        sx={{
+          borderRadius: "24px",
+          boxShadow: "0 20px 50px rgba(0,0,0,0.1)",
+          border: "1px solid rgba(255,255,255,0.3)",
+        }}
+      >
+        <CardContent sx={{ p: { xs: 2, sm: 3, md: 4 } }}>
+          {/* UPDATED HEADER: Responsive stacking to prevent overlap on mobile */}
+          <Stack
+            direction={{ xs: "column", lg: "row" }}
+            justifyContent="space-between"
+            alignItems={{ xs: "flex-start", lg: "center" }}
+            spacing={{ xs: 3, lg: 0 }}
+            sx={{ mb: 2 }}
+          >
+            <Box>
+              <Typography
+                variant="h4"
+                sx={{
+                  fontWeight: 900,
+                  // fontSize: { xs: "1.75rem", md: "2.125rem" },
+                }}
+              >
+                Ledger Balance Insights
+              </Typography>
+              <Typography variant="body2" color="text.secondary">
+                Ledger Balance search and analysis
+              </Typography>
+            </Box>
+            {!isBranchUser && (
+              <Paper
+                elevation={3}
+                sx={{
+                  px: { xs: 2, sm: 4 },
+                  py: 1,
+                  borderRadius: "50px",
+                  display: "flex",
+                  flexDirection: { xs: "column", sm: "row" },
+                  alignItems: "center",
+                  gap: { xs: 1.5, sm: 3 },
+                  border: "1px solid #ffffff77",
+                  bgcolor: "#bba7da4f",
+                  boxShadow: "0 6px 18px rgba(0, 0, 0, 0.23)",
+                  width: { xs: "100%", sm: "auto" },
+                  boxSizing: "border-box",
+                }}
+              >
+                <Stack direction="row" spacing={1} alignItems="center">
+                  <SummarizeIcon sx={{ color: "#58469f" }} />
+                  <Typography
+                    variant="subtitle1"
+                    sx={{ fontWeight: 900, color: "#333" }}
+                  >
+                    Switch Enquiry Type
+                  </Typography>
+                </Stack>
+
+                <ToggleButtonGroup
+                  exclusive
+                  size="small"
+                  value={filters.enquiryType}
+                  onChange={(_, value) => {
+                    if (value) {
+                      onFilterChange("enquiryType", value);
+                    }
+                  }}
+                  sx={{
+                    width: { xs: "100%", sm: "auto" },
+                    display: "flex",
+                    "& .MuiToggleButton-root": {
+                      flex: { xs: 1, sm: "none" },
+                      px: { xs: 1, sm: 3 },
+                      py: 0.8,
+                      borderRadius: "10px !important",
+                      textTransform: "none",
+                      fontWeight: 700,
+                      border: "1px solid #d0d7de",
+                      color: "#555",
+                      transition: "all 0.25s",
+                      mx: 0.5,
+                    },
+                    "& .Mui-selected": {
+                      bgcolor: "#58469f !important",
+                      color: "#fff !important",
+                      borderColor: "#58469f !important",
+                      boxShadow: "0 4px 12px rgba(88,70,159,0.35)",
+                    },
+                    "& .MuiToggleButton-root:hover": {
+                      bgcolor: "rgba(88,70,159,0.08)",
+                    },
+                  }}
+                >
+                  <ToggleButton value="COLLATION">Collation</ToggleButton>
+                  <ToggleButton value="CONSOLIDATED">
+                    Consolidation
+                  </ToggleButton>
+                </ToggleButtonGroup>
+              </Paper>
+            )}
+          </Stack>
+
+          {/* 1. HIERARCHY ZONE */}
+          <Grid
+            container
+            spacing={4}
+            sx={{
+              mt: { xs: 2, md: 4 },
+              alignItems: "stretch", // Ensures both columns stretch to equal height on Desktop
+            }}
+          >
+            {/* 1. HIERARCHY ZONE */}
+            {!isBranchUser &&
+              !(isCircleUser && filters.enquiryType === "CONSOLIDATED") &&
+              (isCircleVisible || isBranchVisible) && (
+                <Grid size={{ xs: 12, md: 6 }}>
+                  <Paper
+                    variant="outlined"
+                    sx={{
+                      p: 3,
+                      borderRadius: "20px",
+                      bgcolor: "rgba(0,0,0,0.01)",
+                      borderStyle: "dashed",
+                      position: "relative",
+                      height: "100%", // Forces panel to fill the grid height
+                      display: "flex",
+                      flexDirection: "column",
+                    }}
+                  >
+                    {/* Note: Fixed the empty icon={} syntax error here */}
+                    <SectionHeader
+                      icon={<AccountBalanceIcon fontSize="small" />}
+                      title="Hierarchy"
+                    />
+
+                    <Grid container spacing={2}>
+                      {isCircleVisible && (
+                        <Grid
+                          size={{
+                            xs: 12,
+                            sm: isBranchVisible && filters.circle ? 6 : 12,
+                          }}
+                        >
+                          <Autocomplete
+                            size="small"
+                            autoHighlight
+                            options={[
+                              {
+                                value: CIRCLE_GROUPS.ALL,
+                                label: "All Circles",
+                              },
+                              {
+                                value: CIRCLE_GROUPS.DOMESTIC,
+                                label: "Domestic Circles",
+                              },
+                              {
