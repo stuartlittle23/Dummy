@@ -3,11 +3,17 @@ useEffect(() => {
   fetchRowsRef.current = fetchRows;
 }, [fetchRows]);
 
-
-
-
-
 const debouncedFetch = useMemo(
   () => debounce(() => fetchRowsRef.current(), 300),
   [],
 );
+
+
+
+
+const didFetchMasters = useRef(false);
+useEffect(() => {
+  if (didFetchMasters.current) return;
+  didFetchMasters.current = true;
+  fetchMasters();
+}, [fetchMasters]);
