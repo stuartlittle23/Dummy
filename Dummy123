@@ -1,46 +1,8 @@
-<Dialog
-  open={highValueDetailsOpen}
-  onClose={() => setHighValueDetailsOpen(false)}
-  maxWidth="xl"
-  fullWidth
-  PaperProps={{ className: styles.dialogPaper }}
->
-  <DialogTitle className={styles.dialogTitle}>
-    <Typography className={styles.dialogTitleText}>
-      High Value Transactions
-    </Typography>
+catch (error) {
+  const message =
+    error?.response?.data?.message ||
+    error?.message ||
+    "An error occurred";
 
-    <Box sx={{ flexGrow: 1 }} />
-
-    <Chip
-      label={`${highValueData.length.toLocaleString("en-IN")} Records Found`}
-      size="small"
-      sx={{
-        fontWeight: 700,
-        color: "#58469f",
-        bgcolor: "rgba(88, 70, 159, 0.1)",
-        borderRadius: "8px",
-        mr: 1
-      }}
-    />
-
-    <IconButton
-      className={styles.dialogButton}
-      onClick={() => setHighValueDetailsOpen(false)}
-      size="small"
-    >
-      <Close fontSize="small" />
-    </IconButton>
-  </DialogTitle>
-
-  <DialogContent>
-    <DisplayTab
-      data={{ content: highValueData }}
-      category="High Value Transactions"
-      type="HIGH_VALUE"
-      level={2}
-      hideHeader
-      flat
-    />
-  </DialogContent>
-</Dialog>
+  showSnackBar(message, "error");
+}
