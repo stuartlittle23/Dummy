@@ -1,377 +1,482 @@
- const getFiterData = (field) => {
-    return glifDataFilter[field]?.value || [];
-  }
+import React, { useState, useCallback, useEffect, useMemo } from "react";
+import { useSelector } from "react-redux";
+import { Box } from "@mui/material";
+import { LocalizationProvider } from "@mui/x-date-pickers";
+import { AdapterDayjs } from "@mui/x-date-pickers/AdapterDayjs";
+import dayjs from "dayjs";
+import debounce from "lodash/debounce";
+import LedgerForm from "./components/BalanceLedgerForm";
+import LedgerDataGrid from "./components/BalanceLedgerDataGrid";
+import { getPermissions } from "../../utils/CommonUtilities";
+import useApi from "../../hooks/useApi";
+import useCustomSnackbar from "../../utils/useCustomSnackbar";
+import downloadFile from "../../utils/DownloadUtils";
 
-  const getCategoryCount = (type) => {
-    const bucket = dataRows?.[type];
-    if (!bucket) return null;
-    if (typeof bucket?.page?.totalElements === 'number') return bucket.page.totalElements;
-    if (Array.isArray(bucket?.content)) return bucket.content.length;
-    return null;
-  }
+const DEFAULT_PAGE_SIZE = 20;
+const FOREIGN_CIRCLE_CODE = "021";
 
-  const activeFilterCount = Object.keys(glifDataFilter).length;
-  const formattedDate = userDate ? dayjs(userDate).format('DD-MM-YYYY') : '—';
-  const activeMeta = dialogType ? categoryMeta[dialogType] : null;
-  const dialogCategoryCount = dialogType ? getCategoryCount(dialogType) : null;
+const CIRCLE_GROUPS = {
+  ALL: "ALL",
+  DOMESTIC: "DOMESTIC",
+  FOREIGN: "FOREIGN",
+};
+
+const LedgerWiseBalanceEnquiry = () => {
+  const { callApi } = useApi();
+  const showSnackBar = useCustomSnackbar();
+  const user = useSelector((state) => state.auth.user);
+  const menu = useSelector((state) => state.menus.selectedMenuItem);
+  const permissions = getPermissions(menu);
+
+  const MIN_ALLOWED_DATE = dayjs("2026-03-31");
+  const DATE_FORMAT = "DD/MM/YYYY";
+
+  const hasWholeBank = !!permissions.wholebank;
+  const hasCircle = user?.isCircle || !!permissions.circle;
+  const isCircleUser = user?.isCircle && !hasWholeBank;
+
+  const [circles, setCircles] = useState([]);
+  const [initialState, setInitialState] = useState({
+    enquiryType: "COLLATION",
+    level: "BRANCH",
+    circle: "ALL",
+    branches: ["All Branches"],
+    currencies: ["All Currencies"],
+    cgl: [],
+    balanceDate: null,
+  });
+
+  const [currencies, setCurrencies] = useState([]);
+  const [etlDate, setEtlDate] = useState(null);
+
+  const [rows, setRows] = useState(null);
+  const [rowCount, setRowCount] = useState(0);
+
+  const [loading, setLoading] = useState(false);
+  const [exporting, setExporting] = useState(false);
+
+  const [paginationModel, setPaginationModel] = useState({
+    page: 0,
+    pageSize: DEFAULT_PAGE_SIZE,
+  });
+
+  const [sortModel, setSortModel] = useState([
+    {
+      field: "balanceDate",
+      sort: "desc",
+    },
+  ]);
+
+  const [filterModel, setFilterModel] = useState({
+    items: [],
+  });
+
+  /* INITIAL FILTERS */
+  const initialDetails = useMemo(() => {
+    return {
+      enquiryType: "COLLATION",
+      level: hasWholeBank ? "BANK" : isCircleUser ? "CIRCLE" : "BRANCH",
+      circle: hasWholeBank ? "ALL" : user?.circleCode,
+      branches:
+        !user?.isCircle && !hasWholeBank
+          ? [`${user?.branch}-${user?.branchName}`]
+          : ["All Branches"],
+      currencies: ["All Currencies", ...(currencies || []),],
+      cgl: ["All CGLs"],
+      fromDate: null,
+      toDate: null,
+    };
+  }, [
+    hasWholeBank,
+    user?.circleCode,
+    user?.isCircle,
+    user?.branch,
+    user?.branchName,
+    isCircleUser,
+    currencies,
+  ]);
+
+  const [filters, setFilters] = useState(initialState);
+  const [searchQuery, setSearchQuery] = useState(null);
+
+  useEffect(() => {
+    setInitialState(initialDetails);
+    setFilters(initialDetails);
+  }, [initialDetails]);
+
+  const isCollationMode = !hasWholeBank || filters.enquiryType === "COLLATION";
+
+  /* FETCH MASTERS */
+  const fetchMasters = useCallback(async () => {
+    try {
+      const [dateRes, currRes] = await Promise.all([
+        callApi("/PS/file/fincore-date", {}, "GET"),
+        callApi("/CM/common-master/currency-code-name-only", null, "GET"),
+      ]);
+
+      /* ETL DATE */
+      if (dateRes?.data?.userDate) {
+        setEtlDate(dayjs(dateRes.data.userDate, "YYYY-MM-DD"));
+      }
+
+      /* CURRENCIES */
+      const formattedCurrencies =
+        currRes?.data?.map((c) => `${c.currencyCode} (${c.currencyName})`) ||
+        [];
+
+      const sortedCurrencies = formattedCurrencies.sort((a, b) => {
+        const aCode = a.split(" ")[0];
+        const bCode = b.split(" ")[0];
+
+        // INR always on top
+        if (aCode === "INR") return -1;
+        if (bCode === "INR") return 1;
+
+        // Remaining alphabetical
+        return a.localeCompare(b);
+      });
+
+      setCurrencies(sortedCurrencies);
+
+      /* CIRCLES */
+      if (hasWholeBank) {
+        const circleRes = await callApi(
+          "/CM/common-master/circle-codes",
+          null,
+          "GET",
+        );
+        setCircles(circleRes?.data || []);
+      }
+    } catch (error) {
+      console.error(error);
+      showSnackBar("Failed to load master configuration", "error");
+    }
+  }, [callApi, hasWholeBank, showSnackBar]);
+
+  useEffect(() => {
+    fetchMasters();
+  }, [fetchMasters]);
+
+  /* BRANCH OPTIONS */
+  const selectedBranchOptions = useMemo(() => {
+    if (!filters.branches?.length || filters.branches.includes("All Branches")) {
+      return [];
+    }
+    return filters.branches.map((branch) => ({
+      value: branch.split("-")[0],
+      label: branch,
+    }));
+  }, [filters.branches]);
+
+  /* CIRCLE OPTIONS */
+  const selectedCircleOptions = useMemo(() => {
+    const formattedCircles = circles.map((circle) => ({
+      value: circle.circleCode,
+      label:
+        circle.circleCode === FOREIGN_CIRCLE_CODE
+          ? `${circle.circleCode} - Foreign`
+          : `${circle.circleCode} - ${circle.circleName}`,
+    }));
+
+    // ALL/GROUP OPTIONS
+    if (
+      filters.circle === CIRCLE_GROUPS.ALL ||
+      filters.circle === CIRCLE_GROUPS.DOMESTIC ||
+      filters.circle === CIRCLE_GROUPS.FOREIGN
+    ) {
+      return formattedCircles;
+    }
+
+    return formattedCircles.filter((circle) => circle.value === filters.circle);
+  }, [filters.circle, circles]);
+
+  /* CURRENCY OPTIONS */
+  const selectedCurrencyOptions = useMemo(() => {
+    if (
+      !filters.currencies?.length ||
+      filters.currencies.includes("All Currencies")
+    ) {
+      return currencies.map((currency) => ({
+        value: currency.split(" (")[0],
+        label: currency,
+      }));
+    }
+    return (filters.currencies || []).map((currency) => ({
+      value: currency.split(" (")[0],
+      label: currency,
+    }));
+  }, [filters.currencies, currencies]);
+
+  /* PAYLOAD */
+  const buildPayload = useCallback(() => {
+    if (!searchQuery) return null;
+
+    const gridFilters =
+      filterModel.items
+        ?.filter(
+          (item) =>
+            item.field &&
+            item.operator &&
+            item.value !== undefined &&
+            item.value !== null &&
+            item.value !== "",
+        )
+        .map((item) => ({
+          field: item.field,
+          operator: item.operator,
+          value: item.value,
+        })) || [];
+
+    return {
+      enquiryType: searchQuery.enquiryType,
+      circle: searchQuery.circle,
+      cgls: searchQuery.cgl?.includes("All CGLs")
+        ? ["ALL"]
+        : searchQuery.cgl?.map((c) => c.split("-")[0].trim()) || [],
+      cglName: searchQuery.cgl?.includes("All CGLs")
+        ? ["ALL"]
+        : searchQuery.cgl?.map((c) => c.split("-")[1]) || [],
+      currencies: searchQuery.currencies?.includes("All Currencies")
+        ? ["ALL"]
+        : searchQuery.currencies?.map((currency) => currency.split("(")[0]) ||
+          [],
+      branches:
+        searchQuery.enquiryType === "CONSOLIDATED"
+          ? []
+          : searchQuery.branches.includes("All Branches")
+            ? ["ALL"]
+            : searchQuery.branches.map((b) => b.split("-")[0]),
+      balanceDate: dayjs(searchQuery.balanceDate).format("DD/MM/YYYY"),
+      page: paginationModel.page,
+      size: paginationModel.pageSize,
+      sortField: sortModel?.[0]?.field || "balanceDate",
+      sortOrder: sortModel?.[0]?.sort || "desc",
+      gridFilters,
+    };
+  }, [searchQuery, paginationModel, sortModel, filterModel]);
+
+  /* FETCH ROWS */
+  const fetchRows = useCallback(async () => {
+    const payload = buildPayload();
+    console.log("payload",payload)
+    if (!payload) return;
+    try {
+      setLoading(true);
+      console.log(payload);
+      const res = await callApi(
+        "/ES/ledger-wise-balances/search",
+        payload,
+        "POST",
+      );
+      console.log("api response", res);
+      setRows(res?.data?.content || []);
+      setRowCount(res?.data?.page?.totalElements || 0);
+    } catch (error) {
+      console.error(error);
+      showSnackBar(error?.message || "Enquiry failed", "error");
+    } finally {
+      setLoading(false);
+    }
+  }, [callApi, buildPayload, showSnackBar]);
+
+  /* DEBOUNCED FETCH */
+  const debouncedFetch = useMemo(
+    () =>
+      debounce(() => {
+        fetchRows();
+      }, 300),
+    [fetchRows],
+  );
+
+  useEffect(() => {
+    if (!searchQuery) return;
+    debouncedFetch();
+    return () => {
+      debouncedFetch.cancel();
+    };
+  }, [paginationModel, sortModel, filterModel, searchQuery, debouncedFetch]);
+
+  const handleSearch = useCallback(() => {
+    const { cgl, balanceDate } = filters;
+
+    if (cgl.length === 0 || filters.currencies.length ===0 || !balanceDate) {
+      showSnackBar("Please fill all required fields", "warning");
+      return;
+    }
+
+    if (!balanceDate?.isValid?.()) {
+      showSnackBar("Invalid date selected", "warning");
+      return;
+    }
+
+    if (balanceDate.isBefore(MIN_ALLOWED_DATE, "day")) {
+      showSnackBar(
+        `Date cannot be earlier than ${MIN_ALLOWED_DATE.format(DATE_FORMAT)}`,
+        "warning",
+      );
+      return;
+    }
+
+    if (etlDate?.isValid?.() && balanceDate.isAfter(etlDate, "day")) {
+      showSnackBar(
+        `Date cannot exceed ETL date ${etlDate.format(DATE_FORMAT)}`,
+        "warning",
+      );
+      return;
+    }
+
+    setPaginationModel({
+      page: 0,
+      pageSize: paginationModel.pageSize,
+    });
+
+    setSortModel([
+      {
+        field: "balanceDate",
+        sort: "desc",
+      },
+    ]);
+
+    setFilterModel({
+      items: [],
+    });
+
+    setSearchQuery({
+      ...filters,
+    });
+  }, [
+    filters,
+    etlDate,
+    MIN_ALLOWED_DATE,
+    DATE_FORMAT,
+    paginationModel.pageSize,
+    showSnackBar,
+  ]);
+
+  /* RESET */
+  const handleReset = useCallback(() => {
+    setFilters(initialState);
+    setSearchQuery(null);
+    setRows(null);
+    setRowCount(0);
+    setPaginationModel({
+      page: 0,
+      pageSize: DEFAULT_PAGE_SIZE,
+    });
+    setSortModel([
+      {
+        field: "balanceDate",
+        sort: "desc",
+      },
+    ]);
+    setFilterModel({
+      items: [],
+    });
+  }, [initialState]);
+
+  /* EXPORT */
+  const handleExcelExport = useCallback(async () => {
+    const payload = { ...buildPayload(), menuId: menu.id };
+    if (!payload) return;
+    try {
+      setExporting(true);
+      console.log(payload);
+      const response = await callApi(
+        "/ES/ledger-wise-balances/export-excel",
+        payload,
+        "POST",
+        "arraybuffer",
+      );
+      const fileName = `GL_Balance_${payload?.enquiryType === "COLLATION" ? "Collation" : "Consolidation"}_Report`;
+      if (response?.byteLength) {
+        downloadFile(response, "excel", fileName);
+      } else {
+        showSnackBar(
+          "Failed to download, Something went wrong Kindly try again",
+          "error",
+        );
+      }
+    } catch (error) {
+      showSnackBar(
+        error?.message ||
+          "Failed to export, Something went wrong Kindly try again",
+        "error",
+      );
+    } finally {
+      setExporting(false);
+    }
+  }, [buildPayload, callApi, searchQuery, showSnackBar, menu.id]);
 
   return (
-    <>
-      <Box className={styles.appShell}>
-        {/* ---- Sidebar ---- */}
-        <Box className={styles.sidebar}>
-          <Box className={styles.sidebarBrand}>
-            <Box className={styles.sidebarBrandIconWrap}>
-              <Box className={styles.sidebarBrandIcon}>
-                <AccountBalanceOutlined fontSize="small" />
-              </Box>
-            </Box>
-            <Typography className={styles.sidebarBrandText}>Branch Position</Typography>
-          </Box>
-
-          <Box className={styles.dateCard}>
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '2px' }}>
-            <Public sx={{ fontSize: 15, color: '#6C5CE7' }} />
-            <Typography className={styles.infoCardLabel} sx={{ margin: 0 }}>Circle</Typography>
-          </Box>
-
-          {!hasWholeBank ? (
-            <TextField
-              size="small"
-              fullWidth
-              disabled
-              value={`${user?.circleCode} - ${user?.circleName}`}
-            />
-          ) : (
-            <Autocomplete
-              size="small"
-              fullWidth
-              value={selectedCircle}
-              options={circleOptions}
-              loading={circleLoading}
-              getOptionLabel={(o) => o ? `${o.code} - ${o.name}` : ''}
-              isOptionEqualToValue={(o, v) => o.code === v?.code}
-              inputValue={circleInput}
-              onInputChange={(e, val, reason) => {
-                setCircleInput(val);
-                if (reason === 'input') fetchCircleOptions(val);
-              }}
-              onChange={(e, val) => setSelectedCircle(val)}
-              noOptionsText={circleInput.length < 3 ? "Enter at least 3 characters" : "No Options"}
-              renderInput={(params) => <TextField {...params} placeholder="Search circle" />}
-            />
-          )}
-        </Box>
-        <Box className={styles.dateCard}>
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '2px' }}>
-            <AccountBalance sx={{ fontSize: 15, color: '#6C5CE7' }} />
-            <Typography className={styles.infoCardLabel} sx={{ margin: 0 }}>Branch</Typography>
-          </Box>
-
-          {isBranchUser ? (
-            <TextField
-              size="small"
-              fullWidth
-              disabled
-              value={`${effectiveBranchCode} - ${effectiveBranchName}`}
-            />
-          ) : (
-            <Autocomplete
-              size="small"
-              fullWidth
-              value={selectedBranch}
-              options={branchOptions}
-              loading={branchLoading}
-              getOptionLabel={(o) => o ? `${o.code} - ${o.name}` : ''}
-              isOptionEqualToValue={(o, v) => o.code === v?.code}
-              inputValue={branchInput}
-              onInputChange={(e, val, reason) => {
-                setBranchInput(val);
-                if (reason === 'input') fetchBranchOptions(val);
-              }}
-              onChange={(e, val) => setSelectedBranch(val)}
-              noOptionsText={branchInput.length < 3 ? "Enter at least 3 characters" : "No Options"}
-              renderInput={(params) => <TextField {...params} placeholder="Search branch" />}
-            />
-          )}
-        </Box>
-
-          <Box className={styles.dateCard}>
-            <Box sx={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '2px' }}>
-              <CalendarMonthOutlined sx={{ fontSize: 15, color: '#6C5CE7' }} />
-              <Typography className={styles.infoCardLabel} sx={{ margin: 0 }}>Report Date</Typography>
-            </Box>
-            <LocalizationProvider dateAdapter={AdapterDayjs}>
-              <DesktopDatePicker
-                value={userDate ? dayjs(userDate.substring(0, 11), 'YYYY-MM-DD') : dayjs()}
-                onChange={(newVal) => { newVal ? setUserDate(newVal.format('YYYY-MM-DD')) : setUserDate(dayjs().format('YYYY-MM-DD')) }}
-                minDate={MIN_ALLOWED_DATE}
-                maxDate={dayjs()}
-                views={["year", "month", "day"]}
-                format='DD-MM-YYYY'
-                closeOnSelect={true}
-                slotProps={{ textField: { size: 'small', fullWidth: true } }}
-                slots={{ actionBar: () => null }}
-              />
-            </LocalizationProvider>
-          </Box>
-
-          <Tabs
-            orientation="vertical"
-            className={styles.navTabs}
-            value={mode}
-            sx={{'& .MuiTabs-flexContainer':{gap:'8px'}}}
-            onChange={() => {
-              setMode((mode === "DD") ? "GE" : "DD");
-              setGlifDataFilter({})
-            }}
-            TabIndicatorProps={{ style: { display: 'none' } }}
-            aria-label="branch position mode navigation"
-          >
-            <Tab
-              value="DD" className={styles.navTab}
-              icon={<AdjustOutlined fontSize="small" />} iconPosition="start"
-              label="Reconciliation Status"
-              disabled={loading != "N" && mode != "DD"}
-            />
-            <Tab
-              value="GE" className={styles.navTab}
-              icon={<StorageOutlined fontSize="small" />} iconPosition="start"
-              label="GLIF Data"
-              disabled={loading != "N" && mode != "GE"}
-            />
-          </Tabs>
-
-          <Box className={styles.sidebarFooter}>
-            <Box className={styles.sidebarIllustration}>
-              <AutoAwesome className={styles.sparkleTopRight} />
-              <AutoAwesome className={styles.sparkleBottomLeft} />
-              <AutoAwesome className={styles.sparkleMidRight} />
-              <Box className={styles.bankIllustration}>
-              <Box className={styles.bankGlow} >
-                <AccountBalance className={styles.bankIcon} />
-              </Box>
-              <AutoAwesome className={styles.bankSparkle1} />
-              <AutoAwesome className={styles.bankSparkle2} />
-              <AutoAwesome className={styles.bankSparkle3} />
-            </Box>
-            </Box>
-          </Box>
-        </Box>
-
-        {/* ---- Main content ---- */}
-        <Box className={styles.mainContent}>
-          {mode === "DD" && (
-            <>
-              <Box className={styles.pageHeaderRow}>
-                <Typography className={styles.pageHeaderTitle}>Reconciliation Status</Typography>
-                <AutoAwesome className={styles.headerSparkle} />
-              </Box>
-              <Typography className={styles.pageHeaderSubtitle}>
-                Reconciliation status for <Box component="span" className={styles.highlightDate}>{formattedDate}</Box>
-              </Typography>
-
-              <Box className={styles.summaryRow}>
-                {Object.entries(categoryMeta).map(([type, meta]) => (
-                  <SummaryCard
-                    key={type}
-                    meta={meta}
-                    count={getCategoryCount(type)}
-                    isLoading={loading === "Y" || loading === type}
-                    onViewDetails={() => openCategoryDialog(type)}
-                    onDownload={() => exportData(type, type)}
-                  />
-                ))}
-              </Box>
-
-              <Box className={styles.infoBanner}>
-                <InfoOutlined fontSize="small" sx={{ color: '#6C5CE7', mt: '1px' }} />
-                <Typography className={styles.infoBannerText}>
-                  Download will include Reconciliation Status for branch {user?.branch?.toString().padStart(5, 0)} on {formattedDate}.
-                </Typography>
-              </Box>
-            </>
-          )}
-
-          {mode === "GE" && (
-            <>
-              <Box className={styles.pageHeaderRow}>
-                <Typography className={styles.pageHeaderTitle}>GLIF data</Typography>
-                <AutoAwesome className={styles.headerSparkle} />
-              </Box>
-              <Typography className={styles.pageHeaderSubtitle}>
-                Download GLIF data for your branch and selected date.
-              </Typography>
-
-              <Box className={styles.glifSection}>
-                <Box className={styles.glifSectionHeader}>
-                  <Box className={styles.glifSectionIcon}><FilterAltOutlined fontSize="small" /></Box>
-                  <Typography className={styles.glifSectionTitle}>Add Filter</Typography>
-                </Box>
-                <Typography className={styles.typographyLabel} sx={{ mb: 1 }}>
-                  Add up to 10 values per filter field.
-                </Typography>
-                <Filter handleFilter={handleFilter} getValues={getFiterData} />
-              </Box>
-
-              <Box className={styles.glifSection}>
-                <Box className={styles.glifSectionHeader} sx={{ marginBottom: 0 }}>
-                  <Box className={styles.glifSectionIcon}><PlaylistAddCheckOutlined fontSize="small" /></Box>
-                  <Typography className={styles.glifSectionTitle}>Applied Filters ({activeFilterCount})</Typography>
-                  {activeFilterCount > 0 && (
-                    <button className={styles.clearAllLink} onClick={() => setGlifDataFilter({})}>
-                      Clear All
-                    </button>
-                  )}
-                </Box>
-                <Box sx={{ marginTop: '14px' }}>
-                  {activeFilterCount === 0 ? (
-                    <Typography variant="caption" sx={{ color: 'rgba(30,20,60,0.45)' }}>
-                      No filters applied yet — results will include the full branch and date.
-                    </Typography>
-                  ) : (
-                    <Box className={styles.chipValues}>
-                      {Object.entries(glifDataFilter).map(([key, val]) => {
-                        const color = filterFieldColors[key] || { bg: '#F1EFE8', text: '#6B6A63' };
-                        const items = Array.isArray(val.value) ? val.value : [val.value];
-                        return items.map((ent, index) => (
-                          <Chip
-                            key={`${key}-${index}`}
-                            size="small"
-                            className={styles.filterFieldChip}
-                            label={`${key.replaceAll('_', ' ')}: ${ent}`}
-                            onDelete={() => Array.isArray(val.value) ? deleteFilterValue(key, ent) : deleteFilter(key)}
-                            deleteIcon={<Delete fontSize="small" />}
-                            sx={{ backgroundColor: color.bg, color: color.text }}
-                          />
-                        ))
-                      })}
-                    </Box>
-                  )}
-                </Box>
-              </Box>
-
-              <Box className={styles.downloadRow}>
-                {/* <Typography className={styles.downloadRowText}>
-                  Includes all GLIF data for branch {user?.branch?.toString().padStart(5, 0)} on {formattedDate} with the applied filters.
-                </Typography> */}
-                <Button
-                  variant="contained"
-                  size="small"
-                  className={styles.downloadRowButton}
-                  startIcon={<Download fontSize="small" />}
-                  onClick={() => exportGlifData()}
-                  sx={{ marginLeft: "auto" }}
-                >
-                  Download GLIF Data
-                </Button>
-              </Box>
-               {/* <Box className={styles.infoBanner} mt="auto" >
-                <InfoOutlined fontSize="small" sx={{ color: '#6C5CE7', mt: '1px' }} />
-                <Typography className={styles.infoBannerText}>
-                  Includes all GLIF data for branch {user?.branch?.toString().padStart(5, 0)} on {formattedDate} with the applied filters.
-                </Typography>
-              </Box> */}
-            </>
-          )}
-        </Box>
-        
-      </Box>
-{/* CHANGE 5: maxWidth="xl" — dialogPaper CSS also forces a wide fixed
-          width so wide financial tables fit without columns spilling out.
-          CHANGE 6: category view now also has a Download icon next to Close. */}
-      <Dialog
-        open={isDialogOpen}
-        onClose={closeDialog}
-        maxWidth="xl"
-        fullWidth
-        PaperProps={{ className: styles.dialogPaper }}
+    <LocalizationProvider dateAdapter={AdapterDayjs}>
+      <Box
+        sx={{
+          p: { xs: 1, sm: 2, md: 2.5 },
+          width: "100%",
+          boxSizing: "border-box",
+        }}
       >
-        <DialogTitle className={styles.dialogTitle}>
-          {dialogView === 'breakup' && (
-            <IconButton className={styles.dialogButton} onClick={goBackToCategory} size="small" title="Back">
-              <ArrowBackOutlined fontSize="small" />
-            </IconButton>
-          )}
+        <LedgerForm
+          filters={filters}
+          onFilterChange={(field, value) => {
+            if (field === "enquiryType") {
+              setRows(null);
+              setRowCount(0);
+              setSearchQuery(null);
+              setFilters({
+                ...initialDetails,
+                enquiryType: value,
+              });
+              return;
+            }
+            setFilters((prev) => ({
+              ...prev,
+              [field]: value,
+            }));
+          }}
+          onReset={handleReset}
+          onFetch={handleSearch}
+          permissions={{
+            hasWholeBank,
+            hasCircle,
+          }}
+          user={user}
+          circles={circles}
+          currencies={currencies}
+          FOREIGN_CIRCLE_CODE={FOREIGN_CIRCLE_CODE}
+          CIRCLE_GROUPS={CIRCLE_GROUPS}
+          minLimit={MIN_ALLOWED_DATE}
+          maxLimit={etlDate || dayjs()}
+          fetchLoading={loading}
+          isCollationMode={isCollationMode}
+        />
 
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-            <Typography className={styles.dialogTitleText}>
-              {dialogView === 'category' ? (activeMeta?.category || 'Details') : 'Difference Break-up'}
-            </Typography>
-            <Chip
-              label={
-                dialogView === 'category'
-                  ? (dialogCategoryCount > 0 ? `${dialogCategoryCount.toLocaleString("en-IN")} Records Found` : "No Records")
-                  : ((breakupDataRows?.content?.length > 0) ? `${breakupDataRows.content.length.toLocaleString("en-IN")} Records Found` : "No Records")
-              }
-              size="small"
-              sx={{
-                fontWeight: 700,
-                color: "#58469f",
-                bgcolor: "rgba(88, 70, 159, 0.1)",
-                borderRadius: "8px",
-              }}
-            />
-          </Box>
+        {rows && (
+          <LedgerDataGrid
+            rows={rows}
+            loading={loading}
+            rowCount={rowCount}
+            paginationModel={paginationModel}
+            setPaginationModel={setPaginationModel}
+            sortModel={sortModel}
+            setSortModel={setSortModel}
+            filterModel={filterModel}
+            setFilterModel={setFilterModel}
+            onExcelExport={handleExcelExport}
+            exporting={exporting}
+            selectedCurrency={searchQuery?.currencies || "ALL"}
+            selectedCircle={searchQuery?.circle || "ALL"}
+            branchOptions={selectedBranchOptions}
+            circleOptions={selectedCircleOptions}
+            currencyOptions={selectedCurrencyOptions}
+            searchPerformed={!!searchQuery}
+            enquiryType={filters.enquiryType}
+            selectedCgl={filters.cgl}
+          />
+        )}
+      </Box>
+    </LocalizationProvider>
+  );
+};
 
-          {/* This empty Box is the spacer that pushes everything after it to the right */}
-          <Box sx={{ flexGrow: 1 }} />
-
-          {dialogView === 'category' && (
-            <IconButton
-              className={styles.dialogButton}
-              disabled={!dialogCategoryCount}
-              onClick={() => exportData(dialogType, dialogType)}
-              size="small"
-              title="Download"
-            >
-              <Download fontSize="small" />
-            </IconButton>
-          )}
-          {dialogView === 'breakup' && (
-            <IconButton
-              className={styles.dialogButton}
-              disabled={breakupDataRows?.data?.length == 0}
-              onClick={exportDetailedData}
-              size="small"
-              title="Download breakup"
-            >
-              <Download fontSize="small" />
-            </IconButton>
-          )}
-
-          <IconButton className={styles.dialogButton} onClick={closeDialog} size="small" title="Close">
-            <Close fontSize="small" />
-          </IconButton>
-        </DialogTitle>
-
-        <DialogContent>
-          {dialogView === 'category' && dialogType && (
-            <DisplayTab
-              category={activeMeta.category}
-              type={dialogType}
-              level={1}
-              hideHeader
-              flat
-              data={dataRows[dialogType] || []}
-              clickHandler={fetchDetailedData}
-              downloadHandler={exportData}
-              loading={loading === "Y" || loading === dialogType}
-              requestData={fetchIndividualDifference}
-            />
-          )}
-          {dialogView === 'breakup' && (
-            <DisplayTab
-              data={breakupDataRows || []}
-              category={"Difference Breakup"}
-              type={breakupDataRows?.type}
-              level={2}
-              hideHeader
-              flat
-            />
-          )}
-        </DialogContent>
-      </Dialog>
-    </>
-  )
-}
+export default React.memo(LedgerWiseBalanceEnquiry);
