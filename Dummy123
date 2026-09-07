@@ -1,8 +1,490 @@
-catch (error) {
+
+const alterDateFormat = (date) => {
+  const dateRegex = /^(0[1-9]|[12][0-9]|3[01])([-/.])(0[1-9]|1[0-2])\2(\d{4})$/;
+  return date.replace(dateRegex, '$4$2$3$2$1');
+}
+
+const categoryMeta = {
+  TSD: { label: "Technical Suspense", category: "Technical Suspense Difference", icon: <ReceiptLongOutlined fontSize="small" />, role: "rolePurple" },
+  BCD: { label: "Balance Compare", category: "Balance Compare Difference", icon: <CompareArrowsOutlined fontSize="small" />, role: "roleAmber" },
+    CSD: { label: "CGL Suspense", category: "CGL Suspense Difference", icon: <VerifiedUserOutlined fontSize="small" />, role: "roleTeal" },
+}
+
+const filterFieldColors = {
+  CURRENCY: { bg: '#E1F5EE', text: '#0F8A6C' },
+  CGL: { bg: '#EEEDFE', text: '#6C5CE7' },
+  JOURNAL_NUMBER: { bg: '#E6F1FB', text: '#1D6FB8' },
+  TRANSACTION_CODE: { bg: '#FBEAF0', text: '#C23E70' },
+  BATCH_ID: { bg: '#F1EFE8', text: '#6B6A63' },
+  ACCOUNT: { bg: '#FFF1E0', text: '#C9761A' },
+}
+
+function SummaryCard({ meta, count, isLoading, onViewDetails, onDownload }) {
+  const hasCount = typeof count === 'number';
+  const isMatched = hasCount && count === 0;
+  return (
+    <Paper elevation={0} className={`${styles.summaryCard} ${styles[meta.role]}`}>
+      <Box className={styles.summaryCardHeader}>
+        <Box className={styles.summaryCardIcon}>{meta.icon}</Box>
+        <Typography className={styles.summaryCardLabel}>{meta.label}</Typography>
+      </Box>
+
+      <Box className={styles.summaryCardCenter}>
+        <Typography className={styles.summaryCardCount} sx={{color:isMatched?'#10A37F':(hasCount? '#D32F2F':'inherit')}}>{isLoading ? '—' : (hasCount ? count : '—')}</Typography>
+        <Typography className={styles.summaryCardCaption}>
+          {isLoading ? 'Checking…' : hasCount ? (count === 0 ? 'Reconcilied' : `${count} record${count > 1 ? 's' : ''} found`) : '—'}
+        </Typography>
+      </Box>
+
+      <Box className={styles.summaryCardActions}>
+        <Button
+          className={styles.viewDetailsButton}
+          variant="contained"
+          size="small"
+          startIcon={<VisibilityOutlined sx={{ fontSize: 16 }} />}
+          onClick={onViewDetails}
+        >
+          View Details
+        </Button>
+        <Button
+          className={styles.downloadButtonOutlined}
+          variant="outlined"
+          size="small"
+          startIcon={<Download sx={{ fontSize: 14 }} />}
+          disabled={!hasCount || count === 0}
+          onClick={onDownload}
+        >
+          Download
+        </Button>
+      </Box>
+    </Paper>
+  )
+}
+
+export default function BranchPosition() {
+  const [userDate, setUserDate] = useState(null);
+  const [dataRows, setDataRows] = useState({});
+  const [breakupDataRows, setBreakupDataRows] = useState({});
+  const { callApi } = useApi();
+  const [glifDataFilter, setGlifDataFilter] = useState({});
+  const [loading, setLoading] = useState("N"); //"N","Y","BCD","TSD","CSD"
+  const showSnackBar = useCustomSnackbar();
+  const [mode, setMode] = useState("DD");
+  const user = useSelector((state) => state.auth.user);
+  const selectedMenu = useSelector((state) => state.menus.selectedMenuItem);
+  const permissions = getPermissions(selectedMenu);
+
+  const hasWholeBank = permissions?.wholebank === true;
+  const isCircleUser = user?.isCircle === true;
+  const isBranchUser = !hasWholeBank && !isCircleUser;
+
+  const [selectedBranch, setSelectedBranch] = useState(null); // { code, name } or null
+  const [branchInput, setBranchInput] = useState('');
+  const [branchOptions, setBranchOptions] = useState([]);
+  const [branchLoading, setBranchLoading] = useState(false);
+
+  const effectiveBranchCode = (selectedBranch?.code || user?.branch)?.toString().padStart(5, 0);
+  const effectiveBranchName = selectedBranch?.name || user?.branchName;
+
+  const [dialogType, setDialogType] = useState(null);
+  const [dialogView, setDialogView] = useState('category');
+  const isDialogOpen = dialogType !== null;
+  const MIN_ALLOWED_DATE = useMemo(() => dayjs("2026-03-31"), []);
+  const [rowCount, setRowCount] = useState(0);
+
+  const [highValueData, setHighValueData] = useState([]);
+const [highValueLoading, setHighValueLoading] = useState(false);
+const [highValueDetailsOpen, setHighValueDetailsOpen] = useState(false);
+
+  
+  const [selectedCircle, setSelectedCircle] = useState(null);
+  const [circleInput, setCircleInput] = useState('');
+  const [circleOptions, setCircleOptions] = useState([]);
+  const [circleLoading, setCircleLoading] = useState(false);
+
+  /* DATA FETCHING FUNCTIONS — unchanged, same API calls as before */
+  const debouncedFetchDifference = useCallback(debounce(async (type) => {
+    if (mode === "DD") {
+      await fetchDifference(type);
+    }
+  }, 100), [userDate, mode]);
+
+  const fetchBranchOptions = async (term) => {
+    if (isBranchUser) return;
+    if (!term || term.length < 3) { setBranchOptions([]); return; }
+    try {
+      setBranchLoading(true);
+      const circleValue = hasWholeBank ? '' : (user?.circleCode || '');
+      const url = `/CM/common-master/branches-code-name-only?q=${encodeURIComponent(term)}&circleCode=${circleValue}`;
+      const res = await callApi(url, null, 'GET');
+      if (res?.data?.length > 0) {
+        setBranchOptions(res.data.map((i) => ({ code: i.code, name: i.name })));
+      } else {
+        setBranchOptions([]);
+      }
+    } catch (e) {
+      showSnackBar(e.message, 'error');
+    } finally {
+      setBranchLoading(false);
+    }
+  };
+
+  const fetchHighValueTransactions = async () => {
+  if (!userDate || !effectiveBranchCode) return;
+
+  setHighValueLoading(true);
+
+  try {
+    const payload = {
+      branch: effectiveBranchCode,
+      date: userDate,
+      filters: [
+        {
+          field: "BRANCH_CODE",
+          operator: "EQUALS",
+          value: effectiveBranchCode
+        },
+        {
+          field: "TRANS_DATE",
+          operator: "EQUALS",
+          value: userDate
+        }
+      ]
+    };
+
+    const response = await callApi(
+      "/ES/branch-position/get-high-value-transactions",
+      "POST",
+      payload
+    );
+
+    setHighValueData(response?.data || response || []);
+  } catch (error) {
   const message =
     error?.response?.data?.message ||
     error?.message ||
     "An error occurred";
 
   showSnackBar(message, "error");
+} finally {
+    setHighValueLoading(false);
+  }
+};
+
+  const fetchCircleOptions = async (term) => {
+    if (!hasWholeBank) return;
+    if (!term || term.length < 3) { setCircleOptions([]); return; }
+    try {
+      setCircleLoading(true);
+      const url = `/CM/common-master/circles-code-name-only?q=${encodeURIComponent(term)}`;
+      const res = await callApi(url, null, 'GET');
+      if (res?.data?.length > 0) {
+        setCircleOptions(res.data.map((i) => ({ code: i.code, name: i.name })));
+      } else {
+        setCircleOptions([]);
+      }
+    } catch (e) {
+      showSnackBar(e.message, 'error');
+    } finally {
+      setCircleLoading(false);
+    }
+  };
+
+  async function fetchDifference() {
+    const payload = {
+      date: userDate,
+      branch: effectiveBranchCode,
+      paginationModel: { page: 0, pageSize: 100 }
+    }
+    try {
+      setLoading("Y");
+      const res = await callApi("/ES/branch-position/get-difference", payload, "POST");
+      if (res && res.success) {
+        setDataRows(res.data);
+      } else {
+        showSnackBar(res.message, "error")
+        setDataRows({});
+      }
+      setLoading("N");
+    } catch (e) {
+      setLoading("N");
+      showSnackBar(e.message, "error")
+    }
+  }
+
+  async function fetchIndividualDifference(type, paginationModel) {
+    const payload = {
+      date: userDate,
+      branch: effectiveBranchCode,
+      differenceType: type,
+      paginationModel
+    }
+    try {
+      setLoading(type);
+      const res = await callApi("/ES/branch-position/get-difference", payload, "POST");
+      if (res && res.success) {
+        setDataRows((prev) => { return { ...prev, [type]: res.data[type] || [] } });
+      } else {
+        showSnackBar(res.message, "error")
+      }
+      setLoading("N");
+    } catch (e) {
+      setLoading("N");
+      showSnackBar(e.message, "error")
+    }
+  }
+
+  const fetchDetailedData = async (type, { cgl, currency, firstErrorDate }) => {
+    const payload = {
+      branch: effectiveBranchCode,
+      cgl, currency,
+      startDate: alterDateFormat(firstErrorDate),
+      endDate: userDate,
+      differenceType: type
+    }
+    try {
+      const res = await callApi("/ES/branch-position/get-detailed-difference", payload, 'POST');
+      if (res && res.success) {
+        setBreakupDataRows({ type, content: res.data || [] });
+        setDialogView('breakup');
+      } else {
+        showSnackBar(res.message, "error")
+      }
+    } catch (e) {
+      showSnackBar(e.message, "error")
+    }
+  }
+
+  const blobErrorHandler = (error) => {
+    if (error instanceof Blob) {
+      error.text().then((errorMessage) => {
+        try {
+          const errorJson = JSON.parse(errorMessage);
+          showSnackBar(errorJson?.message, "error");
+        } catch (e) {
+          showSnackBar(`Error: ${errorMessage}`);
+        }
+      });
+    } else {
+      showSnackBar(error.message, "error");
+    }
+  }
+
+  const exportData = async (filePref, differenceType) => {
+    const payload = {
+      branch: effectiveBranchCode,
+      date: userDate,
+      differenceType
+    }
+    try {
+      const res = await callApi("/ES/branch-position/export-difference", payload, 'POST', 'blob', 'application/octet-stream');
+      if (res) {
+        const filename = `${filePref}_${payload.branch}_${alterDateFormat(userDate)}`
+        const fileData = new Blob([res]);
+        downloadFile(fileData, "xlsx", filename, false);
+      } else {
+        throw new Error("Failed to download file!")
+      }
+    } catch (e) {
+      blobErrorHandler(e);
+    }
+  }
+
+  const exportDetailedData = async () => {
+    if (breakupDataRows?.content.length == 0) {
+      showSnackBar("No Rows to download!", "error")
+    }
+    const cgl = breakupDataRows.content[0].cgl
+    const currency = breakupDataRows.content[0].currency
+    const branch = effectiveBranchCode
+    const differenceType = breakupDataRows.type
+    const firstErrorDate = breakupDataRows.content[0].firstErrorDate;
+    const payload = {
+      branch, cgl, currency,
+      startDate: alterDateFormat(firstErrorDate),
+      endDate: userDate,
+      differenceType
+    }
+    try {
+      const res = await callApi("/ES/branch-position/export-detailed-difference", payload, 'POST', 'blob', 'application/octet-stream');
+      if (res) {
+        const filename = `${differenceType}_${branch}_${currency}_${cgl}_${alterDateFormat(userDate)}`
+        const fileData = new Blob([res]);
+        downloadFile(fileData, "xlsx", filename, false);
+      } else {
+        throw new Error("Failed to download file!")
+      }
+    } catch (e) {
+      blobErrorHandler(e);
+    }
+  }
+  const exportGlifData = async () => {
+  const payload = {
+    branch: effectiveBranchCode,
+    date: userDate,
+    filters: [
+      { field: "BRANCH_CODE", operator: "EQUALS", value: effectiveBranchCode},
+      { field: "TRANS_DATE", operator: "EQUALS", value: userDate },
+      ...Object.entries(glifDataFilter).map(([key, entry]) => { return { ["field"]: key, ["operator"]: entry.operator, ["value"]: entry.value } })
+    ]
+  }
+  try {
+    const res = await callApi("/ES/branch-position/export-glif-data", payload, 'POST', 'blob', 'application/octet-stream');
+    if (res) {
+
+      const text = await res.text();
+      try {
+        const parsed = JSON.parse(text);
+        if (parsed.success === false) {
+          showSnackBar(parsed.message || "No data found.", "error");
+          return;
+        }
+      } catch  {
+        // not JSON — it's a real file
+      }
+
+      const branch = effectiveBranchCode
+      let filename = `glif_${branch}_${alterDateFormat(userDate)}${Object.keys(glifDataFilter).length > 0 ? "_filtered" : ""}`;
+      const fileData = new Blob([text]);
+      downloadFile(fileData, "xlsx", filename, false);
+    } else {
+      throw new Error("Failed to download file!")
+    }
+  } catch (error) {
+    blobErrorHandler(error);
+  }
 }
+
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        const res = await callApi("/ES/branch-position/user-date");
+        if (res && res.success) {
+          setUserDate(res.data.substring(0, 10));
+        } else {
+          showSnackBar(res.message, "error")
+        }
+      } catch (e) {
+        showSnackBar(e.message, "error")
+      }
+    }
+    fetchData();
+
+    return () => {
+      setUserDate(null);
+      setBreakupDataRows({});
+      setDataRows(null);
+      setDialogType(null);
+      setDialogView('category');
+      setGlifDataFilter({});
+      setLoading("N");
+      setMode("DD")
+    }
+  }, []);
+
+  useEffect(() => {
+    if (userDate == null) { return; }
+    setBreakupDataRows({});
+    debouncedFetchDifference();
+  }, [userDate, debouncedFetchDifference]);
+
+  useEffect(() => {
+  if (!userDate || !effectiveBranchCode || mode !== "DD") {
+    return;
+  }
+
+  fetchHighValueTransactions();
+}, [userDate, effectiveBranchCode, mode]);
+
+  const openCategoryDialog = (type) => {
+    setDialogType(type);
+    setDialogView('category');
+  }
+
+  const closeDialog = () => {
+    setDialogType(null);
+    setDialogView('category');
+    setBreakupDataRows({});
+  }
+
+  const goBackToCategory = () => {
+    setDialogView('category');
+    setBreakupDataRows({});
+  }
+
+  const handleFilter = (filter) => {
+    if (!filter.multiValue) {
+      setGlifDataFilter((prev) => { return { ...prev, [filter.field]: { operator: "EQUALS", value: filter.value } } })
+      return;
+    }
+    if (glifDataFilter[filter.field]) {
+      if (glifDataFilter[filter.field].value.length >= 10) {
+        showSnackBar("only 10 filter values allowed!", "error");
+        return;
+      } else {
+        if (new Set(glifDataFilter[filter.field].value).has(filter.value)) {
+          showSnackBar("value already present in the filter!", "error")
+          return;
+        }
+      }
+      setGlifDataFilter((prev) => { return { ...prev, [filter.field]: { operator: "IN", value: [...prev[filter.field].value, filter.value] } } })
+      return
+    }
+    setGlifDataFilter((prev) => { return { ...prev, [filter.field]: { operator: "IN", value: [filter.value] } } })
+  }
+
+  const deleteFilter = (key) => {
+    const { [key]: _, ...rem } = glifDataFilter;
+    setGlifDataFilter(rem);
+  }
+
+  const deleteFilterValue = (key, deleteVal) => {
+    const newArray = glifDataFilter[key].value.filter((val) => val != deleteVal);
+    if (newArray.length > 0) {
+      setGlifDataFilter((prev) => { return { ...prev, [key]: { ...prev[key], value: newArray } } })
+    } else {
+      deleteFilter(key)
+    }
+  }
+
+  const getFiterData = (field) => {
+    return glifDataFilter[field]?.value || [];
+  }
+
+  const getCategoryCount = (type) => {
+    const bucket = dataRows?.[type];
+    if (!bucket) return null;
+    if (typeof bucket?.page?.totalElements === 'number') return bucket.page.totalElements;
+    if (Array.isArray(bucket?.content)) return bucket.content.length;
+    return null;
+  }
+
+  const activeFilterCount = Object.keys(glifDataFilter).length;
+  const formattedDate = userDate ? dayjs(userDate).format('DD-MM-YYYY') : '—';
+  const activeMeta = dialogType ? categoryMeta[dialogType] : null;
+  const dialogCategoryCount = dialogType ? getCategoryCount(dialogType) : null;
+
+  return (
+    <>
+      <Box className={styles.appShell}>
+        {/* ---- Sidebar ---- */}
+        <Box className={styles.sidebar}>
+          <Box className={styles.sidebarBrand}>
+            <Box className={styles.sidebarBrandIconWrap}>
+              <Box className={styles.sidebarBrandIcon}>
+                <AccountBalanceOutlined fontSize="small" />
+              </Box>
+            </Box>
+            <Typography className={styles.sidebarBrandText}>Branch Position</Typography>
+          </Box>
+
+          <Box className={styles.dateCard}>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '2px' }}>
+            <Public sx={{ fontSize: 15, color: '#6C5CE7' }} />
+            <Typography className={styles.infoCardLabel} sx={{ margin: 0 }}>Circle</Typography>
+          </Box>
+
+          {!hasWholeBank ? (
+            <TextField
+              size="small"
+              fullWidth
