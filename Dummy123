@@ -1,1 +1,13 @@
+const fetchRowsRef = useRef(fetchRows);
+useEffect(() => {
+  fetchRowsRef.current = fetchRows;
+}, [fetchRows]);
 
+
+
+
+
+const debouncedFetch = useMemo(
+  () => debounce(() => fetchRowsRef.current(), 300),
+  [],
+);
