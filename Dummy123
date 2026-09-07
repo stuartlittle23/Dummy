@@ -1,1 +1,96 @@
+const [highValueData, setHighValueData] = useState([]);
+const [highValueLoading, setHighValueLoading] = useState(false);
+const [highValueDetailsOpen, setHighValueDetailsOpen] = useState(false);
+
+
+
+
+import ReceiptLongOutlined from "@mui/icons-material/ReceiptLongOutlined";
+
+
+
+
+const fetchHighValueTransactions = async () => {
+  if (!userDate || !effectiveBranchCode) return;
+
+  setHighValueLoading(true);
+
+  try {
+    const payload = {
+      branch: effectiveBranchCode,
+      date: userDate,
+      filters: [
+        {
+          field: "BRANCH_CODE",
+          operator: "EQUALS",
+          value: effectiveBranchCode
+        },
+        {
+          field: "TRANS_DATE",
+          operator: "EQUALS",
+          value: userDate
+        }
+      ]
+    };
+
+    const response = await callApi(
+      "/ES/branch-position/get-high-value-transactions",
+      "POST",
+      payload
+    );
+
+    setHighValueData(response?.data || response || []);
+  } catch (error) {
+    setHighValueData([]);
+  } finally {
+    setHighValueLoading(false);
+  }
+};
+
+
+
+
+
+
+
+useEffect(() => {
+  if (!userDate || !effectiveBranchCode || mode !== "DD") {
+    return;
+  }
+
+  fetchHighValueTransactions();
+}, [userDate, effectiveBranchCode, mode]);
+
+
+
+
+<Box className={styles.summaryRow}>
+  {Object.entries(categoryMeta).map(([type, meta]) => (
+    <SummaryCard
+      key={type}
+      meta={meta}
+      count={getCategoryCount(type)}
+      isLoading={loading === "Y" || loading === type}
+      onViewDetails={() => openCategoryDialog(type)}
+      onDownload={() => exportData(type, type)}
+    />
+  ))}
+
+  <SummaryCard
+    meta={{
+      label: "High Value Transactions",
+      icon: <ReceiptLongOutlined fontSize="small" />,
+      role: "rolePurple"
+    }}
+    count={highValueData.length}
+    isLoading={highValueLoading}
+    onViewDetails={() => setHighValueDetailsOpen(true)}
+    onDownload={() => {}}
+  />
+</Box>
+
+
+
+
+
 
