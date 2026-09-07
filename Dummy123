@@ -1,443 +1,491 @@
+                           value: c.circleCode,
+                                label:
+                                  c.circleCode === FOREIGN_CIRCLE_CODE
+                                    ? `${c.circleCode} - Foreign`
+                                    : `${c.circleCode} - ${c.circleName}`,
+                              })),
+                            ]}
+                            value={(() => {
+                              if (filters.circle === CIRCLE_GROUPS.ALL)
+                                return {
+                                  value: CIRCLE_GROUPS.ALL,
+                                  label: "All Circles",
+                                };
+                              if (filters.circle === CIRCLE_GROUPS.DOMESTIC)
+                                return {
+                                  value: CIRCLE_GROUPS.DOMESTIC,
+                                  label: "Domestic Circles",
+                                };
+                              if (filters.circle === CIRCLE_GROUPS.FOREIGN)
+                                return {
+                                  value: CIRCLE_GROUPS.FOREIGN,
+                                  label: "Foreign Circles",
+                                };
+                              const matched = circles.find(
+                                (c) => c.circleCode === filters.circle,
+                              );
+                              return matched
+                                ? {
+                                    value: matched.circleCode,
+                                    label:
+                                      matched.circleCode === FOREIGN_CIRCLE_CODE
+                                        ? `${matched.circleCode} - Foreign`
+                                        : `${matched.circleCode} - ${matched.circleName}`,
+                                  }
+                                : null;
+                            })()}
+                            isOptionEqualToValue={(option, value) =>
+                              option?.value === value?.value
+                            }
+                            onChange={(_, value) => handleCircleChange(value)}
+                            getOptionLabel={(option) => option?.label || ""}
+                            renderInput={(params) => (
+                              <TextField
+                                {...params}
+                                label="Select Circle"
+                                required
+                                variant="standard"
+                                inputProps={{
+                                  ...params.inputProps,
+                                  maxLength: 30,
+                                }}
+                              />
+                            )}
+                          />
+                        </Grid>
+                      )}
 
-const BalanceLedgerForm = ({
-  filters,
-  onFilterChange,
-  onReset,
-  onFetch,
-  permissions,
-  user,
-  circles,
-  currencies,
-  FOREIGN_CIRCLE_CODE,
-  CIRCLE_GROUPS,
-  minLimit,
-  maxLimit,
-  fetchLoading,
-}) => {
-  const { callApi } = useApi();
-  const { hasWholeBank, hasCircle } = permissions;
-  const [branchSearch, setBranchSearch] = useState(null);
-  const [branches, setBranches] = useState([]);
-  const [cgls, setCgls] = useState(["All CGLs"]);
-  const [loading, setLoading] = useState({
-    branch: false,
-    cgl: false,
-    currency: false,
-  });
-  const [viewList, setViewList] = useState(null);
-  const [balanceDateError, setBalanceDateError] = useState(null);
-  const [currencyOptions, setCurrencyOptions] = useState([
-    "All Currencies",
-    ...(currencies || []),
-  ]);
-
-  useEffect(() => {
-    const allCurrencies = ["All Currencies", ...(currencies || [])];
-
-    setCurrencyOptions(allCurrencies);
-
-    if (filters.currencies?.includes("All Currencies")) {
-      onFilterChange("currencies", allCurrencies);
-    }
-  }, [currencies]);
-
-  const isCircleVisible = !!hasWholeBank;
-  const isBranchVisible =
-    !permissions.hasWholeBank || filters.enquiryType === "COLLATION";
-
-  const isBranchUser = !hasWholeBank && !user?.isCircle;
-  const isCircleUser = user?.isCircle && !hasWholeBank;
-
-  const branch = filters.branches || [];
-  const hasSelectedBranches =
-    !branch.includes("All Branches") && branch.length > 0;
-
-  const cgl = filters.cgl || [];
-  const hasSelectedCgls = !cgl.includes("All CGLs") && cgl.length > 0;
-
-  const currency = filters.currencies || [];
-  const hasSelectedCurrencies =
-    !currency.includes("All Currencies") && currency.length > 0;
-
-  const searchLogic = useCallback(
-    async (type, term) => {
-      if (!term || term.length < 3) return;
-      try {
-        setLoading((p) => ({ ...p, [type]: true }));
-        let cp = "";
-
-        if (hasWholeBank) {
-          if (
-            filters.circle !== CIRCLE_GROUPS.ALL &&
-            filters.circle !== CIRCLE_GROUPS.DOMESTIC &&
-            filters.circle !== CIRCLE_GROUPS.FOREIGN
-          ) {
-            cp = `&circleCode=${filters.circle}`;
-          } else if (filters.circle === CIRCLE_GROUPS.FOREIGN) {
-            cp = `&circleCode=${FOREIGN_CIRCLE_CODE}`;
-          } else if (filters.circle === CIRCLE_GROUPS.DOMESTIC) {
-            cp = `&circleCode=${CIRCLE_GROUPS.DOMESTIC}`;
-          } else {
-            cp = `&circleCode=${CIRCLE_GROUPS.ALL}`;
-          }
-        } else if (!hasWholeBank) {
-          cp = `&circleCode=${user.circleCode}`;
-        }
-
-        const url =
-          type === "branch"
-            ? `/CM/common-master/branches-code-name-only?q=${encodeURIComponent(term)}${cp}`
-            : type === "cgl"
-              ? `/CM/common-master/cgl-code-description-only?q=${encodeURIComponent(term)}`
-              : `/CM/common-master/currency-code-name-only?q=${encodeURIComponent(term)}`;
-
-        const res = await callApi(url, null, "GET");
-
-        if (res?.data) {
-          let opts = [];
-          if (type === "branch") {
-            opts = res.data.map((i) => `${i.code}-${i.name}`);
-            setBranches(opts);
-          } else if (type === "cgl") {
-            opts = res.data.map((i) => `${i.cglNumber} - ${i.description}`);
-            setCgls(opts);
-          } else if (type === "currency") {
-            opts = res.data.map((i) => `${i.currencyCode} (${i.currencyName})`);
-            setCurrencyOptions(opts);
-          }
-        }
-      } catch (e) {
-        console.error(e);
-      } finally {
-        setLoading((p) => ({ ...p, [type]: false }));
-      }
-    },
-    [
-      hasWholeBank,
-      callApi,
-      filters.circle,
-      CIRCLE_GROUPS.ALL,
-      CIRCLE_GROUPS.DOMESTIC,
-      CIRCLE_GROUPS.FOREIGN,
-      FOREIGN_CIRCLE_CODE,
-      user.circleCode,
-    ],
-  );
-
-  const fetchSearchData = useMemo(
-    () => debounce((t, v) => searchLogic(t, v), 300),
-    [searchLogic],
-  );
-
-  useEffect(() => () => fetchSearchData.cancel(), [fetchSearchData]);
-
-  const handleBranchChange = (val) => {
-    const clickedAll =
-      val.includes("All Branches") &&
-      !filters.branches.includes("All Branches");
-    const isEmpty = val.length === 0;
-
-    if (clickedAll || isEmpty) {
-      onFilterChange("branches", ["All Branches"]);
-      setViewList(null);
-      return;
-    }
-
-    const valWithoutAll = val.filter((v) => v !== "All Branches");
-    onFilterChange("branches", valWithoutAll);
-  };
-
-  const removeBranch = (branchToRemove) => {
-    const updated = filters.branches.filter((b) => b !== branchToRemove);
-
-    if (updated.length === 0) {
-      onFilterChange("branches", ["All Branches"]);
-      setViewList(null);
-    } else {
-      onFilterChange("branches", updated);
-    }
-  };
-
-  const handleCglChange = (val) => {
-    const clickedAll =
-      val.includes("All CGLs") && !filters.cgl.includes("All CGLs");
-    const isEmpty = val.length === 0;
-
-    if (clickedAll || isEmpty) {
-      onFilterChange("cgl", ["All CGLs"]);
-      setViewList(null);
-      return;
-    }
-
-    onFilterChange(
-      "cgl",
-      val.filter((v) => v !== "All CGLs"),
-    );
-  };
-
-  const removeCgl = (item) => {
-    const updated = filters.cgl.filter((c) => c !== item);
-
-    if (updated.length === 0) {
-      onFilterChange("cgl", ["All CGLs"]);
-      setViewList(null);
-    } else {
-      onFilterChange("cgl", updated);
-    }
-  };
-
-  const handleCurrencyChange = (val) => {
-    const hadAll = filters.currencies.includes("All Currencies");
-    const hasAll = val.includes("All Currencies");
-
-    // User clicked "All Currencies" -> select everything
-    if (!hadAll && hasAll) {
-      onFilterChange("currencies", [
-        "All Currencies",
-        ...currencies.filter((c) => c !== "All Currencies"),
-      ]);
-      setViewList(null);
-      return;
-    }
-
-    // User unchecked "All Currencies" -> clear everything
-    if (hadAll && !hasAll) {
-      onFilterChange("currencies", []);
-      setViewList(null);
-      return;
-    }
-
-    // Normal selection
-
-    const updated = val.filter((v) => v !== "All Currencies");
-
-    const actualCurrencies = currencyOptions.filter(
-      (c) => c !== "All Currencies",
-    );
-
-    if (
-      updated.length === actualCurrencies.length &&
-      actualCurrencies.every((c) => updated.includes(c))
-    ) {
-      onFilterChange("currencies", ["All Currencies", ...actualCurrencies]);
-      return;
-    }
-
-    onFilterChange("currencies", updated);
-  };
-
-  const removeCurrency = (item) => {
-    const updated = filters.currencies.filter((c) => c !== item);
-
-    if (updated.length === 0) {
-      onFilterChange("currencies", ["All Currencies"]);
-      setViewList(null);
-    } else {
-      onFilterChange("currencies", updated);
-    }
-  };
-
-  const handleCircleChange = (value) => {
-    onFilterChange("branches", ["All Branches"]);
-    setBranches([]);
-    setViewList(null);
-    onFilterChange("circle", value?.value || null);
-  };
-
-  const SectionHeader = ({ icon, title }) => (
-    <Stack direction="row" spacing={1} alignItems="center" sx={{ mb: 2 }}>
-      <Box
-        sx={{
-          p: 0.5,
-          bgcolor: "primary.main",
-          borderRadius: 1,
-          color: "white",
-          display: "flex",
-        }}
-      >
-        {icon}
-      </Box>
-      <Typography
-        variant="subtitle2"
-        sx={{ fontWeight: 800, color: "text.primary", letterSpacing: 1 }}
-      >
-        {title}
-      </Typography>
-    </Stack>
-  );
-
-  const getDateErrorMessage = (field, error) => {
-    switch (error) {
-      case "maxDate":
-        return `${field} cannot be in future`;
-      case "minDate":
-        return `${field} cannot be before ${minLimit.format("DD/MM/YYYY")}`;
-      case "invalidDate":
-        return `Please enter a valid ${field}`;
-      default:
-        return "";
-    }
-  };
-
-  const validationMessages = [
-    balanceDateError && getDateErrorMessage("Balance Date", balanceDateError),
-  ].filter(Boolean);
-
-  return (
-    <Box sx={{ position: "relative", mb: 2 }}>
-      <Card
-        sx={{
-          borderRadius: "24px",
-          boxShadow: "0 20px 50px rgba(0,0,0,0.1)",
-          border: "1px solid rgba(255,255,255,0.3)",
-        }}
-      >
-        <CardContent sx={{ p: { xs: 2, sm: 3, md: 4 } }}>
-          {/* UPDATED HEADER: Responsive stacking to prevent overlap on mobile */}
-          <Stack
-            direction={{ xs: "column", lg: "row" }}
-            justifyContent="space-between"
-            alignItems={{ xs: "flex-start", lg: "center" }}
-            spacing={{ xs: 3, lg: 0 }}
-            sx={{ mb: 2 }}
-          >
-            <Box>
-              <Typography
-                variant="h4"
-                sx={{
-                  fontWeight: 900,
-                  // fontSize: { xs: "1.75rem", md: "2.125rem" },
-                }}
-              >
-                Ledger Balance Insights
-              </Typography>
-              <Typography variant="body2" color="text.secondary">
-                Ledger Balance search and analysis
-              </Typography>
-            </Box>
-            {!isBranchUser && (
-              <Paper
-                elevation={3}
-                sx={{
-                  px: { xs: 2, sm: 4 },
-                  py: 1,
-                  borderRadius: "50px",
-                  display: "flex",
-                  flexDirection: { xs: "column", sm: "row" },
-                  alignItems: "center",
-                  gap: { xs: 1.5, sm: 3 },
-                  border: "1px solid #ffffff77",
-                  bgcolor: "#bba7da4f",
-                  boxShadow: "0 6px 18px rgba(0, 0, 0, 0.23)",
-                  width: { xs: "100%", sm: "auto" },
-                  boxSizing: "border-box",
-                }}
-              >
-                <Stack direction="row" spacing={1} alignItems="center">
-                  <SummarizeIcon sx={{ color: "#58469f" }} />
-                  <Typography
-                    variant="subtitle1"
-                    sx={{ fontWeight: 900, color: "#333" }}
-                  >
-                    Switch Enquiry Type
-                  </Typography>
-                </Stack>
-
-                <ToggleButtonGroup
-                  exclusive
-                  size="small"
-                  value={filters.enquiryType}
-                  onChange={(_, value) => {
-                    if (value) {
-                      onFilterChange("enquiryType", value);
-                    }
-                  }}
-                  sx={{
-                    width: { xs: "100%", sm: "auto" },
-                    display: "flex",
-                    "& .MuiToggleButton-root": {
-                      flex: { xs: 1, sm: "none" },
-                      px: { xs: 1, sm: 3 },
-                      py: 0.8,
-                      borderRadius: "10px !important",
-                      textTransform: "none",
-                      fontWeight: 700,
-                      border: "1px solid #d0d7de",
-                      color: "#555",
-                      transition: "all 0.25s",
-                      mx: 0.5,
-                    },
-                    "& .Mui-selected": {
-                      bgcolor: "#58469f !important",
-                      color: "#fff !important",
-                      borderColor: "#58469f !important",
-                      boxShadow: "0 4px 12px rgba(88,70,159,0.35)",
-                    },
-                    "& .MuiToggleButton-root:hover": {
-                      bgcolor: "rgba(88,70,159,0.08)",
-                    },
-                  }}
-                >
-                  <ToggleButton value="COLLATION">Collation</ToggleButton>
-                  <ToggleButton value="CONSOLIDATED">
-                    Consolidation
-                  </ToggleButton>
-                </ToggleButtonGroup>
-              </Paper>
-            )}
-          </Stack>
-
-          {/* 1. HIERARCHY ZONE */}
-          <Grid
-            container
-            spacing={4}
-            sx={{
-              mt: { xs: 2, md: 4 },
-              alignItems: "stretch", // Ensures both columns stretch to equal height on Desktop
-            }}
-          >
-            {/* 1. HIERARCHY ZONE */}
-            {!isBranchUser &&
-              !(isCircleUser && filters.enquiryType === "CONSOLIDATED") &&
-              (isCircleVisible || isBranchVisible) && (
-                <Grid size={{ xs: 12, md: 6 }}>
-                  <Paper
-                    variant="outlined"
-                    sx={{
-                      p: 3,
-                      borderRadius: "20px",
-                      bgcolor: "rgba(0,0,0,0.01)",
-                      borderStyle: "dashed",
-                      position: "relative",
-                      height: "100%", // Forces panel to fill the grid height
-                      display: "flex",
-                      flexDirection: "column",
-                    }}
-                  >
-                    {/* Note: Fixed the empty icon={} syntax error here */}
-                    <SectionHeader
-                      icon={<AccountBalanceIcon fontSize="small" />}
-                      title="Hierarchy"
-                    />
-
-                    <Grid container spacing={2}>
-                      {isCircleVisible && (
-                        <Grid
-                          size={{
-                            xs: 12,
-                            sm: isBranchVisible && filters.circle ? 6 : 12,
-                          }}
-                        >
+                      {isBranchVisible && filters.circle && (
+                        <Grid size={{ xs: 12, sm: isCircleVisible ? 6 : 12 }}>
                           <Autocomplete
+                            multiple
                             size="small"
-                            autoHighlight
-                            options={[
-                              {
-                                value: CIRCLE_GROUPS.ALL,
-                                label: "All Circles",
-                              },
-                              {
-                                value: CIRCLE_GROUPS.DOMESTIC,
-                                label: "Domestic Circles",
-                              },
-                              {
+                            disableCloseOnSelect
+                            options={["All Branches", ...branches]}
+                            loading={loading.branch}
+                            value={filters.branches}
+                            inputValue={branchSearch}
+                            onClose={(e, reason) => {
+                              if (reason === "blur") {
+                                setBranches([]);
+                                setBranchSearch("");
+                              }
+                            }}
+                            onInputChange={(event, newInputValue, reason) => {
+                              if (newInputValue.length > 30) return;
+                              setBranchSearch(newInputValue);
+                              if (
+                                reason === "input" &&
+                                newInputValue.length >= 3
+                              ) {
+                                fetchSearchData("branch", newInputValue);
+                              }
+                            }}
+                            onChange={(_, val) => {
+                              handleBranchChange(val);
+                              setBranchSearch("");
+                            }}
+                            renderTags={() => null}
+                            renderOption={(props, option, { selected }) => (
+                              <li {...props} key={option}>
+                                <Checkbox
+                                  size="small"
+                                  style={{ marginRight: 8 }}
+                                  checked={selected}
+                                />
+                                <Typography variant="body2">
+                                  {option}
+                                </Typography>
+                              </li>
+                            )}
+                            renderInput={(p) => {
+                              const { startAdornment, endAdornment } =
+                                p.InputProps;
+                              return (
+                                <TextField
+                                  {...p}
+                                  label="Select Branches"
+                                  variant="standard"
+                                  required
+                                  placeholder={
+                                    filters.branches.length === 0
+                                      ? "Enter atleast 3 digits..."
+                                      : ""
+                                  }
+                                  InputProps={{
+                                    ...p.InputProps,
+                                    // Render custom chips at the start to prevent overlapping dropdown arrows
+                                    startAdornment: (
+                                      <>
+                                        {filters.branches.length > 0 && (
+                                          <Box
+                                            sx={{
+                                              display: "flex",
+                                              alignItems: "center",
+                                              gap: 0.5,
+                                              mr: 1,
+                                              mt: 0.5,
+                                            }}
+                                          >
+                                            <CustomChip
+                                              label={
+                                                filters.branches.includes(
+                                                  "All Branches",
+                                                )
+                                                  ? "All Branches"
+                                                  : `${filters.branches.length} Selected`
+                                              }
+                                              color={
+                                                filters.branches.includes(
+                                                  "All Branches",
+                                                )
+                                                  ? "default"
+                                                  : "primary"
+                                              }
+                                              sx={{
+                                                fontWeight: 700,
+                                                fontSize: "0.7rem",
+                                                height: 24,
+                                              }}
+                                            />
+                                          </Box>
+                                        )}
+                                        {startAdornment}
+                                      </>
+                                    ),
+                                    endAdornment: (
+                                      <>
+                                        {endAdornment}
+                                        {!filters.branches.includes(
+                                          "All Branches",
+                                        ) && (
+                                          <IconButton
+                                            size="small"
+                                            onClick={(e) => {
+                                              e.stopPropagation(); // Prevents Autocomplete from opening
+                                              setViewList(
+                                                viewList === "branches"
+                                                  ? null
+                                                  : "branches",
+                                              );
+                                            }}
+                                            color={
+                                              viewList === "branches"
+                                                ? "primary"
+                                                : "default"
+                                            }
+                                            sx={{
+                                              width: 26,
+                                              height: 26,
+                                              transition: "0.2s",
+                                              bgcolor:
+                                                viewList === "branches"
+                                                  ? "rgba(25, 118, 210, 0.08)"
+                                                  : "transparent",
+                                            }}
+                                          >
+                                            {viewList === "branches" ? (
+                                              <VisibilityOffIcon fontSize="small" />
+                                            ) : (
+                                              <VisibilityIcon fontSize="small" />
+                                            )}
+                                          </IconButton>
+                                        )}
+                                      </>
+                                    ),
+                                  }}
+                                  inputProps={{
+                                    ...p.inputProps,
+                                    maxLength: 30,
+                                  }}
+                                />
+                              );
+                            }}
+                          />
+                        </Grid>
+                      )}
+                    </Grid>
+                  </Paper>
+                </Grid>
+              )}
+
+            {/* 2. ACCOUNT ZONE */}
+            <Grid
+              size={{
+                xs: 12,
+                md:
+                  !isBranchUser &&
+                  !(isCircleUser && filters.enquiryType === "CONSOLIDATED")
+                    ? 6
+                    : 12,
+              }}
+            >
+              <Paper
+                variant="outlined"
+                sx={{
+                  p: 3,
+                  borderRadius: "20px",
+                  bgcolor: "rgba(0,0,0,0.01)",
+                  borderStyle: "dashed",
+                  height: "100%",
+                  display: "flex",
+                  flexDirection: "column",
+                }}
+              >
+                <SectionHeader
+                  icon={<SearchIcon fontSize="small" />}
+                  title="Account Details"
+                />
+                <Grid container spacing={2}>
+                  <Grid size={{ xs: 12, sm: 6 }}>
+                    <Autocomplete
+                      multiple
+                      autoHighlight
+                      disableCloseOnSelect
+                      renderTags={() => null}
+                      limitTags={0}
+                      value={filters.cgl}
+                      options={[
+                        "All CGLs",
+                        ...cgls.filter((c) => c !== "All CGLs"),
+                      ]}
+                      clearIcon={filters.cgl ? undefined : null}
+                      noOptionsText={
+                        filters.enquiryType !== "CONSOLIDATED" &&
+                        (!filters.cgl || filters.cgl.length < 3)
+                          ? "Please enter at least 3 characters"
+                          : "No Options"
+                      }
+                      loadingText="Searching Cgls..."
+                      onClose={(e, reason) => {
+                        if (reason === "blur") {
+                          setCgls([]);
+                        }
+                      }}
+                      onInputChange={(e, v, reason) => {
+                        if (reason === "input" && v?.length >= 3) {
+                          fetchSearchData("cgl", v);
+                        }
+                      }}
+                      onChange={(_, v) => handleCglChange(v)}
+                      renderOption={(props, option, { selected }) => (
+                        <li {...props}>
+                          <Checkbox checked={selected} />
+                          {option}
+                        </li>
+                      )}
+                      renderInput={(params) => {
+                        const { startAdornment, endAdornment } =
+                          params.InputProps;
+                        return (
+                          <TextField
+                            {...params}
+                            variant="standard"
+                            label="CGL *"
+                            placeholder={
+                              filters.cgl.length === 0
+                                ? "Enter atleast 3 characters..."
+                                : ""
+                            }
+                            InputProps={{
+                              ...params.InputProps,
+                              startAdornment: (
+                                <>
+                                  {filters.cgl.length > 0 && (
+                                    <Box
+                                      sx={{
+                                        display: "flex",
+                                        alignItems: "center",
+                                        gap: 0.5,
+                                        mr: 1,
+                                        mt: 0.5,
+                                      }}
+                                    >
+                                      <CustomChip
+                                        label={
+                                          filters.cgl.includes("All CGLs")
+                                            ? "All CGLs"
+                                            : `${filters.cgl.length} Selected`
+                                        }
+                                        color={
+                                          filters.cgl.includes("All CGLs")
+                                            ? "default"
+                                            : "primary"
+                                        }
+                                        sx={{
+                                          fontWeight: 700,
+                                          fontSize: "0.7rem",
+                                          height: 24,
+                                        }}
+                                      />
+                                    </Box>
+                                  )}
+                                  {startAdornment}
+                                </>
+                              ),
+                              endAdornment: (
+                                <>
+                                  {endAdornment}
+                                  {!filters.cgl.includes("All CGLs") && (
+                                    <IconButton
+                                      size="small"
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        setViewList(
+                                          viewList === "cgl" ? null : "cgl",
+                                        );
+                                      }}
+                                      color={
+                                        viewList === "cgl"
+                                          ? "primary"
+                                          : "default"
+                                      }
+                                      sx={{
+                                        width: 26,
+                                        height: 26,
+                                        transition: "0.2s",
+                                        bgcolor:
+                                          viewList === "cgl"
+                                            ? "rgba(25, 118, 210, 0.08)"
+                                            : "transparent",
+                                      }}
+                                    >
+                                      {viewList === "cgl" ? (
+                                        <VisibilityOffIcon fontSize="small" />
+                                      ) : (
+                                        <VisibilityIcon fontSize="small" />
+                                      )}
+                                    </IconButton>
+                                  )}
+                                </>
+                              ),
+                            }}
+                          />
+                        );
+                      }}
+                    />
+                  </Grid>
+
+                  <Grid size={{ xs: 12, sm: 6 }}>
+                    <Autocomplete
+                      multiple
+                      size="small"
+                      options={[...currencyOptions]}
+                      autoHighlight
+                      value={filters.currencies}
+                      disableCloseOnSelect
+                      renderTags={() => null}
+                      limitTags={0}
+                      onChange={(_, v) => handleCurrencyChange(v)}
+                      renderOption={(props, option, { selected }) => (
+                        <li {...props} key={option}>
+                          <Checkbox
+                            size="small"
+                            style={{ marginRight: 8 }}
+                            checked={selected}
+                          />
+                          <Typography variant="body2">{option}</Typography>
+                        </li>
+                      )}
+                      renderInput={(p) => {
+                        const { startAdornment, endAdornment } = p.InputProps;
+                        return (
+                          <TextField
+                            {...p}
+                            label="Currency"
+                            required
+                            variant="standard"
+                            placeholder={
+                              filters.currencies.length === 0
+                                ? "Select Currency"
+                                : ""
+                            }
+                            InputProps={{
+                              ...p.InputProps,
+                              startAdornment: (
+                                <>
+                                  {filters.currencies.length > 0 && (
+                                    <Box
+                                      sx={{
+                                        display: "flex",
+                                        alignItems: "center",
+                                        gap: 0.5,
+                                        mr: 1,
+                                        mt: 0.5,
+                                      }}
+                                    >
+                                      <CustomChip
+                                        label={
+                                          filters.currencies.includes(
+                                            "All Currencies",
+                                          )
+                                            ? "All currencies"
+                                            : `${filters.currencies.length} Selected`
+                                        }
+                                        color={
+                                          filters.currencies.includes(
+                                            "All Currencies",
+                                          )
+                                            ? "default"
+                                            : "primary"
+                                        }
+                                        sx={{
+                                          fontWeight: 700,
+                                          fontSize: "0.7rem",
+                                          height: 24,
+                                        }}
+                                      />
+                                    </Box>
+                                  )}
+                                  {startAdornment}
+                                </>
+                              ),
+                              endAdornment: (
+                                <>
+                                  {endAdornment}
+                                  {!filters.currencies.includes(
+                                    "All Currencies",
+                                  ) && (
+                                    <IconButton
+                                      size="small"
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        setViewList(
+                                          viewList === "currency"
+                                            ? null
+                                            : "currency",
+                                        );
+                                      }}
+                                      color={
+                                        viewList === "currency"
+                                          ? "primary"
+                                          : "default"
+                                      }
+                                      sx={{
+                                        width: 26,
+                                        height: 26,
+                                        transition: "0.2s",
+                                        bgcolor:
+                                          viewList === "currency"
+                                            ? "rgba(25, 118, 210, 0.08)"
+                                            : "transparent",
+                                      }}
+                                    >
+                                      {viewList === "currency" ? (
+                                        <VisibilityOffIcon fontSize="small" />
+                                      ) : (
+                                        <VisibilityIcon fontSize="small" />
+                                      )}
+                                    </IconButton>
+                                  )}
+                                </>
+                              ),
+                            }}
+                          />
+                        );
+                      }}
+                    />
+                  </Grid>
+                </Grid>
+              </Paper>
+            </Grid>
