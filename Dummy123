@@ -1,1 +1,137 @@
+const [highValueData, setHighValueData] = useState([]);
+const [highValueLoading, setHighValueLoading] = useState(false);
+const [highValueDetailsOpen, setHighValueDetailsOpen] = useState(false);
+
+
+
+
+const fetchHighValueTransactions = async () => {
+  const payload = {
+    branch: effectiveBranchCode,
+    date: userDate,
+    filters: [
+      { field: "BRANCH_CODE", operator: "EQUALS", value: effectiveBranchCode },
+      { field: "TRANS_DATE", operator: "EQUALS", value: userDate }
+    ]
+  };
+
+  try {
+    setHighValueLoading(true);
+
+    const res = await callApi(
+      "/ES/branch-position/get-high-value-transactions",
+      payload,
+      "POST"
+    );
+
+    if (res?.success) {
+      setHighValueData(res.data || []);
+    } else {
+      setHighValueData([]);
+      showSnackBar(res?.message || "No data found.", "error");
+    }
+  } catch (e) {
+    setHighValueData([]);
+    showSnackBar(e.message, "error");
+  } finally {
+    setHighValueLoading(false);
+  }
+};
+
+
+
+useEffect(() => {
+  if (userDate == null) {
+    return;
+  }
+
+  setBreakupDataRows({});
+  debouncedFetchDifference();
+  fetchHighValueTransactions();
+}, [userDate, effectiveBranchCode, debouncedFetchDifference]);
+
+
+
+
+<Box className={styles.summaryRow}>
+  {Object.entries(categoryMeta).map(([type, meta]) => (
+    <SummaryCard
+      key={type}
+      meta={meta}
+      count={getCategoryCount(type)}
+      isLoading={loading === "Y" || loading === type}
+      onViewDetails={() => openCategoryDialog(type)}
+      onDownload={() => exportData(type, type)}
+    />
+  ))}
+
+  <SummaryCard
+    meta={{
+      label: "High Value Transactions",
+      icon: <ReceiptLongOutlined fontSize="small" />,
+      role: "rolePurple"
+    }}
+    count={highValueData.length}
+    isLoading={highValueLoading}
+    onViewDetails={() => setHighValueDetailsOpen(true)}
+    onDownload={exportHighValueTransactions}
+  />
+</Box>
+
+
+
+<Dialog
+  open={highValueDetailsOpen}
+  onClose={() => setHighValueDetailsOpen(false)}
+  maxWidth="xl"
+  fullWidth
+  PaperProps={{ className: styles.dialogPaper }}
+>
+  <DialogTitle className={styles.dialogTitle}>
+    <Typography className={styles.dialogTitleText}>
+      High Value Transactions
+    </Typography>
+
+    <Box sx={{ flexGrow: 1 }} />
+
+    <Chip
+      label={`${highValueData.length.toLocaleString("en-IN")} Records Found`}
+      size="small"
+      sx={{
+        fontWeight: 700,
+        color: "#58469f",
+        bgcolor: "rgba(88, 70, 159, 0.1)",
+        borderRadius: "8px",
+        mr: 1
+      }}
+    />
+
+    <IconButton
+      className={styles.dialogButton}
+      onClick={() => setHighValueDetailsOpen(false)}
+      size="small"
+    >
+      <Close fontSize="small" />
+    </IconButton>
+  </DialogTitle>
+
+  <DialogContent>
+    <DisplayTab
+      data={{ content: highValueData }}
+      category="High Value Transactions"
+      type="HIGH_VALUE"
+      level={2}
+      hideHeader
+      flat
+    />
+  </DialogContent>
+</Dialog>
+
+
+
+
+
+
+
+
 
