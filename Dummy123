@@ -1,21 +1,23 @@
-.downloadButtonOutlined {
-  flex: 1;
-  width: auto;
-  height: 38px !important;
-  text-transform: none !important;
-  border-radius: 9px !important;
-  font-weight: 600 !important;
-  font-size: 13px !important;
-  border-width: 1.5px !important;
-}
-
-.downloadButtonOutlined:not(:disabled) {
-  color: #FFFFFF !important;
-  background: linear-gradient(90deg, #4f459b 0%, #9B8FEF 100%) !important;
-  border: none !important;
-  box-shadow: 0 3px 10px rgba(108, 92, 231, 0.3) !important;
-}
-
-.downloadButtonOutlined:disabled {
-  background: transparent !important;
-}
+<Autocomplete
+  size="small"
+  fullWidth
+  value={selectedCircle}
+  options={circleOptions}
+  loading={circleLoading}
+  getOptionLabel={(o) => o ? `${o.code} - ${o.name}` : ''}
+  isOptionEqualToValue={(o, v) => o.code === v?.code}
+  inputValue={circleInput}
+  onInputChange={(e, val) => setCircleInput(val)}
+  onChange={(e, val) => setSelectedCircle(val)}
+  noOptionsText="No Options"
+  renderInput={(params) => (
+    <TextField
+      {...params}
+      label="Circle"
+      inputProps={{
+        ...params.inputProps,
+        title: selectedCircle?.name || ""
+      }}
+    />
+  )}
+/>
