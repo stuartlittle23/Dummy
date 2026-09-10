@@ -1,30 +1,9 @@
-const categoryMeta = {
-  TSD: {
-    label: "Technical Suspense",
-    category: "Technical Suspense Difference",
-    description: "Monitors balances in the Technical Suspense A/c for non-cash intra-branch transactions.",
-    icon: <ReceiptLongOutlined fontSize="small" />,
-    role: "rolePurple"
-  },
-  BCD: {
-    label: "Balance Compare",
-    category: "Balance Compare Difference",
-    description: "Compares B@ncs24 account balances with corresponding Fincore GL balances to identify differences.",
-    icon: <CompareArrowsOutlined fontSize="small" />,
-    role: "roleAmber"
-  },
-  CSD: {
-    label: "CGL Suspense",
-    category: "CGL Suspense Difference",
-    description: "Monitors system suspense balances for invalid CGLs and debit-credit mismatches.",
-    icon: <VerifiedUserOutlined fontSize="small" />,
-    role: "roleTeal"
-  }
-};
-
-
-
-
+<Box className={styles.summaryCardHeader}>
+  <Box className={styles.summaryCardIcon}>{meta.icon}</Box>
+  <Typography className={styles.summaryCardLabel}>
+    {meta.label}
+  </Typography>
+</Box>
 
 <Typography className={styles.summaryCardDescription}>
   {meta.description}
@@ -33,14 +12,11 @@ const categoryMeta = {
 
 
 
-
-
-
 .summaryCardDescription {
   font-size: 12px;
   line-height: 1.4;
   color: rgba(30, 20, 60, 0.55);
-  margin-top: 4px;
+  margin-top: 10px;
+  padding: 0 4px;
+  text-align: left;
 }
-
-
