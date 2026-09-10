@@ -1,19 +1,46 @@
-   <Box className={styles.dateCard}>
-            <Box sx={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '2px' }}>
-              <CalendarMonthOutlined sx={{ fontSize: 15, color: '#6C5CE7' }} />
-              <Typography className={styles.infoCardLabel} sx={{ margin: 0 }}>Report Date</Typography>
-            </Box>
-            <LocalizationProvider dateAdapter={AdapterDayjs}>
-              <DesktopDatePicker
-                value={userDate ? dayjs(userDate.substring(0, 11), 'YYYY-MM-DD') : dayjs()}
-                onChange={(newVal) => { newVal ? setUserDate(newVal.format('YYYY-MM-DD')) : setUserDate(dayjs().format('YYYY-MM-DD')) }}
-                minDate={MIN_ALLOWED_DATE}
-                maxDate={dayjs()}
-                views={["year", "month", "day"]}
-                format='DD-MM-YYYY'
-                closeOnSelect={true}
-                slotProps={{ textField: { size: 'small', fullWidth: true } }}
-                slots={{ actionBar: () => null }}
-              />
-            </LocalizationProvider>
-          </Box>
+<DatePicker
+  value={userDate ? dayjs(userDate, 'YYYY-MM-DD', true) : null}
+  onChange={(newVal, context) => {
+    if (context?.validationError) {
+      setReportDateError(context.validationError);
+      return;
+    }
+
+    setReportDateError(null);
+    setUserDate(newVal ? newVal.format('YYYY-MM-DD') : null);
+  }}
+  onError={(error) => setReportDateError(error)}
+  minDate={MIN_ALLOWED_DATE}
+  maxDate={etlDate}
+  views={["year", "month", "day"]}
+  format="DD-MM-YYYY"
+  disableHighlightToday
+  slotProps={{
+    textField: {
+      size: "small",
+      fullWidth: true,
+      error: !!reportDateError,
+      helperText:
+        reportDateError === "minDate"
+          ? `Report Date cannot be earlier than ${MIN_ALLOWED_DATE.format("DD-MM-YYYY")}`
+          : reportDateError === "maxDate"
+            ? `Report Date cannot exceed Fincore ETL Date ${etlDate?.format("DD-MM-YYYY")}`
+            : reportDateError === "invalidDate"
+              ? "Please enter a valid Report Date"
+              : ""
+    }
+  }}
+/>
+
+
+
+import { DatePicker, LocalizationProvider } from "@mui/x-date-pickers";
+
+
+
+
+
+
+const [reportDateError, setReportDateError] = useState(null);
+
+
