@@ -1,1 +1,23 @@
-
+const CustomNoRowsOverlay = () => (
+    <GridOverlay>
+        <Box sx={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            gap: 1,
+            height: '100%',
+            width: '100%'
+        }}>
+            <SearchOffOutlinedIcon
+                sx={{ fontSize: 24, color: '#6C5CE7' }}
+            />
+            <Typography sx={{
+                fontSize: 13,
+                fontWeight: 600,
+                color: 'rgba(30,20,60,0.65)'
+            }}>
+                No data found for the selected criteria
+            </Typography>
+        </Box>
+    </GridOverlay>
+);
