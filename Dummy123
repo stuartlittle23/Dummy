@@ -1,1 +1,68 @@
+const [etlDate, setEtlDate] = useState(null);
+const [reportDateError, setReportDateError] = useState(null);
 
+
+
+
+useEffect(() => {
+  const fetchEtlDate = async () => {
+    try {
+      const res = await callApi("/PS/file/fincore-date", {}, "GET");
+      const etlRaw = res?.data?.userDate;
+      setEtlDate(etlRaw ? dayjs(etlRaw.split("T")[0]) : null);
+    } catch (e) {
+      showSnackBar(e.message || "Unable to fetch Fincore ETL Date", "error");
+      setEtlDate(null);
+    }
+  };
+
+  fetchEtlDate();
+}, [callApi, showSnackBar]);
+
+
+
+
+
+<DatePicker
+  value={userDate ? dayjs(userDate) : null}
+  onChange={(newVal) => {
+    setReportDateError(null);
+
+    if (!newVal || !newVal.isValid()) {
+      setReportDateError("invalidDate");
+      return;
+    }
+
+    if (newVal.isBefore(MIN_ALLOWED_DATE, "day")) {
+      setReportDateError("minDate");
+      return;
+    }
+
+    if (etlDate?.isValid?.() && newVal.isAfter(etlDate, "day")) {
+      setReportDateError("maxDate");
+      return;
+    }
+
+    setUserDate(newVal.format("YYYY-MM-DD"));
+  }}
+  minDate={MIN_ALLOWED_DATE}
+  maxDate={etlDate}
+  views={["year", "month", "day"]}
+  format="DD-MM-YYYY"
+  disableHighlightToday
+  slotProps={{
+    textField: {
+      size: "small",
+      fullWidth: true,
+      error: !!reportDateError,
+      helperText:
+        reportDateError === "minDate"
+          ? `Report Date cannot be earlier than ${MIN_ALLOWED_DATE.format("DD-MM-YYYY")}`
+          : reportDateError === "maxDate"
+          ? `Report Date cannot exceed Fincore ETL Date ${etlDate?.format("DD-MM-YYYY")}`
+          : reportDateError === "invalidDate"
+          ? "Please enter a valid Report Date"
+          : "",
+    },
+  }}
+/>
