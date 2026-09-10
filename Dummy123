@@ -1,13 +1,29 @@
 slots={{
   noRowsOverlay: () => (
-    <Box sx={{ display: "flex", alignItems: "center", justifyContent: "center", height: "100%", gap: 1 }}>
-      <ErrorOutlineOutlined sx={{ fontSize: 22, color: "#6C5CE7" }} />
-      <Typography sx={{ fontSize: 13, fontWeight: 600, color: "rgba(30,20,60,0.6)" }}>
+    <Box
+      sx={{
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        height: '100%',
+        gap: 1,
+      }}
+    >
+      <ErrorOutlineOutlined
+        sx={{
+          fontSize: 22,
+          color: '#6C5CE7',
+        }}
+      />
+      <Typography
+        sx={{
+          fontSize: 13,
+          fontWeight: 600,
+          color: 'rgba(30,20,60,0.6)',
+        }}
+      >
         No data available for the selected criteria
       </Typography>
     </Box>
-  )
+  ),
 }}
-
-
-import ErrorOutlineOutlined from "@mui/icons-material/ErrorOutlineOutlined";
