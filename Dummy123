@@ -1,36 +1,422 @@
-{dialogView === 'category' && dialogType && (
-  <DisplayTab
-    category={activeMeta.category}
-    type={dialogType}
-    level={1}
-    hideHeader={false}
-    flat
-    reportDate={userDate}
-    data={dataRows[dialogType] || []}
-    clickHandler={fetchDetailedData}
-    downloadHandler={exportData}
-    loading={loading === "Y" || loading === dialogType}
-    requestData={fetchIndividualDifference}
-  />
-)}
+import styled from '@emotion/styled';
+import HistoryOutlinedIcon from '@mui/icons-material/HistoryOutlined';
+import InboxOutlinedIcon from '@mui/icons-material/InboxOutlined';
+import SearchOffOutlinedIcon from '@mui/icons-material/SearchOffOutlined';
+import { Box, Chip, IconButton, Paper, Typography } from '@mui/material';
+import { DataGrid, GridOverlay } from '@mui/x-data-grid';
+import React, { useMemo, useState } from 'react';
 
+const StyledDataGrid = styled(DataGrid)(() => ({
+    maxHeight: '460px',
+    minHeight: '100px',
+    border: 'none',
+    '& .MuiDataGrid-cell:focus, & .MuiDataGrid-columnHeader:focus': {
+        outline: 'none',
+    },
+    '& .MuiDataGrid-cell:focus-within, & .MuiDataGrid-columnHeader:focus-within': {
+        outline: 'none',
+    },
+    '& .MuiDataGrid-columnHeader': {
+        backgroundColor: '#FBFAFF',
+    },
+    '& .MuiDataGrid-columnHeaderTitle': {
+        fontWeight: 600,
+        color: 'rgba(30, 20, 60, 0.7)',
+    },
+    '& .MuiDataGrid-row:hover': {
+        backgroundColor: 'rgba(108, 92, 231, 0.04)',
+    },
+    '& .MuiDataGrid-row.Mui-selected': {
+        backgroundColor: 'transparent',
+    },
+    '& .MuiDataGrid-row.Mui-selected:hover': {
+        backgroundColor: 'rgba(108, 92, 231, 0.04)',
+    },
+}));
 
+const rawColumns = [
+    {
+        field: "firstErrorDate",
+        headerName: "First Error Date",
+        width: 140,
+        headerAlign: 'center',
+        align: 'center',
+        disableColumnMenu: true,
+        sortable: true,
+        filterable: true
+    },
+    {
+        field: "glcc",
+        headerName: "GLCC",
+        minWidth: 220,
+        flex: 1,
+        headerAlign: 'center',
+        align: 'center',
+        disableColumnMenu: true,
+        sortable: true,
+        filterable: true,
+        valueGetter: (value, row) =>
+            `${row?.branchCode || ""}${row?.currency || ""}${row?.cgl || ""}`
+    },
+    {
+        field: "balance",
+        headerName: "Amount",
+        minWidth: 130,
+        align: 'right',
+        headerAlign: 'center',
+        sortable: true,
+        filterable: true,
+        flex: 1
+    },
+    {
+        field: "inrBalance",
+        headerName: "INR Balance",
+        minWidth: 130,
+        align: 'right',
+        headerAlign: 'center',
+        sortable: true,
+        filterable: true,
+        flex: 1
+    },
+    {
+        field: "cbsBalance",
+        headerName: "CBS Balance",
+        minWidth: 140,
+        align: 'right',
+        headerAlign: 'center',
+        sortable: false,
+        filterable: false,
+        flex: 1
+    },
+    {
+        field: "glBalance",
+        headerName: "GL Balance",
+        minWidth: 140,
+        align: 'right',
+        headerAlign: 'center',
+        sortable: false,
+        filterable: false,
+        flex: 1
+    },
+    {
+        field: "differenceAmount",
+        headerName: "Difference Amount",
+        minWidth: 150,
+        align: 'right',
+        headerAlign: 'center',
+        sortable: false,
+        filterable: false,
+        flex: 1
+    },
+    {
+        field: "diffBwYesterday",
+        headerName: "Diff Bw Yesterday",
+        minWidth: 150,
+        align: 'right',
+        headerAlign: 'center',
+        sortable: false,
+        filterable: false,
+        flex: 1
+    },
+    {
+        field: "head",
+        headerName: "Type",
+        minWidth: 100,
+        sortable: true,
+        filterable: true,
+        flex: 1
+    },
+    {
+        field: "type",
+        headerName: "Head",
+        minWidth: 100,
+        sortable: true,
+        filterable: true,
+        flex: 1
+    }
+];
 
+export default function DisplayTab({
+    level,
+    type,
+    data = {},
+    category,
+    clickHandler = () => {},
+    downloadHandler = () => {},
+    requestData = () => {},
+    loading = false,
+    hideHeader = false,
+    flat = false,
+    reportDate,
+    glcc = ""
+}) {
+    const [paginationModel, setPaginationModel] = useState({
+        page: 0,
+        pageSize: 10,
+    });
 
+    const rows = data?.content || [];
 
-{dialogView === 'breakup' && (
-  <DisplayTab
-    data={breakupDataRows || []}
-    category="Difference Breakup"
-    type={breakupDataRows?.type}
-    level={2}
-    hideHeader={false}
-    flat
-    reportDate={userDate}
-  />
-)}
+    const rowsWithId = useMemo(() => {
+        return rows.map((row, index) => ({
+            ...row,
+            __displayTabId:
+                row?.id ||
+                `${type || "row"}-${index}-${row?.branchCode || ""}-${row?.currency || ""}-${row?.cgl || ""}-${row?.date || ""}-${row?.firstErrorDate || ""}-${row?.head || ""}-${row?.type || ""}`
+        }));
+    }, [rows, type]);
 
+    const columns = useMemo(() => {
+        if (!rows || rows.length === 0) return [];
 
+        const fields = Object.keys(rows[0]);
 
+        let cols = rawColumns.filter((column) => {
+            if (column.field === "glcc") {
+                return (
+                    fields.includes("branchCode") ||
+                    fields.includes("currency") ||
+                    fields.includes("cgl")
+                );
+            }
 
+            return fields.includes(column.field);
+        });
 
+        if (level === 2) {
+            cols = cols.filter(
+                (column) =>
+                    column.field !== "glcc"
+            );
+        }
+
+        if (level === 1) {
+            cols.push({
+                field: "action",
+                headerName: "History",
+                headerAlign: 'center',
+                align: 'center',
+                width: 80,
+                sortable: false,
+                filterable: false,
+                disableColumnMenu: true,
+                renderCell: (params) => (
+                    <IconButton
+                        onClick={() => clickHandler(type, params.row)}
+                        size="small"
+                        title="History"
+                    >
+                        <HistoryOutlinedIcon fontSize="small" />
+                    </IconButton>
+                )
+            });
+        }
+
+        return cols;
+    }, [rows, level, type, clickHandler]);
+
+    const handlePaginationModelChange = (newModel) => {
+        setPaginationModel(newModel);
+
+        if (level === 1) {
+            requestData(type, { ...newModel });
+        }
+    };
+
+    const CustomNoRowsOverlay = () => (
+        <GridOverlay>
+            <Box sx={{
+                display: 'flex',
+                flexDirection: 'column',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: '6px',
+                padding: '32px 16px',
+                width: 'calc(100% - 32px)',
+                margin: '8px 16px',
+                border: '1px dashed rgba(108, 92, 231, 0.25)',
+                borderRadius: '12px',
+                backgroundColor: '#FBFAFF'
+            }}>
+                <InboxOutlinedIcon
+                    sx={{
+                        fontSize: 30,
+                        color: 'rgba(108, 92, 231, 0.4)'
+                    }}
+                />
+                <Typography
+                    variant="body2"
+                    sx={{
+                        fontWeight: 600,
+                        color: 'rgba(30, 20, 60, 0.75)'
+                    }}
+                >
+                    No records found
+                </Typography>
+                <Typography
+                    variant="caption"
+                    sx={{
+                        color: 'rgba(30, 20, 60, 0.5)'
+                    }}
+                >
+                    No records found for the selected date and filters.
+                </Typography>
+            </Box>
+        </GridOverlay>
+    );
+
+    const CustomNoDataOverlay = () => (
+        <GridOverlay>
+            <Box sx={{
+                display: 'flex',
+                flexDirection: 'column',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: '6px',
+                padding: '32px 16px',
+                width: 'calc(100% - 32px)',
+                margin: '8px 16px',
+                border: '1px dashed rgba(108, 92, 231, 0.25)',
+                borderRadius: '12px',
+                backgroundColor: '#FBFAFF'
+            }}>
+                <SearchOffOutlinedIcon
+                    sx={{
+                        fontSize: 30,
+                        color: 'rgba(30, 20, 60, 0.35)'
+                    }}
+                />
+                <Typography
+                    variant="body2"
+                    sx={{
+                        fontWeight: 600,
+                        color: 'rgba(30, 20, 60, 0.75)'
+                    }}
+                >
+                    No data available
+                </Typography>
+                <Typography
+                    variant="caption"
+                    sx={{
+                        color: 'rgba(30, 20, 60, 0.5)'
+                    }}
+                >
+                    There are no records to display for this selection.
+                </Typography>
+            </Box>
+        </GridOverlay>
+    );
+
+    return (
+        <Paper
+            elevation={0}
+            sx={flat
+                ? {
+                    border: 'none',
+                    boxShadow: 'none',
+                    margin: 0,
+                    borderRadius: 0
+                }
+                : {
+                    marginTop: '8px',
+                    marginBottom: '8px',
+                    borderRadius: '12px',
+                    overflow: 'hidden',
+                    border: '1px solid rgba(108, 92, 231, 0.1)',
+                    boxShadow: '0 1px 6px rgba(76, 60, 150, 0.06)'
+                }
+            }
+        >
+            {!hideHeader && level === 1 && (
+                <Box sx={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    padding: '8px 14px',
+                    backgroundColor: '#F7F6FD',
+                    borderBottom: '1px solid rgba(108, 92, 231, 0.1)'
+                }}>
+                    <Chip
+                        label={`Report Date: ${reportDate || '—'}`}
+                        size="small"
+                        sx={{
+                            fontWeight: 700,
+                            color: "#58469f",
+                            bgcolor: "rgba(88, 70, 159, 0.1)",
+                            borderRadius: "8px"
+                        }}
+                    />
+                </Box>
+            )}
+
+            {!hideHeader && level === 2 && (
+                <Box sx={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 1,
+                    padding: '8px 14px',
+                    backgroundColor: '#F7F6FD',
+                    borderBottom: '1px solid rgba(108, 92, 231, 0.1)'
+                }}>
+                    <Chip
+                        label={`Report Date: ${reportDate || '—'}`}
+                        size="small"
+                        sx={{
+                            fontWeight: 700,
+                            color: "#58469f",
+                            bgcolor: "rgba(88, 70, 159, 0.1)",
+                            borderRadius: "8px"
+                        }}
+                    />
+
+                    <Chip
+                        label={`GLCC: ${glcc || '—'}`}
+                        size="small"
+                        sx={{
+                            fontWeight: 700,
+                            color: "#58469f",
+                            bgcolor: "rgba(88, 70, 159, 0.1)",
+                            borderRadius: "8px"
+                        }}
+                    />
+                </Box>
+            )}
+
+            <StyledDataGrid
+                rows={rowsWithId}
+                columns={columns}
+                pagination
+                paginationMode={level === 1 ? 'server' : 'client'}
+                paginationModel={paginationModel}
+                rowCount={
+                    level === 1
+                        ? (data?.page?.totalElements || 0)
+                        : rowsWithId.length
+                }
+                getRowId={(row) => row.__displayTabId}
+                pageSizeOptions={[10, 50, 100, 150]}
+                columnHeaderHeight={rows.length === 0 ? 0 : 56}
+                onPaginationModelChange={handlePaginationModelChange}
+                hideFooter={rows.length === 0}
+                disableRowSelectionOnClick
+                checkboxSelection={false}
+                slots={{
+                    columnHeaders:
+                        rows.length === 0 ? () => null : undefined,
+                    noRowsOverlay:
+                        level === 2
+                            ? CustomNoDataOverlay
+                            : CustomNoRowsOverlay,
+                    noResultsOverlay:
+                        level === 2
+                            ? CustomNoDataOverlay
+                            : CustomNoRowsOverlay,
+                    noColumnsOverlay:
+                        level === 2
+                            ? CustomNoDataOverlay
+                            : CustomNoRowsOverlay,
+                }}
+                loading={loading || false}
+            />
+        </Paper>
+    );
+}
