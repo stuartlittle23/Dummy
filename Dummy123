@@ -1,1 +1,36 @@
+{dialogView === 'category' && dialogType && (
+  <DisplayTab
+    category={activeMeta.category}
+    type={dialogType}
+    level={1}
+    hideHeader={false}
+    flat
+    reportDate={userDate}
+    data={dataRows[dialogType] || []}
+    clickHandler={fetchDetailedData}
+    downloadHandler={exportData}
+    loading={loading === "Y" || loading === dialogType}
+    requestData={fetchIndividualDifference}
+  />
+)}
+
+
+
+
+
+{dialogView === 'breakup' && (
+  <DisplayTab
+    data={breakupDataRows || []}
+    category="Difference Breakup"
+    type={breakupDataRows?.type}
+    level={2}
+    hideHeader={false}
+    flat
+    reportDate={userDate}
+  />
+)}
+
+
+
+
 
