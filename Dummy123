@@ -1,1 +1,10 @@
-
+slots={{
+    noRowsOverlay:
+        level === 2
+            ? CustomNoDataOverlay
+            : CustomNoRowsOverlay,
+    noResultsOverlay:
+        level === 2
+            ? CustomNoDataOverlay
+            : CustomNoRowsOverlay,
+}}
