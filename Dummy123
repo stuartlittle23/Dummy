@@ -1,1 +1,27 @@
+const closeDialog = () => {
+  if (dialogView === 'breakup') {
+    setDialogView('category');
+    setBreakupDataRows({});
+    return;
+  }
 
+  setDialogType(null);
+  setDialogView('category');
+  setBreakupDataRows({});
+}
+
+
+
+
+
+
+{dialogView === 'breakup' && (
+  <DisplayTab
+    data={breakupDataRows || []}
+    category="Difference Breakup"
+    type={breakupDataRows?.type}
+    level={2}
+    hideHeader={false}
+    flat
+  />
+)}
