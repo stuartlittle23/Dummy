@@ -1,1 +1,87 @@
+const [selectedGlcc, setSelectedGlcc] = useState("");
+
+
+
+const fetchDetailedData = async (type, { cgl, currency, firstErrorDate }) => {
+  setSelectedGlcc(`${effectiveBranchCode}${currency}${cgl}`);
+
+  const payload = {
+    branch: effectiveBranchCode,
+    cgl,
+    currency,
+    startDate: alterDateFormat(firstErrorDate),
+    endDate: userDate,
+    differenceType: type
+  };
+
+  try {
+    const res = await callApi("/ES/branch-position/get-detailed-difference", payload, 'POST');
+    if (res && res.success) {
+      setBreakupDataRows({ type, content: res.data || [] });
+      setDialogView('breakup');
+    } else {
+      showSnackBar(res.message, "error");
+    }
+  } catch (e) {
+    showSnackBar(e.message, "error");
+  }
+};
+
+
+
+
+
+
+
+const closeDialog = () => {
+  if (dialogView === 'breakup') {
+    setDialogView('category');
+    setBreakupDataRows({});
+    return;
+  }
+
+  setDialogType(null);
+  setDialogView('category');
+  setBreakupDataRows({});
+  setSelectedGlcc("");
+};
+
+
+
+
+{dialogView === 'category' && dialogType && (
+  <DisplayTab
+    category={activeMeta.category}
+    type={dialogType}
+    level={1}
+    hideHeader={false}
+    flat
+    reportDate={userDate}
+    data={dataRows[dialogType] || []}
+    clickHandler={fetchDetailedData}
+    downloadHandler={exportData}
+    loading={loading === "Y" || loading === dialogType}
+    requestData={fetchIndividualDifference}
+  />
+)}
+
+
+
+
+{dialogView === 'breakup' && (
+  <DisplayTab
+    data={breakupDataRows || []}
+    category="Difference Breakup"
+    type={breakupDataRows?.type}
+    level={2}
+    hideHeader={false}
+    flat
+    reportDate={userDate}
+    glcc={selectedGlcc}
+    downloadHandler={exportDetailedData}
+  />
+)}
+
+
+
 
