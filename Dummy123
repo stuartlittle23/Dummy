@@ -6,8 +6,16 @@
   border-radius: 9px !important;
   font-weight: 600 !important;
   font-size: 13px !important;
+  border-width: 1.5px !important;
+}
+
+.downloadButtonOutlined:not(:disabled) {
   color: #FFFFFF !important;
   background: linear-gradient(90deg, #4f459b 0%, #9B8FEF 100%) !important;
   border: none !important;
   box-shadow: 0 3px 10px rgba(108, 92, 231, 0.3) !important;
+}
+
+.downloadButtonOutlined:disabled {
+  background: transparent !important;
 }
