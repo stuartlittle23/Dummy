@@ -1,400 +1,170 @@
+import styled from '@emotion/styled';
+import InboxOutlinedIcon from '@mui/icons-material/InboxOutlined';
+import SearchOffOutlinedIcon from '@mui/icons-material/SearchOffOutlined';
+import { Box, Button, Paper, Typography } from '@mui/material';
+import { DataGrid, GridOverlay } from '@mui/x-data-grid'
+import React, { useMemo, useState } from 'react'
 
-          {!hasWholeBank ? (
-            <TextField
-              size="small"
-              fullWidth
-              disabled
-              value={`${user?.circleCode} - ${user?.circleName}`}
-            />
-          ) : (
-            <Autocomplete
-              size="small"
-              fullWidth
-              value={selectedCircle}
-              options={circleOptions}
-              loading={circleLoading}
-              getOptionLabel={(o) => o ? `${o.code} - ${o.name}` : ''}
-              isOptionEqualToValue={(o, v) => o.code === v?.code}
-              inputValue={circleInput}
-              onInputChange={(e, val, reason) => {
-                setCircleInput(val);
-                if (reason === 'input') fetchCircleOptions(val);
-              }}
-              onChange={(e, val) => setSelectedCircle(val)}
-              noOptionsText={circleInput.length < 3 ? "Enter at least 3 characters" : "No Options"}
-              renderInput={(params) => <TextField {...params} placeholder="Search circle" />}
-            />
-          )}
-        </Box>
-        <Box className={styles.dateCard}>
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '2px' }}>
-            <AccountBalance sx={{ fontSize: 15, color: '#6C5CE7' }} />
-            <Typography className={styles.infoCardLabel} sx={{ margin: 0 }}>Branch</Typography>
-          </Box>
+const StyledDataGrid = styled(DataGrid)(({ theme }) => ({
+    maxHeight: '460px',
+    minHeight: '100px',
+    border: 'none',
+    '& .MuiDataGrid-cell:focus, & .MuiDataGrid-columnHeader:focus': {
+        outline: 'none',
+    },
+    '& .MuiDataGrid-cell:focus-within, & .MuiDataGrid-columnHeader:focus-within': {
+        outline: 'none',
+    },
+    '& .MuiDataGrid-columnHeader': {
+        backgroundColor: '#FBFAFF',
+    },
+    '& .MuiDataGrid-columnHeaderTitle': {
+        fontWeight: 600,
+        color: 'rgba(30, 20, 60, 0.7)',
+    },
+    '& .MuiDataGrid-row:hover': {
+        backgroundColor: 'rgba(108, 92, 231, 0.04)',
+    },
+}))
 
-          {isBranchUser ? (
-            <TextField
-              size="small"
-              fullWidth
-              disabled
-              value={`${effectiveBranchCode} - ${effectiveBranchName}`}
-            />
-          ) : (
-            <Autocomplete
-              size="small"
-              fullWidth
-              value={selectedBranch}
-              options={branchOptions}
-              loading={branchLoading}
-              getOptionLabel={(o) => o ? `${o.code} - ${o.name}` : ''}
-              isOptionEqualToValue={(o, v) => o.code === v?.code}
-              inputValue={branchInput}
-              onInputChange={(e, val, reason) => {
-                setBranchInput(val);
-                if (reason === 'input') fetchBranchOptions(val);
-              }}
-              onChange={(e, val) => setSelectedBranch(val)}
-              noOptionsText={branchInput.length < 3 ? "Enter at least 3 characters" : "No Options"}
-              renderInput={(params) => <TextField {...params} placeholder="Search branch" />}
-            />
-          )}
-        </Box>
+const rawColumns = [
+    { field: "reconRunDate", headerName: "Report Date", width: 110, headerAlign: 'center', align: 'center', disableColumnMenu: true, sortable: false, filterable: false },
+    { field: "date", headerName: "Report Date", width: 120, headerAlign: 'center', align: 'center', disableColumnMenu: true, sortable: false, filterable: false },
+    { field: "firstErrorDate", headerName: "First Error Date", width: 130, disableColumnMenu: true, headerAlign: 'center', align: 'center', sortable: true, filterable: true },
+    { field: "branchCode", headerName: "Branch Code", width: 110, disableColumnMenu: true, headerAlign: 'center', align: 'center' },
+    { field: "currency", headerName: "Currency", width: 90, headerAlign: 'center', align: 'center', disableColumnMenu: true, sortable: true, filterable: true },
+    { field: "cgl", headerName: "CGL", width: 130, headerAlign: 'center', align: 'center', sortable: true, filterable: true },
+    { field: "balance", headerName: "Amount", minWidth: 130, align: 'right', headerAlign: 'center', sortable: true, filterable: true, flex: 1 },
+    { field: "inrBalance", headerName: "INR Balance", minWidth: 130, align: 'right', headerAlign: 'center', sortable: true, filterable: true, flex: 1 },
+    { field: "cbsBalance", headerName: "CBS Balance", minWidth: 140, align: 'right', headerAlign: 'center', sortable: false, filterable: false, flex: 1 },
+    { field: "glBalance", headerName: "GL Balance", minWidth: 140, align: 'right', headerAlign: 'center', sortable: false, filterable: false, flex: 1 },
+    { field: "differenceAmount", headerName: "Difference Amount", minWidth: 150, align: 'right', headerAlign: 'center', sortable: false, filterable: false, flex: 1 },
+    { field: "diffBwYesterday", headerName: "Diff Bw Yesterday", minWidth: 150, align: 'right', headerAlign: 'center', sortable: false, filterable: false, flex: 1 },
+    { field: "head", headerName: "Type", minWidth: 100, sortable: true, filterable: true, flex: 1 },
+    { field: "type", headerName: "Head", minWidth: 100, sortable: true, filterable: true, flex: 1 },
+]
 
-          <Box className={styles.dateCard}>
-            <Box sx={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '2px' }}>
-              <CalendarMonthOutlined sx={{ fontSize: 15, color: '#6C5CE7' }} />
-              <Typography className={styles.infoCardLabel} sx={{ margin: 0 }}>Report Date</Typography>
-            </Box>
-            <LocalizationProvider dateAdapter={AdapterDayjs}>
-              <DesktopDatePicker
-                value={userDate ? dayjs(userDate.substring(0, 11), 'YYYY-MM-DD') : dayjs()}
-                onChange={(newVal) => { newVal ? setUserDate(newVal.format('YYYY-MM-DD')) : setUserDate(dayjs().format('YYYY-MM-DD')) }}
-                minDate={MIN_ALLOWED_DATE}
-                maxDate={dayjs()}
-                views={["year", "month", "day"]}
-                format='DD-MM-YYYY'
-                closeOnSelect={true}
-                slotProps={{ textField: { size: 'small', fullWidth: true } }}
-                slots={{ actionBar: () => null }}
-              />
-            </LocalizationProvider>
-          </Box>
+export default function DisplayTab({ level, type, data = {}, category, clickHandler = () => { }, downloadHandler = () => { }, requestData = () => { }, loading = false, hideHeader = false, flat = false }) {
+    const [paginationModel, setPaginationModel] = useState({
+        page: 0,
+        pageSize: 100,
+    });
+    const rows = data?.content || [];
 
-          <Tabs
-            orientation="vertical"
-            className={styles.navTabs}
-            value={mode}
-            sx={{'& .MuiTabs-flexContainer':{gap:'8px'}}}
-            onChange={() => {
-              setMode((mode === "DD") ? "GE" : "DD");
-              setGlifDataFilter({})
-            }}
-            TabIndicatorProps={{ style: { display: 'none' } }}
-            aria-label="branch position mode navigation"
-          >
-            <Tab
-              value="DD" className={styles.navTab}
-              icon={<AdjustOutlined fontSize="small" />} iconPosition="start"
-              label="Reconciliation Status"
-              disabled={loading != "N" && mode != "DD"}
-            />
-            <Tab
-              value="GE" className={styles.navTab}
-              icon={<StorageOutlined fontSize="small" />} iconPosition="start"
-              label="GLIF Data"
-              disabled={loading != "N" && mode != "GE"}
-            />
-          </Tabs>
+    const columns = useMemo(() => {
+        if (!rows || rows.length === 0) return [];
+        const fields = Object.keys(rows[0]);
+        let cols = rawColumns.filter((field) => fields.includes(field.field));
 
-          <Box className={styles.sidebarFooter}>
-            <Box className={styles.sidebarIllustration}>
-              <AutoAwesome className={styles.sparkleTopRight} />
-              <AutoAwesome className={styles.sparkleBottomLeft} />
-              <AutoAwesome className={styles.sparkleMidRight} />
-              <Box className={styles.bankIllustration}>
-              <Box className={styles.bankGlow} >
-                <AccountBalance className={styles.bankIcon} />
-              </Box>
-              <AutoAwesome className={styles.bankSparkle1} />
-              <AutoAwesome className={styles.bankSparkle2} />
-              <AutoAwesome className={styles.bankSparkle3} />
-            </Box>
-            </Box>
-          </Box>
-        </Box>
+        if (level && level == 1) {
+            const actions = {
+                field: "action",
+                headerName: 'Actions',
+                headerAlign: 'center',
+                align: 'center',
+                width: 110,
+                renderCell: (params) => (
+                    <Button
+                        variant="contained"
+                        size="small"
+                        onClick={() => clickHandler(type, params.row)}
+                        sx={{ textTransform: 'none', borderRadius: '8px' }}
+                    >
+                        Details
+                    </Button>)
+            }
+            return [...cols, actions]
+        }
+        return cols;
+    }, [rows]);
 
-        {/* ---- Main content ---- */}
-        <Box className={styles.mainContent}>
-          {mode === "DD" && (
-            <>
-              <Box className={styles.pageHeaderRow}>
-                <Typography className={styles.pageHeaderTitle}>Reconciliation Status</Typography>
-                <AutoAwesome className={styles.headerSparkle} />
-              </Box>
-              <Typography className={styles.pageHeaderSubtitle}>
-                Reconciliation status for <Box component="span" className={styles.highlightDate}>{formattedDate}</Box>
-              </Typography>
+    const handlePaginationModelChange = (newModel) => {
+        setPaginationModel(newModel);
+        requestData(type, { ...newModel });
+    };
 
-              <Box className={styles.summaryRow}>
-                {Object.entries(categoryMeta).map(([type, meta]) => (
-                  <SummaryCard
-                    key={type}
-                    meta={meta}
-                    count={getCategoryCount(type)}
-                    isLoading={loading === "Y" || loading === type}
-                    onViewDetails={() => openCategoryDialog(type)}
-                    onDownload={() => exportData(type, type)}
-                  />
-                ))}
-
-                <SummaryCard
-                  meta={{
-                    label: "High Value Transactions",
-                    icon: <ReceiptLongOutlined fontSize="small" />,
-                    role: "rolePurple"
-                  }}
-                  count={highValueData.length}
-                  isLoading={highValueLoading}
-                  onViewDetails={() => setHighValueDetailsOpen(true)}
-                  onDownload={() => {}}
-                />
-              </Box>
-
-              <Box className={styles.infoBanner}>
-                <InfoOutlined fontSize="small" sx={{ color: '#6C5CE7', mt: '1px' }} />
-                <Typography className={styles.infoBannerText}>
-                  Download will include Reconciliation Status for branch {user?.branch?.toString().padStart(5, 0)} on {formattedDate}.
+    // CHANGE 3: neutral, factual wording — no "reconciled" status judgment.
+    // CHANGE 4: framed as a bounded empty-state box so it reads as an empty
+    // table area rather than floating text.
+    const CustomNoRowsOverlay = () => (
+        <GridOverlay>
+            <Box className="emptyStateBox" sx={{
+                display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
+                gap: '6px', padding: '32px 16px', width: 'calc(100% - 32px)', margin: '8px 16px',
+                border: '1px dashed rgba(108, 92, 231, 0.25)', borderRadius: '12px', backgroundColor: '#FBFAFF'
+            }}>
+                <InboxOutlinedIcon sx={{ fontSize: 30, color: 'rgba(108, 92, 231, 0.4)' }} />
+                <Typography variant="body2" sx={{ fontWeight: 600, color: 'rgba(30, 20, 60, 0.75)' }}>
+                    No records found
                 </Typography>
-              </Box>
-            </>
-          )}
-
-          {mode === "GE" && (
-            <>
-              <Box className={styles.pageHeaderRow}>
-                <Typography className={styles.pageHeaderTitle}>GLIF data</Typography>
-                <AutoAwesome className={styles.headerSparkle} />
-              </Box>
-              <Typography className={styles.pageHeaderSubtitle}>
-                Download GLIF data for your branch and selected date.
-              </Typography>
-
-              <Box className={styles.glifSection}>
-                <Box className={styles.glifSectionHeader}>
-                  <Box className={styles.glifSectionIcon}><FilterAltOutlined fontSize="small" /></Box>
-                  <Typography className={styles.glifSectionTitle}>Add Filter</Typography>
-                </Box>
-                <Typography className={styles.typographyLabel} sx={{ mb: 1 }}>
-                  Add up to 10 values per filter field.
+                <Typography variant="caption" sx={{ color: 'rgba(30, 20, 60, 0.5)' }}>
+                    No records found for the selected date and filters.
                 </Typography>
-                <Filter handleFilter={handleFilter} getValues={getFiterData} />
-              </Box>
+            </Box>
+        </GridOverlay>
+    );
 
-              <Box className={styles.glifSection}>
-                <Box className={styles.glifSectionHeader} sx={{ marginBottom: 0 }}>
-                  <Box className={styles.glifSectionIcon}><PlaylistAddCheckOutlined fontSize="small" /></Box>
-                  <Typography className={styles.glifSectionTitle}>Applied Filters ({activeFilterCount})</Typography>
-                  {activeFilterCount > 0 && (
-                    <button className={styles.clearAllLink} onClick={() => setGlifDataFilter({})}>
-                      Clear All
-                    </button>
-                  )}
-                </Box>
-                <Box sx={{ marginTop: '14px' }}>
-                  {activeFilterCount === 0 ? (
-                    <Typography variant="caption" sx={{ color: 'rgba(30,20,60,0.45)' }}>
-                      No filters applied yet — results will include the full branch and date.
+    const CustomNoDataOverlay = () => (
+        <GridOverlay>
+            <Box sx={{
+                display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
+                gap: '6px', padding: '32px 16px', width: 'calc(100% - 32px)', margin: '8px 16px',
+                border: '1px dashed rgba(108, 92, 231, 0.25)', borderRadius: '12px', backgroundColor: '#FBFAFF'
+            }}>
+                <SearchOffOutlinedIcon sx={{ fontSize: 30, color: 'rgba(30, 20, 60, 0.35)' }} />
+                <Typography variant="body2" sx={{ fontWeight: 600, color: 'rgba(30, 20, 60, 0.75)' }}>
+                    No data available
+                </Typography>
+                <Typography variant="caption" sx={{ color: 'rgba(30, 20, 60, 0.5)' }}>
+                    There are no records to display for this selection.
+                </Typography>
+            </Box>
+        </GridOverlay>
+    );
+
+    const handleDownload = () => {
+        downloadHandler(`${type || "no_name"}`, type);
+    }
+
+    return (
+        <Paper
+            elevation={0}
+            sx={flat
+                ? { border: 'none', boxShadow: 'none', margin: 0, borderRadius: 0 }
+                : { marginTop: '8px', marginBottom: '8px', borderRadius: '12px', overflow: 'hidden', border: '1px solid rgba(108, 92, 231, 0.1)', boxShadow: '0 1px 6px rgba(76, 60, 150, 0.06)' }
+            }
+        >
+            {level == 1 && !hideHeader &&
+                <Box sx={{ display: 'flex', alignItems: 'center', padding: '10px 14px', backgroundColor: '#F7F6FD', borderBottom: '1px solid rgba(108, 92, 231, 0.1)' }}>
+                    <Typography sx={{ flexGrow: 1, fontWeight: 600, fontSize: '15px', color: 'rgba(30, 20, 60, 0.87)' }}>
+                        {category || "Data"}
                     </Typography>
-                  ) : (
-                    <Box className={styles.chipValues}>
-                      {Object.entries(glifDataFilter).map(([key, val]) => {
-                        const color = filterFieldColors[key] || { bg: '#F1EFE8', text: '#6B6A63' };
-                        const items = Array.isArray(val.value) ? val.value : [val.value];
-                        return items.map((ent, index) => (
-                          <Chip
-                            key={`${key}-${index}`}
-                            size="small"
-                            className={styles.filterFieldChip}
-                            label={`${key.replaceAll('_', ' ')}: ${ent}`}
-                            onDelete={() => Array.isArray(val.value) ? deleteFilterValue(key, ent) : deleteFilter(key)}
-                            deleteIcon={<Delete fontSize="small" />}
-                            sx={{ backgroundColor: color.bg, color: color.text }}
-                          />
-                        ))
-                      })}
-                    </Box>
-                  )}
+                    <Button onClick={handleDownload} disabled={!rows || rows.length == 0} variant="contained" size='small' sx={{ textTransform: 'none', borderRadius: '8px' }}>
+                        Download
+                    </Button>
                 </Box>
-              </Box>
-
-              <Box className={styles.downloadRow}>
-                {/* <Typography className={styles.downloadRowText}>
-                  Includes all GLIF data for branch {user?.branch?.toString().padStart(5, 0)} on {formattedDate} with the applied filters.
-                </Typography> */}
-                <Button
-                  variant="contained"
-                  size="small"
-                  className={styles.downloadRowButton}
-                  startIcon={<Download fontSize="small" />}
-                  onClick={() => exportGlifData()}
-                  sx={{ marginLeft: "auto" }}
-                >
-                  Download GLIF Data
-                </Button>
-              </Box>
-               {/* <Box className={styles.infoBanner} mt="auto" >
-                <InfoOutlined fontSize="small" sx={{ color: '#6C5CE7', mt: '1px' }} />
-                <Typography className={styles.infoBannerText}>
-                  Includes all GLIF data for branch {user?.branch?.toString().padStart(5, 0)} on {formattedDate} with the applied filters.
-                </Typography>
-              </Box> */}
-            </>
-          )}
-        </Box>
-        
-      </Box>
-{/* CHANGE 5: maxWidth="xl" — dialogPaper CSS also forces a wide fixed
-          width so wide financial tables fit without columns spilling out.
-          CHANGE 6: category view now also has a Download icon next to Close. */}
-      <Dialog
-        open={isDialogOpen}
-        onClose={closeDialog}
-        maxWidth="xl"
-        fullWidth
-        PaperProps={{ className: styles.dialogPaper }}
-      >
-        <DialogTitle className={styles.dialogTitle}>
-          {dialogView === 'breakup' && (
-            <IconButton className={styles.dialogButton} onClick={goBackToCategory} size="small" title="Back">
-              <ArrowBackOutlined fontSize="small" />
-            </IconButton>
-          )}
-
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-            <Typography className={styles.dialogTitleText}>
-              {dialogView === 'category' ? (activeMeta?.category || 'Details') : 'Difference Break-up'}
-            </Typography>
-            <Chip
-              label={
-                dialogView === 'category'
-                  ? (dialogCategoryCount > 0 ? `${dialogCategoryCount.toLocaleString("en-IN")} Records Found` : "No Records")
-                  : ((breakupDataRows?.content?.length > 0) ? `${breakupDataRows.content.length.toLocaleString("en-IN")} Records Found` : "No Records")
-              }
-              size="small"
-              sx={{
-                fontWeight: 700,
-                color: "#58469f",
-                bgcolor: "rgba(88, 70, 159, 0.1)",
-                borderRadius: "8px",
-              }}
+            }
+            <StyledDataGrid
+                rows={rows || []}
+                columns={columns || []}
+                pagination={level === 1}
+                paginationMode='server'
+                paginationModel={paginationModel}
+                rowCount={data?.page?.totalElements || 0}
+                getRowId={(row) => row?.id || `${row.head}-${row.cgl}`}
+                pageSizeOptions={[100]}
+                columnHeaderHeight={rows.length == 0 ? 0 : 56}
+                onPaginationModelChange={handlePaginationModelChange}
+                hideFooter={rows.length == 0}
+                hideFooterPagination={level === 2}
+                slots={{
+                    columnHeaders: rows.length == 0 ? () => null : undefined,
+                    noRowsOverlay: level === 2 ? CustomNoDataOverlay : CustomNoRowsOverlay,
+                    noResultsOverlay: level === 2 ? CustomNoDataOverlay : CustomNoRowsOverlay,
+                    noColumnsOverlay: level === 2 ? CustomNoDataOverlay : CustomNoRowsOverlay,
+                }}
+                loading={loading || false}
             />
-          </Box>
-
-          <Dialog
-  open={highValueDetailsOpen}
-  onClose={() => setHighValueDetailsOpen(false)}
-  maxWidth="xl"
-  fullWidth
-  PaperProps={{ className: styles.dialogPaper }}
->
-  <DialogTitle className={styles.dialogTitle}>
-    <Typography className={styles.dialogTitleText}>
-      High Value Transactions
-    </Typography>
-
-    <Box sx={{ flexGrow: 1 }} />
-
-    <Chip
-      label={`${highValueData.length.toLocaleString("en-IN")} Records Found`}
-      size="small"
-      sx={{
-        fontWeight: 700,
-        color: "#58469f",
-        bgcolor: "rgba(88, 70, 159, 0.1)",
-        borderRadius: "8px",
-        mr: 1
-      }}
-    />
-
-    <IconButton
-      className={styles.dialogButton}
-      onClick={() => setHighValueDetailsOpen(false)}
-      size="small"
-    >
-      <Close fontSize="small" />
-    </IconButton>
-  </DialogTitle>
-
-  <DialogContent>
-    <DisplayTab
-      data={{ content: highValueData }}
-      category="High Value Transactions"
-      type="HIGH_VALUE"
-      level={2}
-      hideHeader
-      flat
-    />
-  </DialogContent>
-</Dialog>
-
-          {/* This empty Box is the spacer that pushes everything after it to the right */}
-          <Box sx={{ flexGrow: 1 }} />
-
-          {dialogView === 'category' && (
-            <IconButton
-              className={styles.dialogButton}
-              disabled={!dialogCategoryCount}
-              onClick={() => exportData(dialogType, dialogType)}
-              size="small"
-              title="Download"
-            >
-              <Download fontSize="small" />
-            </IconButton>
-          )}
-          {dialogView === 'breakup' && (
-            <IconButton
-              className={styles.dialogButton}
-              disabled={breakupDataRows?.data?.length == 0}
-              onClick={exportDetailedData}
-              size="small"
-              title="Download breakup"
-            >
-              <Download fontSize="small" />
-            </IconButton>
-          )}
-
-          <IconButton className={styles.dialogButton} onClick={closeDialog} size="small" title="Close">
-            <Close fontSize="small" />
-          </IconButton>
-        </DialogTitle>
-
-        <DialogContent>
-          {dialogView === 'category' && dialogType && (
-            <DisplayTab
-              category={activeMeta.category}
-              type={dialogType}
-              level={1}
-              hideHeader
-              flat
-              data={dataRows[dialogType] || []}
-              clickHandler={fetchDetailedData}
-              downloadHandler={exportData}
-              loading={loading === "Y" || loading === dialogType}
-              requestData={fetchIndividualDifference}
-            />
-          )}
-          {dialogView === 'breakup' && (
-            <DisplayTab
-              data={breakupDataRows || []}
-              category={"Difference Breakup"}
-              type={breakupDataRows?.type}
-              level={2}
-              hideHeader
-              flat
-            />
-          )}
-        </DialogContent>
-      </Dialog>
-    </>
-  )
+        </Paper>
+    )
 }
