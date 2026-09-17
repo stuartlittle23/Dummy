@@ -1,480 +1,451 @@
-import React, { useEffect, useState, useCallback, useMemo } from 'react'
-import {
-  Box, Typography, Chip, Paper, Tabs, Tab,
-  Button, IconButton, Dialog, DialogContent, DialogTitle
-} from '@mui/material'
-import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider';
-import { DatePicker } from '@mui/x-date-pickers/DatePicker';
-import { AdapterDayjs } from '@mui/x-date-pickers/AdapterDayjs';
-import dayjs from 'dayjs';
-import DisplayTab from './DisplayTab';
-import useApi from '../../hooks/useApi';
-import {
-  AccountBalance, Public, Download, Delete, Close, CalendarMonthOutlined,
-  ReceiptLongOutlined, VerifiedUserOutlined, CompareArrowsOutlined,
-  AdjustOutlined, StorageOutlined, AccountBalanceOutlined,
-  InfoOutlined, AutoAwesome, FilterAltOutlined, PlaylistAddCheckOutlined,
-  VisibilityOutlined, 
-} from '@mui/icons-material';
-import debounce from 'lodash/debounce'
-import downloadFile from '../../utils/DownloadUtils';
-import useCustomSnackbar from '../../utils/useCustomSnackbar';
-import styles from './BranchPosition.module.css'
-import Filter from './Filter';
-import { useSelector } from 'react-redux';
-import { Autocomplete, TextField } from '@mui/material';
-import { getPermissions } from "../../utils/CommonUtilities";
+return (
+    <>
+      <Box className={styles.appShell}>
+        {/* ---- Sidebar ---- */}
+        <Box className={styles.sidebar}>
+          <Box className={styles.sidebarBrand}>
+            <Box className={styles.sidebarBrandIconWrap}>
+              <Box className={styles.sidebarBrandIcon}>
+                <AccountBalanceOutlined fontSize="small" />
+              </Box>
+            </Box>
+            <Typography className={styles.sidebarBrandText}>Branch Position</Typography>
+          </Box>
 
-const alterDateFormat = (date) => {
-  const dateRegex = /^(0[1-9]|[12][0-9]|3[01])([-/.])(0[1-9]|1[0-2])\2(\d{4})$/;
-  return date.replace(dateRegex, '$4$2$3$2$1');
-}
+          <Box className={styles.dateCard}>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '2px' }}>
+            <Public sx={{ fontSize: 15, color: '#6C5CE7' }} />
+            <Typography className={styles.infoCardLabel} sx={{ margin: 0 }}>Circle</Typography>
+          </Box>
 
+          {!hasWholeBank ? (
+            <TextField
+              size="small"
+              fullWidth
+              disabled
+              value={`${user?.circleCode} - ${user?.circleName}`}
+            />
+          ) : (
+            <Autocomplete
+            autoHighlight
+              size="small"
+              fullWidth
+              value={selectedCircle}
+              options={circleOptions}
+              loading={circleLoading}
+              getOptionLabel={(o) => o ? `${o.circleCode} - ${o.circleName}` : ''}
+              onChange={(e, val) => setSelectedCircle(val)}
+              renderInput={(params) => (
+              <TextField
+                {...params}
+                label="Select Circle"
+                sx={{mt:1}}
+                inputProps={{
+                  ...params.inputProps,
+                }}
+              />
+            )}
+            />
+          )}
+        </Box>
+        <Box className={styles.dateCard}>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '2px' }}>
+            <AccountBalance sx={{ fontSize: 15, color: '#6C5CE7' }} />
+            <Typography className={styles.infoCardLabel} sx={{ margin: 0 }}>Branch</Typography>
+          </Box>
 
-const categoryMeta = {
-  TSD: {
-    label: "Technical Suspense",
-    category: "Technical Suspense Difference",
-    description: "Contra account for non-cash intra-branch transactions. Balance must always be zero. Any non-zero balance indicates unmatched legs requiring reconciliation.",
-    icon: <ReceiptLongOutlined fontSize="small" />,
-    role: "rolePurple"
-  },
-  BCD: {
-    label: "Balance Compare",
-    category: "Balance Compare Difference",
-    description: "Compares bank account balances against their corresponding Fincore CGL balances. No entries should appear in Balance Compare. Any discrepancy indicates a mismatch requiring investigation.",
-    icon: <CompareArrowsOutlined fontSize="small" />,
-    role: "roleAmber"
-  },
-  CSD: {
-    label: "CGL Suspense",
-    category: "CGL Suspense Difference",
-    description: "Temporary holding account for CGL entries that cannot be immediately posted or matched. Balance must always be zero. Any non-zero balance indicates unresolved entries requiring reconciliation.",
-    icon: <VerifiedUserOutlined fontSize="small" />,
-    role: "roleTeal"
-  }
-};
+          {isBranchUser ? (
+            <TextField
+              size="small"
+              fullWidth
+              disabled
+              value={`${effectiveBranchCode} - ${effectiveBranchName}`}
+            />
+          ) : (
+            <Autocomplete
+            autoHighlight
+              size="small"
+              fullWidth
+              value={selectedBranch}
+              options={branchOptions}
+              loading={branchLoading}
+              getOptionLabel={(o) => o ? `${o.code} - ${o.name}` : ''}
+              isOptionEqualToValue={(o, v) => o.code === v?.code}
+              inputValue={branchInput}
+              onInputChange={(e, val, reason) => {
+                setBranchInput(val);
+                if (reason === 'input') fetchBranchOptions(val);
+              }}
+              onChange={(e, val) => setSelectedBranch(val)}
+              noOptionsText={branchInput.length < 3 ? "Enter at least 3 characters" : "No Options"}
+              renderInput={(params) => (
+  <TextField
+    {...params}
+    label="Select Branch"
+    sx={{mt:1}}
+    inputProps={{
+      ...params.inputProps,
+      title: selectedBranch?.name || ""
+    }}
+  />
+)}
+            />
+          )}
+        </Box>
 
-const filterFieldColors = {
-  CURRENCY: { bg: '#E1F5EE', text: '#0F8A6C' },
-  CGL: { bg: '#EEEDFE', text: '#6C5CE7' },
-  JOURNAL_NUMBER: { bg: '#E6F1FB', text: '#1D6FB8' },
-  TRANSACTION_CODE: { bg: '#FBEAF0', text: '#C23E70' },
-  BATCH_ID: { bg: '#F1EFE8', text: '#6B6A63' },
-  ACCOUNT: { bg: '#FFF1E0', text: '#C9761A' },
-}
+          <Box className={styles.dateCard}>
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '2px' }}>
+              <CalendarMonthOutlined sx={{ fontSize: 15, color: '#6C5CE7' }} />
+              <Typography className={styles.infoCardLabel} sx={{ margin: 0 }}>Report Date</Typography>
+            </Box>
+            <LocalizationProvider dateAdapter={AdapterDayjs}>
+             <DatePicker
+  value={userDate ? dayjs(userDate) : null}
+  onChange={(newVal) => {
+    setReportDateError(null);
 
-function SummaryCard({ meta, count, isLoading, onViewDetails, onDownload }) {
-  const hasCount = typeof count === 'number';
-  const isMatched = hasCount && count === 0;
-  return (
-    <Paper elevation={0} className={`${styles.summaryCard} ${styles[meta.role]}`}>
-      <Box className={styles.summaryCardHeader}>
-  <Box className={styles.summaryCardIcon}>{meta.icon}</Box>
-  <Typography className={styles.summaryCardLabel}>
-    {meta.label}
-  </Typography>
-</Box>
-
-<Typography className={styles.summaryCardDescription}>
-  {meta.description}
-</Typography>
-
-      <Box className={styles.summaryCardCenter}>
-        <Typography className={styles.summaryCardCount} sx={{color:isMatched?'#10A37F':(hasCount? '#D32F2F':'inherit')}}>{isLoading ? '—' : (hasCount ? count : '—')}</Typography>
-        <Typography className={styles.summaryCardCaption}>
-          {isLoading ? 'Checking…' : hasCount ? (count === 0 ? 'Reconcilied' : `${count} record${count > 1 ? 's' : ''} found`) : '—'}
-        </Typography>
-      </Box>
-
-      <Box className={styles.summaryCardActions}>
-        <Button
-          className={styles.viewDetailsButton}
-          variant="contained"
-          size="small"
-          startIcon={<VisibilityOutlined sx={{ fontSize: 16 }} />}
-          onClick={onViewDetails}
-        >
-          View Details
-        </Button>
-        <Button
-          className={styles.downloadButtonOutlined}
-          variant="contained"
-          size="small"
-          startIcon={<Download sx={{ fontSize: 14 }} />}
-          disabled={!hasCount || count === 0}
-          onClick={onDownload}
-        >
-          Download
-        </Button>
-      </Box>
-    </Paper>
-  )
-}
-
-export default function BranchPosition() {
-  const [userDate, setUserDate] = useState(null);
-  const [etlDate, setEtlDate] = useState(null);
-const [reportDateError, setReportDateError] = useState(null);
-  const [dataRows, setDataRows] = useState({});
-  const [breakupDataRows, setBreakupDataRows] = useState({});
-  const { callApi } = useApi();
-  const [glifDataFilter, setGlifDataFilter] = useState({});
-  const [loading, setLoading] = useState("N"); //"N","Y","BCD","TSD","CSD"
-  const showSnackBar = useCustomSnackbar();
-  const [mode, setMode] = useState("DD");
-  const user = useSelector((state) => state.auth.user);
-  const selectedMenu = useSelector((state) => state.menus.selectedMenuItem);
-  const permissions = getPermissions(selectedMenu);
-
-  const hasWholeBank = permissions?.wholebank === true;
-  const isCircleUser = user?.isCircle === true;
-  const isBranchUser = !hasWholeBank && !isCircleUser;
-
-  const [selectedBranch, setSelectedBranch] = useState(null); // { code, name } or null
-  const [branchInput, setBranchInput] = useState('');
-  const [branchOptions, setBranchOptions] = useState([]);
-  const [branchLoading, setBranchLoading] = useState(false);
-
-  const effectiveBranchCode = (selectedBranch?.code || user?.branch)?.toString().padStart(5, 0);
-  const effectiveBranchName = selectedBranch?.name || user?.branchName;
-
-  const [dialogType, setDialogType] = useState(null);
-  const [dialogView, setDialogView] = useState('category');
-  const isDialogOpen = dialogType !== null;
-  const MIN_ALLOWED_DATE = useMemo(() => dayjs("2026-03-31"), []);
-  const [rowCount, setRowCount] = useState(0);
-
-  
-  const [selectedCircle, setSelectedCircle] = useState(null);
-  const [circleInput, setCircleInput] = useState('');
-  const [circleOptions, setCircleOptions] = useState([]);
-  const [circleLoading, setCircleLoading] = useState(false);
-  const [selectedGlcc, setSelectedGlcc] = useState("");
-
-  
-
-  /* DATA FETCHING FUNCTIONS — unchanged, same API calls as before */
-  const debouncedFetchDifference = useCallback(debounce(async (type) => {
-    if (mode === "DD") {
-      await fetchDifference(type);
-    }
-  }, 100), [userDate, mode]);
-
-  const fetchBranchOptions = async (term) => {
-    if (isBranchUser) return;
-    if (!term || term.length < 3) { setBranchOptions([]); return; }
-    try {
-      setBranchLoading(true);
-      const circleValue = hasWholeBank ? '' : (user?.circleCode || '');
-      const url = `/CM/common-master/branches-code-name-only?q=${encodeURIComponent(term)}&circleCode=${circleValue}`;
-      const res = await callApi(url, null, 'GET');
-      if (res?.data?.length > 0) {
-        setBranchOptions(res.data.map((i) => ({ code: i.code, name: i.name })));
-      } else {
-        setBranchOptions([]);
-      }
-    } catch (e) {
-      showSnackBar(e.message, 'error');
-    } finally {
-      setBranchLoading(false);
-    }
-  };
-
-  const fetchCircleOptions = useCallback(async () => {
-    if (!hasWholeBank) return;
-    try {
-      const res = await callApi("/CM/common-master/circle-codes", null, 'GET');
-      setCircleOptions(res.data || []);
-    } catch (e) {
-      showSnackBar(e.message || "Something went wrong", 'error');
-    } 
-  },[callApi, hasWholeBank, showSnackBar]);
-
-  async function fetchDifference() {
-    const payload = {
-      date: userDate,
-      branch: effectiveBranchCode,
-      paginationModel: { page: 0, pageSize: 100 }
-    }
-    try {
-      setLoading("Y");
-      const res = await callApi("/ES/branch-position/get-difference", payload, "POST");
-      if (res && res.success) {
-        setDataRows(res.data);
-      } else {
-        showSnackBar(res.message, "error")
-        setDataRows({});
-      }
-      setLoading("N");
-    } catch (e) {
-      setLoading("N");
-      showSnackBar(e.message, "error")
-    }
-  }
-
-  async function fetchIndividualDifference(type, paginationModel) {
-    const payload = {
-      date: userDate,
-      branch: effectiveBranchCode,
-      differenceType: type,
-      paginationModel
-    }
-    try {
-      setLoading(type);
-      const res = await callApi("/ES/branch-position/get-difference", payload, "POST");
-      if (res && res.success) {
-        setDataRows((prev) => { return { ...prev, [type]: res.data[type] || [] } });
-      } else {
-        showSnackBar(res.message, "error")
-      }
-      setLoading("N");
-    } catch (e) {
-      setLoading("N");
-      showSnackBar(e.message, "error")
-    }
-  }
- 
-const fetchDetailedData = async (type, { cgl, currency, firstErrorDate }) => {
-  setSelectedGlcc(`${effectiveBranchCode}${currency}${cgl}`);
-
-  const payload = {
-    branch: effectiveBranchCode,
-    cgl,
-    currency,
-    startDate: alterDateFormat(firstErrorDate),
-    endDate: userDate,
-    differenceType: type
-  };
-
-  try {
-    const res = await callApi("/ES/branch-position/get-detailed-difference", payload, 'POST');
-    if (res && res.success) {
-      setBreakupDataRows({ type, content: res.data || [] });
-      setDialogView('breakup');
-    } else {
-      showSnackBar(res.message, "error");
-    }
-  } catch (e) {
-    showSnackBar(e.message, "error");
-  }
-};
-
-
-  const blobErrorHandler = (error) => {
-    if (error instanceof Blob) {
-      error.text().then((errorMessage) => {
-        try {
-          const errorJson = JSON.parse(errorMessage);
-          showSnackBar(errorJson?.message, "error");
-        } catch (e) {
-          showSnackBar(`Error: ${errorMessage}`);
-        }
-      });
-    } else {
-      showSnackBar(error.message, "error");
-    }
-  }
-
-  const exportData = async (filePref, differenceType) => {
-    const payload = {
-      branch: effectiveBranchCode,
-      date: userDate,
-      differenceType
-    }
-    try {
-      const res = await callApi("/ES/branch-position/export-difference", payload, 'POST', 'blob', 'application/octet-stream');
-      if (res) {
-        const filename = `${filePref}_${payload.branch}_${alterDateFormat(userDate)}`
-        const fileData = new Blob([res]);
-        downloadFile(fileData, "xlsx", filename, false);
-      } else {
-        throw new Error("Failed to download file!")
-      }
-    } catch (e) {
-      blobErrorHandler(e);
-    }
-  }
-
-  const exportDetailedData = async () => {
-    if (breakupDataRows?.content.length == 0) {
-      showSnackBar("No Rows to download!", "error")
-    }
-    const cgl = breakupDataRows.content[0].cgl
-    const currency = breakupDataRows.content[0].currency
-    const branch = effectiveBranchCode
-    const differenceType = breakupDataRows.type
-    const firstErrorDate = breakupDataRows.content[0].firstErrorDate;
-    const payload = {
-      branch, cgl, currency,
-      startDate: alterDateFormat(firstErrorDate),
-      endDate: userDate,
-      differenceType
-    }
-    try {
-      const res = await callApi("/ES/branch-position/export-detailed-difference", payload, 'POST', 'blob', 'application/octet-stream');
-      if (res) {
-        const filename = `${differenceType}_${branch}_${currency}_${cgl}_${alterDateFormat(userDate)}`
-        const fileData = new Blob([res]);
-        downloadFile(fileData, "xlsx", filename, false);
-      } else {
-        throw new Error("Failed to download file!")
-      }
-    } catch (e) {
-      blobErrorHandler(e);
-    }
-  }
-  const exportGlifData = async () => {
-  const payload = {
-    branch: effectiveBranchCode,
-    date: userDate,
-    filters: [
-      { field: "BRANCH_CODE", operator: "EQUALS", value: effectiveBranchCode},
-      { field: "TRANS_DATE", operator: "EQUALS", value: userDate },
-      ...Object.entries(glifDataFilter).map(([key, entry]) => { return { ["field"]: key, ["operator"]: entry.operator, ["value"]: entry.value } })
-    ]
-  }
-  try {
-    const res = await callApi("/ES/branch-position/export-glif-data", payload, 'POST', 'blob', 'application/octet-stream');
-    if (res) {
-
-      const text = await res.text();
-      try {
-        const parsed = JSON.parse(text);
-        if (parsed.success === false) {
-          showSnackBar(parsed.message || "No data found.", "error");
-          return;
-        }
-      } catch  {
-        // not JSON — it's a real file
-      }
-
-      const branch = effectiveBranchCode
-      let filename = `glif_${branch}_${alterDateFormat(userDate)}${Object.keys(glifDataFilter).length > 0 ? "_filtered" : ""}`;
-      const fileData = new Blob([text]);
-      downloadFile(fileData, "xlsx", filename, false);
-    } else {
-      throw new Error("Failed to download file!")
-    }
-  } catch (error) {
-    blobErrorHandler(error);
-  }
-}
-
-const fetchData = useCallback(async () => {
-      try {
-        const res = await callApi("/ES/branch-position/user-date");
-        if (res && res.success) {
-          setUserDate(res.data.substring(0, 10));
-        } else {
-          showSnackBar(res.message, "error")
-        }
-      } catch (e) {
-        showSnackBar(e.message, "error")
-      }
-    },[callApi, showSnackBar]);
-
-  useEffect(() => {
-    
-    fetchData();
-    fetchCircleOptions();
-
-
-  }, [fetchCircleOptions, fetchData]);
-
-  useEffect(() => {
-    if (userDate == null) { return; }
-    setBreakupDataRows({});
-    debouncedFetchDifference();
-  }, [userDate, debouncedFetchDifference]);
-
-  const openCategoryDialog = (type) => {
-    setDialogType(type);
-    setDialogView('category');
-  }
-
-  const closeDialog = () => {
-  if (dialogView === 'breakup') {
-    setDialogView('category');
-    setBreakupDataRows({});
-    return;
-  }
-
-  setDialogType(null);
-  setDialogView('category');
-  setBreakupDataRows({});
-  setSelectedGlcc("");
-};
-
-  const goBackToCategory = () => {
-    setDialogView('category');
-    setBreakupDataRows({});
-  }
-
-  useEffect(() => {
-  const fetchEtlDate = async () => {
-    try {
-      const res = await callApi("/PS/file/fincore-date", {}, "GET");
-      const etlRaw = res?.data?.userDate;
-      setEtlDate(etlRaw ? dayjs(etlRaw.split("T")[0]) : null);
-    } catch (e) {
-      showSnackBar(e.message || "Unable to fetch Fincore ETL Date", "error");
-      setEtlDate(null);
-    }
-  };
-
-  fetchEtlDate();
-}, [callApi, showSnackBar]);
-
-
-  const handleFilter = (filter) => {
-    if (!filter.multiValue) {
-      setGlifDataFilter((prev) => { return { ...prev, [filter.field]: { operator: "EQUALS", value: filter.value } } })
+    if (!newVal || !newVal.isValid()) {
+      setReportDateError("invalidDate");
       return;
     }
-    if (glifDataFilter[filter.field]) {
-      if (glifDataFilter[filter.field].value.length >= 10) {
-        showSnackBar("only 10 filter values allowed!", "error");
-        return;
-      } else {
-        if (new Set(glifDataFilter[filter.field].value).has(filter.value)) {
-          showSnackBar("value already present in the filter!", "error")
-          return;
-        }
-      }
-      setGlifDataFilter((prev) => { return { ...prev, [filter.field]: { operator: "IN", value: [...prev[filter.field].value, filter.value] } } })
-      return
+
+    if (newVal.isBefore(MIN_ALLOWED_DATE, "day")) {
+      setReportDateError("minDate");
+      return;
     }
-    setGlifDataFilter((prev) => { return { ...prev, [filter.field]: { operator: "IN", value: [filter.value] } } })
-  }
 
-  const deleteFilter = (key) => {
-    const { [key]: _, ...rem } = glifDataFilter;
-    setGlifDataFilter(rem);
-  }
-
-  const deleteFilterValue = (key, deleteVal) => {
-    const newArray = glifDataFilter[key].value.filter((val) => val != deleteVal);
-    if (newArray.length > 0) {
-      setGlifDataFilter((prev) => { return { ...prev, [key]: { ...prev[key], value: newArray } } })
-    } else {
-      deleteFilter(key)
+    if (etlDate?.isValid?.() && newVal.isAfter(etlDate, "day")) {
+      setReportDateError("maxDate");
+      return;
     }
-  }
 
-  const getFiterData = (field) => {
-    return glifDataFilter[field]?.value || [];
-  }
+    setUserDate(newVal.format("YYYY-MM-DD"));
+  }}
+  minDate={MIN_ALLOWED_DATE}
+  maxDate={etlDate}
+  views={["year", "month", "day"]}
+  format="DD-MM-YYYY"
+  disableHighlightToday
+  slotProps={{
+    textField: {
+      size: "small",
+      fullWidth: true,
+      error: !!reportDateError,
+      helperText:
+        reportDateError === "minDate"
+          ? `Report Date cannot be earlier than ${MIN_ALLOWED_DATE.format("DD-MM-YYYY")}`
+          : reportDateError === "maxDate"
+          ? `Report Date cannot exceed Fincore ETL Date ${etlDate?.format("DD-MM-YYYY")}`
+          : reportDateError === "invalidDate"
+          ? "Please enter a valid Report Date"
+          : "",
+    },
+  }}
+/>
+            </LocalizationProvider>
+          </Box>
 
-  const getCategoryCount = (type) => {
-    const bucket = dataRows?.[type];
-    if (!bucket) return null;
-    if (typeof bucket?.page?.totalElements === 'number') return bucket.page.totalElements;
-    if (Array.isArray(bucket?.content)) return bucket.content.length;
-    return null;
-  }
+          <Tabs
+            orientation="vertical"
+            className={styles.navTabs}
+            value={mode}
+            sx={{'& .MuiTabs-flexContainer':{gap:'8px'}}}
+            onChange={() => {
+              setMode((mode === "DD") ? "GE" : "DD");
+              setGlifDataFilter({})
+            }}
+            TabIndicatorProps={{ style: { display: 'none' } }}
+            aria-label="branch position mode navigation"
+          >
+            <Tab
+              value="DD" className={styles.navTab}
+              icon={<AdjustOutlined fontSize="small" />} iconPosition="start"
+              label="Reconciliation Status"
+              disabled={loading != "N" && mode != "DD"}
+            />
+            <Tab
+              value="GE" className={styles.navTab}
+              icon={<StorageOutlined fontSize="small" />} iconPosition="start"
+              label="GLIF Data"
+              disabled={loading != "N" && mode != "GE"}
+            />
+          </Tabs>
 
-  const activeFilterCount = Object.keys(glifDataFilter).length;
-  const formattedDate = userDate ? dayjs(userDate).format('DD-MM-YYYY') : '—';
-  const activeMeta = dialogType ? categoryMeta[dialogType] : null;
-  const dialogCategoryCount = dialogType ? getCategoryCount(dialogType) : null;
+          <Box className={styles.sidebarFooter}>
+            <Box className={styles.sidebarIllustration}>
+              <AutoAwesome className={styles.sparkleTopRight} />
+              <AutoAwesome className={styles.sparkleBottomLeft} />
+              <AutoAwesome className={styles.sparkleMidRight} />
+              <Box className={styles.bankIllustration}>
+              <Box className={styles.bankGlow} >
+                <AccountBalance className={styles.bankIcon} />
+              </Box>
+              <AutoAwesome className={styles.bankSparkle1} />
+              <AutoAwesome className={styles.bankSparkle2} />
+              <AutoAwesome className={styles.bankSparkle3} />
+            </Box>
+            </Box>
+          </Box>
+        </Box>
+
+        {/* ---- Main content ---- */}
+        <Box className={styles.mainContent}>
+          {mode === "DD" && (
+            <>
+              <Box className={styles.pageHeaderRow}>
+                <Typography className={styles.pageHeaderTitle}>Reconciliation Status</Typography>
+                <AutoAwesome className={styles.headerSparkle} />
+              </Box>
+              <Typography className={styles.pageHeaderSubtitle}>
+                Reconciliation status for <Box component="span" className={styles.highlightDate}>{formattedDate}</Box>
+              </Typography>
+
+              <Box className={styles.summaryRow}>
+                {Object.entries(categoryMeta).map(([type, meta]) => (
+                  <SummaryCard
+                    key={type}
+                    meta={meta}
+                    count={getCategoryCount(type)}
+                    isLoading={loading === "Y" || loading === type}
+                    onViewDetails={() => openCategoryDialog(type)}
+                    onDownload={() => exportData(type, type)}
+                  />
+                ))}
+              </Box>
+
+              <Box className={styles.infoBanner}>
+                <InfoOutlined fontSize="small" sx={{ color: '#6C5CE7', mt: '1px' }} />
+                <Typography className={styles.infoBannerText}>
+                  Download will include Reconciliation Status for branch {user?.branch?.toString().padStart(5, 0)} on {formattedDate}.
+                </Typography>
+              </Box>
+            </>
+          )}
+
+          {mode === "GE" && (
+            <>
+              <Box className={styles.pageHeaderRow}>
+                <Typography className={styles.pageHeaderTitle}>GLIF data</Typography>
+                <AutoAwesome className={styles.headerSparkle} />
+              </Box>
+              <Typography className={styles.pageHeaderSubtitle}>
+                Download GLIF data for your branch and selected date.
+              </Typography>
+
+              <Box className={styles.glifSection}>
+                <Box className={styles.glifSectionHeader}>
+                  <Box className={styles.glifSectionIcon}><FilterAltOutlined fontSize="small" /></Box>
+                  <Typography className={styles.glifSectionTitle}>Add Filter</Typography>
+                </Box>
+                <Typography className={styles.typographyLabel} sx={{ mb: 1 }}>
+                  Add up to 10 values per filter field.
+                </Typography>
+                <Filter handleFilter={handleFilter} getValues={getFiterData} />
+              </Box>
+
+              <Box className={styles.glifSection}>
+                <Box className={styles.glifSectionHeader} sx={{ marginBottom: 0 }}>
+                  <Box className={styles.glifSectionIcon}><PlaylistAddCheckOutlined fontSize="small" /></Box>
+                  <Typography className={styles.glifSectionTitle}>Applied Filters ({activeFilterCount})</Typography>
+                  {activeFilterCount > 0 && (
+                    <button className={styles.clearAllLink} onClick={() => setGlifDataFilter({})}>
+                      Clear All
+                    </button>
+                  )}
+                </Box>
+                <Box sx={{ marginTop: '14px' }}>
+                  {activeFilterCount === 0 ? (
+                    <Typography variant="caption" sx={{ color: 'rgba(30,20,60,0.45)' }}>
+                      No filters applied yet — results will include the full branch and date.
+                    </Typography>
+                  ) : (
+                    <Box className={styles.chipValues}>
+                      {Object.entries(glifDataFilter).map(([key, val]) => {
+                        const color = filterFieldColors[key] || { bg: '#F1EFE8', text: '#6B6A63' };
+                        const items = Array.isArray(val.value) ? val.value : [val.value];
+                        return items.map((ent, index) => (
+                          <Chip
+                            key={`${key}-${index}`}
+                            size="small"
+                            className={styles.filterFieldChip}
+                            label={`${key.replaceAll('_', ' ')}: ${ent}`}
+                            onDelete={() => Array.isArray(val.value) ? deleteFilterValue(key, ent) : deleteFilter(key)}
+                            deleteIcon={<Delete fontSize="small" />}
+                            sx={{ backgroundColor: color.bg, color: color.text }}
+                          />
+                        ))
+                      })}
+                    </Box>
+                  )}
+                </Box>
+              </Box>
+
+              <Box className={styles.downloadRow}>
+                {/* <Typography className={styles.downloadRowText}>
+                  Includes all GLIF data for branch {user?.branch?.toString().padStart(5, 0)} on {formattedDate} with the applied filters.
+                </Typography> */}
+                <Button
+                  variant="contained"
+                  size="small"
+                  className={styles.downloadRowButton}
+                  startIcon={<Download fontSize="small" />}
+                  onClick={() => exportGlifData()}
+                  sx={{ marginLeft: "auto" }}
+                >
+                  Download GLIF Data
+                </Button>
+              </Box>
+               {/* <Box className={styles.infoBanner} mt="auto" >
+                <InfoOutlined fontSize="small" sx={{ color: '#6C5CE7', mt: '1px' }} />
+                <Typography className={styles.infoBannerText}>
+                  Includes all GLIF data for branch {user?.branch?.toString().padStart(5, 0)} on {formattedDate} with the applied filters.
+                </Typography>
+              </Box> */}
+            </>
+          )}
+        </Box>
+        
+      </Box>
+{/* CHANGE 5: maxWidth="xl" — dialogPaper CSS also forces a wide fixed
+          width so wide financial tables fit without columns spilling out.
+          CHANGE 6: category view now also has a Download icon next to Close. */}
+      <Dialog
+        open={isDialogOpen}
+        onClose={closeDialog}
+        maxWidth="xl"
+        fullWidth
+        PaperProps={{ className: styles.dialogPaper }}
+      >
+        <DialogTitle className={styles.dialogTitle}>
+          
+
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+  <Typography className={styles.dialogTitleText}>
+    {dialogView === 'category'
+      ? (activeMeta?.category || 'Details')
+      : 'Difference Break-up'}
+  </Typography>
+
+  <Chip
+    label={
+      dialogView === 'category'
+        ? (dialogCategoryCount > 0
+            ? `${dialogCategoryCount.toLocaleString("en-IN")} Records Found`
+            : "No Records")
+        : (breakupDataRows?.content?.length > 0
+            ? `${breakupDataRows.content.length.toLocaleString("en-IN")} Records Found`
+            : "No Records")
+    }
+    size="small"
+    sx={{
+      fontWeight: 700,
+      color: "#58469f",
+      bgcolor: "rgba(88, 70, 159, 0.1)",
+      borderRadius: "8px"
+    }}
+  />
+
+  {dialogView === 'category' && (
+    <Chip
+      label={`Report Date: ${dayjs(userDate).format("DD-MM-YYYY")}`}
+      size="small"
+      sx={{
+        fontWeight: 700,
+        color: "#58469f",
+        bgcolor: "rgba(88, 70, 159, 0.1)",
+        borderRadius: "8px"
+      }}
+    />
+  )}
+
+  {dialogView === 'breakup' && (
+    <>
+      <Chip
+        label={`Report Date: ${dayjs(userDate).format("DD-MM-YYYY")}`}
+        size="small"
+        sx={{
+          fontWeight: 700,
+          color: "#58469f",
+          bgcolor: "rgba(88, 70, 159, 0.1)",
+          borderRadius: "8px"
+        }}
+      />
+
+      <Chip
+        label={`GLCC: ${selectedGlcc}`}
+        size="small"
+        sx={{
+          fontWeight: 700,
+          color: "#58469f",
+          bgcolor: "rgba(88, 70, 159, 0.1)",
+          borderRadius: "8px"
+        }}
+      />
+    </>
+  )}
+</Box>
+
+          {/* This empty Box is the spacer that pushes everything after it to the right */}
+          <Box sx={{ flexGrow: 1 }} />
+
+          {dialogView === 'category' && (
+            <IconButton
+              className={styles.dialogButton}
+              disabled={!dialogCategoryCount}
+              onClick={() => exportData(dialogType, dialogType)}
+              size="small"
+              title="Download"
+            >
+              <Download fontSize="small" />
+            </IconButton>
+          )}
+          {dialogView === 'breakup' && (
+            <IconButton
+              className={styles.dialogButton}
+              disabled={breakupDataRows?.data?.length == 0}
+              onClick={exportDetailedData}
+              size="small"
+              title="Download breakup"
+            >
+              <Download fontSize="small" />
+            </IconButton>
+          )}
+
+          <IconButton className={styles.dialogButton} onClick={closeDialog} size="small" title="Close">
+            <Close fontSize="small" />
+          </IconButton>
+        </DialogTitle>
+
+        <DialogContent>
+          
+{dialogView === 'category' && dialogType && (
+  <DisplayTab
+  category={activeMeta.category}
+  type={dialogType}
+  level={1}
+  hideHeader
+  flat
+  data={dataRows[dialogType] || []}
+  clickHandler={fetchDetailedData}
+  downloadHandler={exportData}
+  loading={loading === "Y" || loading === dialogType}
+  requestData={fetchIndividualDifference}
+/>
+)}
+
+          {dialogView === 'breakup' && (
+  <DisplayTab
+  data={breakupDataRows || []}
+  category="Difference Breakup"
+  type={breakupDataRows?.type}
+  level={2}
+  hideHeader
+  flat
+  downloadHandler={exportDetailedData}
+/>
+)}
+        </DialogContent>
+      </Dialog>
+    </>
+  )
+}
