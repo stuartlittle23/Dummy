@@ -1,282 +1,614 @@
-import React, { useCallback, useEffect, useState } from 'react'
-import useApi from '../../hooks/useApi'
-import Validation from './Validation';
-import useCustomSnackbar from '../../utils/useCustomSnackbar';
-import { Autocomplete, Box, Button, FormControl, Grid, InputLabel, MenuItem, Select, TextField } from '@mui/material';
-import AddIcon from '@mui/icons-material/Add';
-import debounce from 'lodash/debounce';
-import styled from '@emotion/styled';
+/* ==========================================================================
+   BranchPosition — Premium enterprise layout
+   ========================================================================== */
 
-const filterMap = {
-    CURRENCY: { type: "autocomplete", multiValue: true, validate: "validateCurrency" },
-    CGL: { type: "autocomplete", multiValue: true, validate: "validateCgl" },
-    JOURNAL_NUMBER: { type: "input", multiValue: false, validate: "validateJrnNo" },
-    TRANSACTION_CODE: { type: "input", multiValue: true, validate: "validateTxnCode" },
-    BATCH_ID: { type: "input", multiValue: false, validate: "validateBatchId" },
-    ACCOUNT: { type: "input", multiValue: false, validate: "validateAccNo" }
+.appShell {
+  display: flex;
+  align-items: stretch;
+  border-radius: 16px;
+  overflow: hidden;
+  box-shadow: 0 2px 24px rgba(76, 60, 150, 0.12);
+  border: 1px solid rgba(108, 92, 231, 0.1);
+  min-height: 78vh;
+  background-color: rgba(255, 255, 255, 0.219);
+  backdrop-filter: blur(12px);
 }
 
-const filterLabels = {
-    CURRENCY: "Currency",
-    CGL: "CGL",
-    JOURNAL_NUMBER: "Journal Number",
-    TRANSACTION_CODE: "Transaction Code",
-    BATCH_ID: "Batch Id",
-    ACCOUNT: "Account",
+/* ---- Sidebar ---------------------------------------------------------- */
+
+.sidebar {
+  width: 320px;
+  flex-shrink: 0;
+  background-color: rgba(250, 249, 254, 0.521);
+  backdrop-filter: blur(10px);
+  border-right: 1px solid rgba(108, 92, 231, 0.1);
+  padding: 20px 16px;
+  display: flex;
+  flex-direction: column;
 }
 
-const AddButton = styled(Button)(({ theme }) => ({
-    display: "flex",
-    justifyContent: "center",
-    alignItems: "center",
-    textTransform: "none",
-    borderRadius: "8px",
-    boxShadow: "none",
-}));
+.sidebarBrand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 20px;
+  padding: 0 4px;
+}
 
-const AddBox = styled(Box)(({ theme }) => ({
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "flex-end",
-    marginTop: "12px",
-}));
+.sidebarBrandIconWrap {
+  position: relative;
+}
 
-const CustomTextField = styled(TextField)(({ theme }) => ({
-    display: 'flex',
-    flexGrow: 1,
-}));
+.sidebarBrandIcon {
+  width: 36px;
+  height: 36px;
+  border-radius: 10px;
+  background-color: #EEEDFE;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #6C5CE7;
+}
 
-export default function Filter({ handleFilter, getValues }) {
-    const [values, setValues] = useState([]);
-    const [filterField, setFilterField] = useState('CGL');
-    const [isMinInput, setIsMinInput] = useState();
-    const [inputInstance, setInputInstance] = useState("");
-    const [fieldError, setFieldError] = useState(null);
-    const snackbar = useCustomSnackbar();
-    const { callApi } = useApi();
+.brandSparkle {
+  position: absolute;
+  top: -6px;
+  right: -6px;
+  font-size: 13px !important;
+  color: #B8AEFB;
+}
 
-    const setFilter = () => {
-        if ((filterField === "CURRENCY" || filterField === "CGL") && inputInstance === "") {
-            setFieldError("Kindly select a value!");
-            snackbar("Kindly select the value!", "error");
-            return
-        }
-        let isValid = Validation[filterMap[filterField].validate](inputInstance);
-        if (isValid != null) {
-            setFieldError(isValid);
-            snackbar(isValid, "error")
-            return;
-        }
-        setFieldError(null);
-        handleFilter({ field: filterField, value: inputInstance, multiValue: filterMap[filterField].multiValue })
-        setInputInstance("");
-    }
+.sidebarBrandText {
+  font-size: 15px;
+  font-weight: 600;
+  color: rgba(30, 20, 60, 0.87);
+}
 
-    const debouncedFetchCgls = useCallback(debounce(async (value, type, isMinInput) => {
-        await fetchCgls(value, type, isMinInput);
-    }, 100), []);
+.infoCard {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px;
+  border: 1px solid rgba(108, 92, 231, 0.12);
+  border-radius: 10px;
+  background-color: rgba(255, 255, 255, 0.815);
+  margin-bottom: 8px;
+}
 
-    async function fetchCurrencies() {
-        const response = await callApi(
-            "/CM/common-master/currency-master",
-            null,
-            "GET",
-        );
-        if (response) {
-            setValues(response.data || [])
-        } else {
-            snackbar("Failed to fetch currency list!")
-        }
-    }
+.infoCardIcon {
+  width: 30px;
+  height: 30px;
+  border-radius: 8px;
+  background-color: #F5F3FF;
+  color: #6C5CE7;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
 
-    async function fetchCgls(term, reason, isMinInput) {
-        if (reason === "input") {
-            if (term?.length < 3) {
-                if (isMinInput) {
-                    setIsMinInput(false);
-                }
-                setValues([])
-                return;
-            }
-            if (!isMinInput) {
-                setIsMinInput(true);
-            }
+.infoCardLabel {
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: rgba(30, 20, 60, 0.4);
+  margin: 0 0 2px;
+}
 
-            try {
-                const res = await callApi(`/CM/common-master/cgl-code-description-only?q=${encodeURIComponent(term)}`);
-                if (res && res.success) {
-                    setValues(res?.data);
-                } else {
-                    setValues([]);
-                    snackbar(res?.message, "error")
-                }
-            } catch (e) {
-                snackbar(e.message, "error")
-            }
-        }
-    }
+.infoCardValue {
+  font-size: 14px;
+  font-weight: 700;
+  color: rgba(30, 20, 60, 0.9);
+  line-height: 1.3;
+}
 
-    const handleSelectChange = (e) => {
-        setFilterField(e.target.value);
-        setInputInstance("");
-        setFieldError(null);
-        setValues([]);
-    }
+.infoCardSubvalue {
+  font-size: 12px;
+  color: rgba(30, 20, 60, 0.55);
+}
 
-    useEffect(() => {
-        const fetchData = async () => {
-            await fetchCurrencies();
-        }
-        if (filterField === "CURRENCY") {
-            fetchData();
-        }
-    }, [filterField])
+.dateCard {
+  padding: 10px;
+  border: 1px solid rgba(108, 92, 231, 0.10);
+  border-radius: 10px;
+  background-color: #F8F7FF;
+  margin-bottom: 16px;
+}
 
-    return (
-        <Box>
-            <Grid container spacing={1}>
-                <Grid item size={{ md: 4}}>
-                    <FormControl variant="outlined" fullWidth size="small">
-                        <InputLabel>Select Filter</InputLabel>
-                        <Select
-                            value={filterField || ''}
-                            label="Select Filter"
-                            onChange={handleSelectChange}
-                        >
-                            {Object.keys(filterMap).map((key) => (
-                                <MenuItem key={key} value={key}>{filterLabels[key]}</MenuItem>
-                            ))}
-                        </Select>
-                    </FormControl>
-                </Grid>
-                <Grid item size={{ md: 5 }}>
-                    {filterField === "CURRENCY" &&
-                    <Autocomplete
-                        options={values || []}
-                        value={values.find((v) => v.currencyCode === inputInstance) || null}
-                        size="small"
-                        getOptionLabel={(option) => option ? `${option.currencyCode} (${option.currencyName})` : ''}
-                        isOptionEqualToValue={(option, value) => option.currencyCode === value?.currencyCode}
-                        onInputChange={(event, value, reason) => {
-                            setInputInstance('')
-                        }}
-                        renderInput={(params) => <TextField {...params} label="Currency" error={!!fieldError} helperText={fieldError} />}
-                        filterOptions={(options, { inputValue }) => {
-                            return options.filter((val) =>
-                                (val.currencyCode.startsWith(inputValue.toUpperCase()) || val.currencyName.toUpperCase().includes(inputValue.toUpperCase()))
-                                && !getValues("CURRENCY")?.includes(val.currencyCode)
-                            )
-                        }}
-                        onChange={(e, v, r) => {
-                            setFieldError(null);
-                            if (r === "selectOption") {
-                                setInputInstance(v.currencyCode);
-                            } else if (r === "clear") {
-                                setInputInstance('')
-                            }
-                        }}
-                        noOptionsText={"No Options"}
-                    />
-                }
-                    {filterField === "CGL" &&
-                    <Autocomplete
-                        options={values || []}
-                        value={values.find((v) => v.cglNumber === inputInstance) || null}
-                        size="small"
-                        getOptionLabel={(option) => option ? `${option.cglNumber} (${option.description})` : ''}
-                        isOptionEqualToValue={(option, value) => option.cglNumber === value?.cglNumber}
-                        onInputChange={(event, value, reason) => {
-                            debouncedFetchCgls(value, reason, isMinInput)
-                        }}
-                        renderInput={(params) => <TextField {...params} label="CGL" error={!!fieldError} helperText={fieldError} />}
-                        filterOptions={(options) => {
-                            return options.filter((val) => !getValues("CGL")?.includes(val.cglNumber))
-                        }}
-                        onChange={(e, v, r) => {
-                            setFieldError(null);
-                            if (r === "selectOption") {
-                                setInputInstance(v.cglNumber);
-                                setValues([]);
-                            } else if (r === "clear") {
-                                setInputInstance('');
-                                setValues([]);
-                            }
-                        }}
-                        noOptionsText={
-                            (!isMinInput) ? "Please enter at least 3 characters" : "No Options"
-                        }
-                    />
-                }
-                    {filterField === "JOURNAL_NUMBER" &&
-                        <TextField
-                            id="outlined-controlled"
-                            label="Journal Number"
-                            size="small"
-                            fullWidth
-                            error={!!fieldError}
-                            helperText={fieldError}
-                            slotProps={{ htmlInput: { maxLength: 10 } }}
-                            value={inputInstance}
-                            onChange={(e) => {
-                                setFieldError(null);
-                                setInputInstance(e.target.value)
-                            }}
-                        />
-                    }
-                    {filterField === "TRANSACTION_CODE" &&
-                        <CustomTextField
-                            id="outlined-controlled"
-                            label="Transaction Code"
-                            size="small"
-                            error={!!fieldError}
-                            helperText={fieldError}
-                            slotProps={{ htmlInput: { maxLength: 5 } }}
-                            value={inputInstance}
-                            onChange={(e) => {
-                                setFieldError(null);
-                                setInputInstance(e.target.value)
-                            }}
-                        />
-                    }
-                    {filterField === "BATCH_ID" &&
-                        <CustomTextField
-                            id="outlined-controlled"
-                            label="Batch Id"
-                            size="small"
-                            error={!!fieldError}
-                            helperText={fieldError}
-                            slotProps={{ htmlInput: { maxLength: 10 } }}
-                            value={inputInstance}
-                            onChange={(e) => {
-                                setFieldError(null);
-                                setInputInstance(e.target.value)
-                            }}
-                        />
-                    }
-                    {filterField === "ACCOUNT" &&
-                        <CustomTextField
-                            id="outlined-controlled"
-                            label="Account"
-                            size="small"
-                            error={!!fieldError}
-                            helperText={fieldError}
-                            slotProps={{ htmlInput: { maxLength: 10 } }}
-                            value={inputInstance}
-                            onChange={(e) => {
-                                setFieldError(null);
-                                setInputInstance(e.target.value)
-                            }}
-                        />
-                    }
-                </Grid>
-            {!(filterField === '') &&
-                <Grid item size={{md:3}}>
-                    <Button variant='contained' startIcon={<AddIcon />} onClick={setFilter}>
-                        Add Filter
-                    </Button>
-                </Grid>
-            }
-              </Grid>
-        </Box>
-    )
+.dateCard .infoCardLabel {
+  margin-bottom: 6px;
+  color: #6C5CE7;
+}
+
+.dateCard .MuiOutlinedInput-notchedOutline {
+  border: none !important;
+}
+
+.dateCard .MuiOutlinedInput-root:hover .MuiOutlinedInput-notchedOutline {
+  border: none !important;
+}
+
+.dateCard .MuiOutlinedInput-root.Mui-focused .MuiOutlinedInput-notchedOutline {
+  border: none !important;
+}
+
+.navTabs {
+  margin-top: 4px;
+}
+
+.navTabs:global(.MuiTabs-flexContainer) {
+  gap: 1200px;
+}
+
+.navTab {
+  color: #4f459b !important;
+  font-weight: 500;
+  text-transform: none;
+  align-items: center;
+  flex-direction: row;
+  justify-content: flex-start;
+  min-height: 35px;
+  border-radius: 10px;
+  padding: 8px 12px;
+  border-left: 3px solid transparent;
+  gap: 10px;
+  box-shadow: none !important;
+  background:transparent;
+  border:1px solid #6C5CE7;
+}
+
+.navTab:hover {
+  background: rgba(108, 92, 231, 0.1);
+}
+
+.navTab:global(.Mui-selected) {
+  background: linear-gradient(90deg, #4f459b 0%, #9B8FEF 100%);
+  color: #FFFFFF !important;
+  border-left: 3px solid #4f459b;
+  font-weight: 700;
+  min-height: 35px;
+  box-shadow: 0 3px 10px rgba(108, 92, 231, 0.3) !important;
+}
+
+.navTab:global(.Mui-disabled) {
+  opacity: 0.4;
+}
+
+.sidebarFooter {
+  margin-top: auto;
+  padding-top: 12px;
+}
+
+.sidebarIllustration {
+  position: relative;
+  width: 100%;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  padding: 12px 0 4px;
+}
+
+.sparkleTopRight {
+  position: absolute;
+  top: 2px;
+  right: 28%;
+  font-size: 15px !important;
+  color: #C9BFFC;
+}
+
+.sparkleBottomLeft {
+  position: absolute;
+  bottom: 6px;
+  left: 22%;
+  font-size: 10px !important;
+  color: #C9BFFC;
+  opacity: 0.8;
+}
+
+.sparkleMidRight {
+  position: absolute;
+  top: 38%;
+  right: 14%;
+  font-size: 9px !important;
+  color: #DCD5FE;
+}
+
+/* ---- Main content ------------------------------------------------------- */
+
+.mainContent {
+  flex: 1;
+  min-width: 0;
+  padding: 24px;
+  background-color: rgba(253, 252, 255, 0.096);
+  display: flex;
+  flex-direction: column;
+}
+
+.pageHeaderRow {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.headerSparkle {
+  font-size: 17px !important;
+  color: #B8AEFB;
+}
+
+.pageHeaderTitle {
+  font-size: 20px;
+  font-weight: 700;
+  color: rgba(20, 14, 45, 0.9);
+  margin: 0 0 2px;
+}
+
+.pageHeaderSubtitle {
+  font-size: 13px;
+  color: rgba(30, 20, 60, 0.5);
+  margin: 0 0 22px;
+}
+
+.highlightDate {
+  font-weight: 700;
+  color: #6C5CE7;
+}
+
+/* ---- Summary cards ----------------------------------------------------- */
+
+.summaryRow {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 12px;
+  align-items: stretch;
+  flex: 1;
+}
+
+.summaryCard {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  height: 80%;
+  min-height: 320px;
+  background-color: #ffffff83;
+  border: 1px solid rgba(108, 92, 231, 0.08);
+  border-radius: 18px;
+  padding: 18px 20px 20px;
+  overflow: hidden;
+  transition: box-shadow 0.2s ease, transform 0.15s ease, border-color 0.2s ease;
+}
+
+.summaryCard:hover {
+  box-shadow: 0 12px 32px rgba(76, 60, 150, 0.14);
+  transform: translateY(-3px);
+  border-color: rgba(108, 92, 231, 0.18);
+}
+
+/* Thin colored accent bar along the top — small detail that reads as
+   "designed", not templated */
+.summaryCard::before {
+  content: '';
+  position: absolute;
+  top: 0; left: 0; right: 0;
+  height: 4px;
+  border-radius: 18px 18px 0 0;
+}
+.rolePurple::before { background: linear-gradient(90deg, #6C5CE7, #9B8FEF); }
+.roleTeal::before   { background: linear-gradient(90deg, #6C5CE7, #9B8FEF); }
+.roleAmber::before  { background: linear-gradient(90deg, #6C5CE7, #9B8FEF); }
+
+/* ---- Header: ~10% of height, compact ---- */
+.summaryCardHeader {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-shrink: 0;
+}
+
+.summaryCardIcon {
+  width: 36px;
+  height: 36px;
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.summaryCardLabel {
+  font-size: 13.5px;
+  font-weight: 700;
+  color: rgba(30, 20, 60, 0.85);
+  line-height: 1.25;
+}
+
+/* ---- Description: fixed 2-line clamp, ~15% of height ---- */
+.summaryCardDescription {
+  font-size: 11.5px;
+  line-height: 1.4;
+  color: rgba(30, 20, 60, 0.5);
+  margin-top: 10px;
+  flex-shrink: 0;
+  text-align: left;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  min-height: 32px;
+}
+
+/* ---- Center block: flex:1 makes this eat ALL remaining space —
+   this is what gives you the ~70-80% visual weight on the number ---- */
+.summaryCardCenter {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  gap: 6px;
+}
+
+.summaryCardCount {
+  font-size: 46px;
+  font-weight: 800;
+  line-height: 1;
+  letter-spacing: -0.02em;
+}
+
+.summaryCardCaption {
+  font-size: 12.5px;
+  font-weight: 600;
+  color: rgba(30, 20, 60, 0.45);
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+/* ---- Actions: ~15% of height, compact, pinned to bottom ---- */
+.summaryCardActions {
+  display: flex;
+  flex-direction: row;
+  gap: 8px;
+  flex-shrink: 0;
+  margin-top: 12px;
+}
+
+.viewDetailsButton {
+  width: 100%;
+  height: 38px !important;
+  text-transform: none !important;
+  border-radius: 10px !important;
+  font-weight: 600 !important;
+  font-size: 13px !important;
+  box-shadow: 0 4px 12px rgba(108, 92, 231, 0.28) !important;
+}
+
+.downloadButtonOutlined {
+  width: 100%;
+  height: 34px !important;
+  text-transform: none !important;
+  border-radius: 10px !important;
+  font-weight: 600 !important;
+  font-size: 12px !important;
+  border-width: 1.5px !important;
+}
+
+.rolePurple .summaryCardIcon { background-color: #EEEDFE; color: #6C5CE7; }
+
+.roleTeal .summaryCardIcon { background-color: #EEEDFE; color: #6C5CE7; }
+
+.roleAmber .summaryCardIcon { background-color: #EEEDFE; color: #6C5CE7; }
+
+.infoBanner {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 12px 16px;
+  border-radius: 10px;
+  background-color: rgba(255, 255, 255, 0.158);
+  border: 1px solid rgba(108, 92, 231, 0.15);
+  margin-top: 20px;
+  backdrop-filter: blur(12px);
+}
+
+.infoBannerText {
+  font-size: 12.5px;
+  color: rgba(30, 20, 60, 0.6);
+  line-height: 1.5;
+}
+
+/* ---- Full-width GLIF sections --------------------------------------------- */
+
+.glifSection {
+  width: 100%;
+  background-color: rgba(255, 255, 255, 0.493);
+  backdrop-filter: blur(12px);
+  border: 1px solid rgba(108, 92, 231, 0.1);
+  border-radius: 14px;
+  padding: 18px 22px;
+  margin-bottom: 14px;
+  box-shadow: 0 1px 6px rgba(76, 60, 150, 0.05);
+}
+
+.glifSectionHeader {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 14px;
+}
+
+.glifSectionIcon {
+  width: 32px;
+  height: 32px;
+  border-radius: 9px;
+  background-color: #F5F3FF;
+  color: #6C5CE7;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.glifSectionTitle {
+  font-size: 14px;
+  font-weight: 700;
+  color: rgba(30, 20, 60, 0.87);
+  flex-grow: 1;
+}
+
+.chipValues {
+  display: flex;
+  row-gap: 8px;
+  column-gap: 8px;
+  flex-wrap: wrap;
+  align-items: center;
+}
+
+.filterFieldChip {
+  font-weight: 600 !important;
+}
+
+.typographyLabel {
+  font-size: 12.5px;
+  color: rgba(30, 20, 60, 0.55);
+}
+
+.clearAllLink {
+  font-size: 12px;
+  font-weight: 600;
+  color: #6C5CE7;
+  cursor: pointer;
+  background: none;
+  border: none;
+  padding: 0;
+}
+
+.clearAllLink:hover {
+  text-decoration: underline;
+}
+
+.downloadRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 6px 4px;
+}
+
+.downloadRowText {
+  font-size: 12px;
+  color: rgba(30, 20, 60, 0.5);
+  line-height: 1.5;
+}
+
+.downloadRowButton {
+  text-transform: none !important;
+  border-radius: 8px !important;
+  font-weight: 600 !important;
+  flex-shrink: 0;
+  box-shadow: 0 2px 8px rgba(108, 92, 231, 0.25) !important;
+}
+
+/* ---- Details dialog ---------------------------------------------------- */
+
+.dialogPaper {
+  border-radius: 16px;
+  max-height: 85vh;
+  width: 65vw;
+  max-width: 1400px !important;
+  box-shadow: 0 12px 48px rgba(76, 60, 150, 0.2);
+}
+
+.dialogTitle {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-weight: 600;
+  border-bottom: 1px solid rgba(108, 92, 231, 0.1);
+}
+
+.dialogTitleText {
+  font-size: 15px;
+  font-weight: 700;
+  color: rgba(30, 20, 60, 0.87);
+  flex-grow: 1;
+}
+
+.dialogButton {
+  flex-grow: 0;
+  margin: 4px;
+}
+
+/* ---- Empty-state box inside the grid ---------------------------------- */
+
+.emptyStateBox {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 32px 16px;
+  width: calc(100% - 32px);
+  margin: 8px 16px;
+  border: 1px dashed rgba(108, 92, 231, 0.25);
+  border-radius: 12px;
+  background-color: #FBFAFF;
+}
+
+.bankIllustration {
+  position: relative;
+  width: 100%;
+  height: 190px;
+  display: flex;
+  justify-content: center;
+  align-items: flex-end;
+  overflow: hidden;
+}
+
+.bankGlow {
+  width: 150px;
+  height: 150px;
+  border-radius: 50% 50% 0 0;
+  background: radial-gradient(circle, rgba(108,92,231,0.22) 0%, rgba(108,92,231,0.08) 50%, transparent 72%);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.bankIcon {
+  font-size: 62px !important;
+  color: #6C5CE7;
+  opacity: 0.8;
+}
+
+.bankSparkle1 {
+  position: absolute;
+  top: 20px;
+  left: 22%;
+  color: #B8AEFB;
+  font-size: 16px !important;
+}
+
+.bankSparkle2 {
+  position: absolute;
+  top: 42px;
+  right: 20%;
+  color: #C9BFFC;
+  font-size: 12px !important;
+}
+
+.bankSparkle3 {
+  position: absolute;
+  top: 75px;
+  left: 30%;
+  color: #DCD5FE;
+  font-size: 9px !important;
+}
+
+.summaryCardDescription {
+  font-size: 12px;
+  line-height: 1.4;
+  color: rgba(30, 20, 60, 0.55);
+  margin-top: 10px;
+  padding: 0 4px;
+  text-align: left;
 }
