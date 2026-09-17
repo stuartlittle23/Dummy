@@ -1,404 +1,282 @@
+import React, { useCallback, useEffect, useState } from 'react'
+import useApi from '../../hooks/useApi'
+import Validation from './Validation';
+import useCustomSnackbar from '../../utils/useCustomSnackbar';
+import { Autocomplete, Box, Button, FormControl, Grid, InputLabel, MenuItem, Select, TextField } from '@mui/material';
+import AddIcon from '@mui/icons-material/Add';
+import debounce from 'lodash/debounce';
 import styled from '@emotion/styled';
-import HistoryOutlinedIcon from '@mui/icons-material/HistoryOutlined';
-import InboxOutlinedIcon from '@mui/icons-material/InboxOutlined';
-import SearchOffOutlinedIcon from '@mui/icons-material/SearchOffOutlined';
-import { Box, Chip, IconButton, Paper, Typography } from '@mui/material';
-import { DataGrid, GridOverlay } from '@mui/x-data-grid';
-import React, { useMemo, useState } from 'react';
 
-const StyledDataGrid = styled(DataGrid)(() => ({
-    height: '460px',
-    border: 'none',
-    '& .MuiDataGrid-cell:focus, & .MuiDataGrid-columnHeader:focus': {
-        outline: 'none',
-    },
-    '& .MuiDataGrid-cell:focus-within, & .MuiDataGrid-columnHeader:focus-within': {
-        outline: 'none',
-    },
-    '& .MuiDataGrid-columnHeader': {
-        backgroundColor: '#FBFAFF',
-    },
-    '& .MuiDataGrid-columnHeaderTitle': {
-        fontWeight: 600,
-        color: 'rgba(30, 20, 60, 0.7)',
-    },
-    '& .MuiDataGrid-row:hover': {
-        backgroundColor: 'rgba(108, 92, 231, 0.04)',
-    },
-    '& .MuiDataGrid-row.Mui-selected': {
-        backgroundColor: 'transparent',
-    },
-    '& .MuiDataGrid-row.Mui-selected:hover': {
-        backgroundColor: 'rgba(108, 92, 231, 0.04)',
-    },
+const filterMap = {
+    CURRENCY: { type: "autocomplete", multiValue: true, validate: "validateCurrency" },
+    CGL: { type: "autocomplete", multiValue: true, validate: "validateCgl" },
+    JOURNAL_NUMBER: { type: "input", multiValue: false, validate: "validateJrnNo" },
+    TRANSACTION_CODE: { type: "input", multiValue: true, validate: "validateTxnCode" },
+    BATCH_ID: { type: "input", multiValue: false, validate: "validateBatchId" },
+    ACCOUNT: { type: "input", multiValue: false, validate: "validateAccNo" }
+}
+
+const filterLabels = {
+    CURRENCY: "Currency",
+    CGL: "CGL",
+    JOURNAL_NUMBER: "Journal Number",
+    TRANSACTION_CODE: "Transaction Code",
+    BATCH_ID: "Batch Id",
+    ACCOUNT: "Account",
+}
+
+const AddButton = styled(Button)(({ theme }) => ({
+    display: "flex",
+    justifyContent: "center",
+    alignItems: "center",
+    textTransform: "none",
+    borderRadius: "8px",
+    boxShadow: "none",
 }));
 
+const AddBox = styled(Box)(({ theme }) => ({
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "flex-end",
+    marginTop: "12px",
+}));
 
-const rawColumns = [
-    {
-        field: "firstErrorDate",
-        headerName: "1st Error",
-        width: 120,
-        headerAlign: 'center',
-        align: 'center',
-        disableColumnMenu: true,
-        sortable: true,
-        filterable: true
-    },
-    {
-        field: "glcc",
-        headerName: "GLCC",
-        minWidth: 180,
-        flex: 1,
-        headerAlign: 'center',
-        align: 'center',
-        disableColumnMenu: true,
-        sortable: true,
-        filterable: true,
-        valueGetter: (value, row) =>
-            `${row?.branchCode || ""}${row?.currency || ""}${row?.cgl || ""}`
-    },
-    {
-        field: "balance",
-        headerName: "Amount",
-        minWidth: 130,
-        align: 'right',
-        headerAlign: 'center',
-        sortable: true,
-        filterable: true,
-        flex: 1
-    },
-    {
-        field: "inrBalance",
-        headerName: "INR Balance",
-        minWidth: 130,
-        align: 'right',
-        headerAlign: 'center',
-        sortable: true,
-        filterable: true,
-        flex: 1
-    },
-    {
-        field: "cbsBalance",
-        headerName: "CBS Balance",
-        minWidth: 140,
-        align: 'right',
-        headerAlign: 'center',
-        sortable: false,
-        filterable: false,
-        flex: 1
-    },
-    {
-        field: "glBalance",
-        headerName: "GL Balance",
-        minWidth: 200,
-        align: 'right',
-        headerAlign: 'center',
-        sortable: false,
-        filterable: false,
-        flex: 1
-    },
-    {
-        field: "differenceAmount",
-        headerName: "Difference Amount",
-        minWidth: 200,
-        align: 'right',
-        headerAlign: 'center',
-        sortable: false,
-        filterable: false,
-        flex: 1
-    },
-    {
-        field: "diffBwYesterday",
-        headerName: "Diff Bw Yesterday",
-        minWidth: 200,
-        align: 'right',
-        headerAlign: 'center',
-        sortable: false,
-        filterable: false,
-        flex: 1
-    },
-    {
-        field: "head",
-        headerName: "Type",
-        minWidth: 100,
-        sortable: true,
-        filterable: true,
-        flex: 1
-    },
-    {
-        field: "type",
-        headerName: "Head",
-        minWidth: 100,
-        sortable: true,
-        filterable: true,
-        flex: 1
+const CustomTextField = styled(TextField)(({ theme }) => ({
+    display: 'flex',
+    flexGrow: 1,
+}));
+
+export default function Filter({ handleFilter, getValues }) {
+    const [values, setValues] = useState([]);
+    const [filterField, setFilterField] = useState('CGL');
+    const [isMinInput, setIsMinInput] = useState();
+    const [inputInstance, setInputInstance] = useState("");
+    const [fieldError, setFieldError] = useState(null);
+    const snackbar = useCustomSnackbar();
+    const { callApi } = useApi();
+
+    const setFilter = () => {
+        if ((filterField === "CURRENCY" || filterField === "CGL") && inputInstance === "") {
+            setFieldError("Kindly select a value!");
+            snackbar("Kindly select the value!", "error");
+            return
+        }
+        let isValid = Validation[filterMap[filterField].validate](inputInstance);
+        if (isValid != null) {
+            setFieldError(isValid);
+            snackbar(isValid, "error")
+            return;
+        }
+        setFieldError(null);
+        handleFilter({ field: filterField, value: inputInstance, multiValue: filterMap[filterField].multiValue })
+        setInputInstance("");
     }
-];
 
-export default function DisplayTab({
-    level,
-    type,
-    data = {},
-    category,
-    clickHandler = () => {},
-    downloadHandler = () => {},
-    requestData = () => {},
-    loading = false,
-    hideHeader = false,
-    flat = false,
-    reportDate,
-    glcc = ""
-}) {
-    const [paginationModel, setPaginationModel] = useState({
-        page: 0,
-        pageSize: 10,
-    });
+    const debouncedFetchCgls = useCallback(debounce(async (value, type, isMinInput) => {
+        await fetchCgls(value, type, isMinInput);
+    }, 100), []);
 
-    const rows = data?.content || [];
-
-    const rowsWithId = useMemo(() => {
-        return rows.map((row, index) => ({
-            ...row,
-            __displayTabId:
-                row?.id ||
-                `${type || "row"}-${index}-${row?.branchCode || ""}-${row?.currency || ""}-${row?.cgl || ""}-${row?.date || ""}-${row?.firstErrorDate || ""}-${row?.head || ""}-${row?.type || ""}`
-        }));
-    }, [rows, type]);
-
-   const columns = useMemo(() => {
-    if (!rows || rows.length === 0) {
-        return rawColumns.filter((column) =>
-            ["firstErrorDate", "glcc", "balance", "inrBalance", "cbsBalance", "glBalance", "differenceAmount", "diffBwYesterday", "head", "type"].includes(column.field)
+    async function fetchCurrencies() {
+        const response = await callApi(
+            "/CM/common-master/currency-master",
+            null,
+            "GET",
         );
+        if (response) {
+            setValues(response.data || [])
+        } else {
+            snackbar("Failed to fetch currency list!")
+        }
     }
 
-    const fields = Object.keys(rows[0]);
-
-        let cols = rawColumns.filter((column) => {
-            if (column.field === "glcc") {
-                return (
-                    fields.includes("branchCode") ||
-                    fields.includes("currency") ||
-                    fields.includes("cgl")
-                );
+    async function fetchCgls(term, reason, isMinInput) {
+        if (reason === "input") {
+            if (term?.length < 3) {
+                if (isMinInput) {
+                    setIsMinInput(false);
+                }
+                setValues([])
+                return;
+            }
+            if (!isMinInput) {
+                setIsMinInput(true);
             }
 
-            return fields.includes(column.field);
-        });
-
-        if (level === 2) {
-            cols = cols.filter(
-                (column) =>
-                    column.field !== "glcc"
-            );
+            try {
+                const res = await callApi(`/CM/common-master/cgl-code-description-only?q=${encodeURIComponent(term)}`);
+                if (res && res.success) {
+                    setValues(res?.data);
+                } else {
+                    setValues([]);
+                    snackbar(res?.message, "error")
+                }
+            } catch (e) {
+                snackbar(e.message, "error")
+            }
         }
+    }
 
-        if (level === 1) {
-            cols.push({
-                field: "action",
-                headerName: "History",
-                headerAlign: 'center',
-                align: 'center',
-                width: 80,
-                sortable: false,
-                filterable: false,
-                disableColumnMenu: true,
-                renderCell: (params) => (
-                    <IconButton
-                        onClick={() => clickHandler(type, params.row)}
-                        size="small"
-                        title="History"
-                    >
-                        <HistoryOutlinedIcon fontSize="small" />
-                    </IconButton>
-                )
-            });
+    const handleSelectChange = (e) => {
+        setFilterField(e.target.value);
+        setInputInstance("");
+        setFieldError(null);
+        setValues([]);
+    }
+
+    useEffect(() => {
+        const fetchData = async () => {
+            await fetchCurrencies();
         }
-
-        return cols;
-    }, [rows, level, type, clickHandler]);
-
-    const handlePaginationModelChange = (newModel) => {
-        setPaginationModel(newModel);
-
-        if (level === 1) {
-            requestData(type, { ...newModel });
+        if (filterField === "CURRENCY") {
+            fetchData();
         }
-    };
-
-    
-
-const CustomNoRowsOverlay = () => (
-    <GridOverlay>
-        <Box sx={{
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            gap: 1,
-            height: '100%',
-            width: '100%'
-        }}>
-            <SearchOffOutlinedIcon
-                sx={{ fontSize: 24, color: '#6C5CE7' }}
-            />
-            <Typography sx={{
-                fontSize: 13,
-                fontWeight: 600,
-                color: 'rgba(30,20,60,0.65)'
-            }}>
-                No data found for the selected criteria
-            </Typography>
-        </Box>
-    </GridOverlay>
-);
-
-    const CustomNoDataOverlay = () => (
-        <GridOverlay>
-            <Box sx={{
-                display: 'flex',
-                flexDirection: 'column',
-                alignItems: 'center',
-                justifyContent: 'center',
-                gap: '6px',
-                padding: '32px 16px',
-                width: 'calc(100% - 32px)',
-                margin: '8px 16px',
-                border: '1px dashed rgba(108, 92, 231, 0.25)',
-                borderRadius: '12px',
-                backgroundColor: '#FBFAFF'
-            }}>
-                <SearchOffOutlinedIcon
-                    sx={{
-                        fontSize: 30,
-                        color: 'rgba(30, 20, 60, 0.35)'
-                    }}
-                />
-                <Typography
-                    variant="body2"
-                    sx={{
-                        fontWeight: 600,
-                        color: 'rgba(30, 20, 60, 0.75)'
-                    }}
-                >
-                    No data available
-                </Typography>
-                <Typography
-                    variant="caption"
-                    sx={{
-                        color: 'rgba(30, 20, 60, 0.5)'
-                    }}
-                >
-                    There are no records to display for this selection.
-                </Typography>
-            </Box>
-        </GridOverlay>
-    );
+    }, [filterField])
 
     return (
-        <Paper
-            elevation={0}
-            sx={flat
-                ? {
-                    border: 'none',
-                    boxShadow: 'none',
-                    margin: 0,
-                    borderRadius: 0
+        <Box>
+            <Grid container spacing={1}>
+                <Grid item size={{ md: 4}}>
+                    <FormControl variant="outlined" fullWidth size="small">
+                        <InputLabel>Select Filter</InputLabel>
+                        <Select
+                            value={filterField || ''}
+                            label="Select Filter"
+                            onChange={handleSelectChange}
+                        >
+                            {Object.keys(filterMap).map((key) => (
+                                <MenuItem key={key} value={key}>{filterLabels[key]}</MenuItem>
+                            ))}
+                        </Select>
+                    </FormControl>
+                </Grid>
+                <Grid item size={{ md: 5 }}>
+                    {filterField === "CURRENCY" &&
+                    <Autocomplete
+                        options={values || []}
+                        value={values.find((v) => v.currencyCode === inputInstance) || null}
+                        size="small"
+                        getOptionLabel={(option) => option ? `${option.currencyCode} (${option.currencyName})` : ''}
+                        isOptionEqualToValue={(option, value) => option.currencyCode === value?.currencyCode}
+                        onInputChange={(event, value, reason) => {
+                            setInputInstance('')
+                        }}
+                        renderInput={(params) => <TextField {...params} label="Currency" error={!!fieldError} helperText={fieldError} />}
+                        filterOptions={(options, { inputValue }) => {
+                            return options.filter((val) =>
+                                (val.currencyCode.startsWith(inputValue.toUpperCase()) || val.currencyName.toUpperCase().includes(inputValue.toUpperCase()))
+                                && !getValues("CURRENCY")?.includes(val.currencyCode)
+                            )
+                        }}
+                        onChange={(e, v, r) => {
+                            setFieldError(null);
+                            if (r === "selectOption") {
+                                setInputInstance(v.currencyCode);
+                            } else if (r === "clear") {
+                                setInputInstance('')
+                            }
+                        }}
+                        noOptionsText={"No Options"}
+                    />
                 }
-                : {
-                    marginTop: '8px',
-                    marginBottom: '8px',
-                    borderRadius: '12px',
-                    overflow: 'hidden',
-                    border: '1px solid rgba(108, 92, 231, 0.1)',
-                    boxShadow: '0 1px 6px rgba(76, 60, 150, 0.06)'
+                    {filterField === "CGL" &&
+                    <Autocomplete
+                        options={values || []}
+                        value={values.find((v) => v.cglNumber === inputInstance) || null}
+                        size="small"
+                        getOptionLabel={(option) => option ? `${option.cglNumber} (${option.description})` : ''}
+                        isOptionEqualToValue={(option, value) => option.cglNumber === value?.cglNumber}
+                        onInputChange={(event, value, reason) => {
+                            debouncedFetchCgls(value, reason, isMinInput)
+                        }}
+                        renderInput={(params) => <TextField {...params} label="CGL" error={!!fieldError} helperText={fieldError} />}
+                        filterOptions={(options) => {
+                            return options.filter((val) => !getValues("CGL")?.includes(val.cglNumber))
+                        }}
+                        onChange={(e, v, r) => {
+                            setFieldError(null);
+                            if (r === "selectOption") {
+                                setInputInstance(v.cglNumber);
+                                setValues([]);
+                            } else if (r === "clear") {
+                                setInputInstance('');
+                                setValues([]);
+                            }
+                        }}
+                        noOptionsText={
+                            (!isMinInput) ? "Please enter at least 3 characters" : "No Options"
+                        }
+                    />
                 }
+                    {filterField === "JOURNAL_NUMBER" &&
+                        <TextField
+                            id="outlined-controlled"
+                            label="Journal Number"
+                            size="small"
+                            fullWidth
+                            error={!!fieldError}
+                            helperText={fieldError}
+                            slotProps={{ htmlInput: { maxLength: 10 } }}
+                            value={inputInstance}
+                            onChange={(e) => {
+                                setFieldError(null);
+                                setInputInstance(e.target.value)
+                            }}
+                        />
+                    }
+                    {filterField === "TRANSACTION_CODE" &&
+                        <CustomTextField
+                            id="outlined-controlled"
+                            label="Transaction Code"
+                            size="small"
+                            error={!!fieldError}
+                            helperText={fieldError}
+                            slotProps={{ htmlInput: { maxLength: 5 } }}
+                            value={inputInstance}
+                            onChange={(e) => {
+                                setFieldError(null);
+                                setInputInstance(e.target.value)
+                            }}
+                        />
+                    }
+                    {filterField === "BATCH_ID" &&
+                        <CustomTextField
+                            id="outlined-controlled"
+                            label="Batch Id"
+                            size="small"
+                            error={!!fieldError}
+                            helperText={fieldError}
+                            slotProps={{ htmlInput: { maxLength: 10 } }}
+                            value={inputInstance}
+                            onChange={(e) => {
+                                setFieldError(null);
+                                setInputInstance(e.target.value)
+                            }}
+                        />
+                    }
+                    {filterField === "ACCOUNT" &&
+                        <CustomTextField
+                            id="outlined-controlled"
+                            label="Account"
+                            size="small"
+                            error={!!fieldError}
+                            helperText={fieldError}
+                            slotProps={{ htmlInput: { maxLength: 10 } }}
+                            value={inputInstance}
+                            onChange={(e) => {
+                                setFieldError(null);
+                                setInputInstance(e.target.value)
+                            }}
+                        />
+                    }
+                </Grid>
+            {!(filterField === '') &&
+                <Grid item size={{md:3}}>
+                    <Button variant='contained' startIcon={<AddIcon />} onClick={setFilter}>
+                        Add Filter
+                    </Button>
+                </Grid>
             }
-        >
-            {!hideHeader && level === 1 && (
-                <Box sx={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    padding: '8px 14px',
-                    backgroundColor: '#F7F6FD',
-                    borderBottom: '1px solid rgba(108, 92, 231, 0.1)'
-                }}>
-                    <Chip
-                        label={`Report Date: ${reportDate || '—'}`}
-                        size="small"
-                        sx={{
-                            fontWeight: 700,
-                            color: "#58469f",
-                            bgcolor: "rgba(88, 70, 159, 0.1)",
-                            borderRadius: "8px"
-                        }}
-                    />
-                </Box>
-            )}
-
-            {!hideHeader && level === 2 && (
-                <Box sx={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: 1,
-                    padding: '8px 14px',
-                    backgroundColor: '#F7F6FD',
-                    borderBottom: '1px solid rgba(108, 92, 231, 0.1)'
-                }}>
-                    <Chip
-                        label={`Report Date: ${reportDate || '—'}`}
-                        size="small"
-                        sx={{
-                            fontWeight: 700,
-                            color: "#58469f",
-                            bgcolor: "rgba(88, 70, 159, 0.1)",
-                            borderRadius: "8px"
-                        }}
-                    />
-
-                    <Chip
-                        label={`GLCC: ${glcc || '—'}`}
-                        size="small"
-                        sx={{
-                            fontWeight: 700,
-                            color: "#58469f",
-                            bgcolor: "rgba(88, 70, 159, 0.1)",
-                            borderRadius: "8px"
-                        }}
-                    />
-                </Box>
-            )}
-
-            <StyledDataGrid
-                rows={rowsWithId}
-                columns={columns}
-                pagination
-                paginationMode={level === 1 ? 'server' : 'client'}
-                paginationModel={paginationModel}
-                rowCount={
-                    level === 1
-                        ? (data?.page?.totalElements || 0)
-                        : rowsWithId.length
-                }
-                getRowId={(row) => row.__displayTabId}
-                pageSizeOptions={[10, 50, 100, 150]}
-                columnHeaderHeight={56}
-                onPaginationModelChange={handlePaginationModelChange}
-                hideFooter={rows.length === 0}
-                disableRowSelectionOnClick
-                checkboxSelection={false}
-                slots={{
-    noRowsOverlay:
-        level === 2
-            ? CustomNoDataOverlay
-            : CustomNoRowsOverlay,
-    noResultsOverlay:
-        level === 2
-            ? CustomNoDataOverlay
-            : CustomNoRowsOverlay,
-}}
-                loading={loading || false}
-            />
-        </Paper>
-    );
+              </Grid>
+        </Box>
+    )
 }
