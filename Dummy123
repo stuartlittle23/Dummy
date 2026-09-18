@@ -1,53 +1,7 @@
-<Box className={styles.searchResetRow}>
-  <Button
-    variant="contained"
-    size="small"
-    onClick={() => {
-      setBreakupDataRows({});
-      fetchDifference();
-    }}
-  >
-    Search
-  </Button>
-
-  <Button
-    variant="outlined"
-    size="small"
-    onClick={handleReset}
-  >
-    Reset
-  </Button>
-</Box>
-
-
-
-
-
-
-const handleReset = () => {
-  // Clear Circle only when it is editable
-  if (hasWholeBank) {
-    setSelectedCircle(null);
-    setCircleInput('');
-  }
-
-  // Clear Branch only when it is editable
-  if (!isBranchUser) {
-    setSelectedBranch(null);
-    setBranchInput('');
-    setBranchOptions([]);
-  }
-
-  setGlifDataFilter({});
-  setReportDateError(null);
-  setDataRows({});
-  setBreakupDataRows({});
-  setSelectedGlcc('');
-};
-
-
-
-
-
-
-
+.searchResetRow {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  margin-top: 16px;
+}
