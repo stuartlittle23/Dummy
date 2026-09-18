@@ -1,12 +1,7 @@
 .navTabs {
   width: 100%;
   margin-bottom: 20px;
-  background: rgba(108, 92, 231, 0.06);
-  border-radius: 12px;
-  padding: 4px;
-  min-height: 48px;
 }
-
 
 
 
@@ -14,25 +9,27 @@
   flex: 1;
   max-width: none !important;
   min-height: 44px !important;
-  color: #4f459b !important;
+  color: rgba(30, 20, 60, 0.55) !important;
   font-weight: 600;
   text-transform: none;
-  border-radius: 9px;
+  border-radius: 0;
   padding: 8px 12px;
-  gap: 8px;
-  box-shadow: none !important;
   background: transparent;
+  border-bottom: 2px solid transparent;
+  box-shadow: none !important;
 }
 
 .navTab:hover {
-  background: rgba(108, 92, 231, 0.08);
+  background: transparent;
+  color: #6C5CE7 !important;
 }
 
 .navTab:global(.Mui-selected) {
-  background: linear-gradient(90deg, #4f459b 0%, #9B8FEF 100%);
-  color: #FFFFFF !important;
+  color: #6C5CE7 !important;
+  background: transparent;
+  border-bottom: 2px solid #6C5CE7;
   font-weight: 700;
-  box-shadow: 0 3px 10px rgba(108, 92, 231, 0.25) !important;
+  box-shadow: none !important;
 }
 
 .navTab:global(.Mui-disabled) {
