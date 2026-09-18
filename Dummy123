@@ -1,37 +1,53 @@
-.navTabs {
-  width: 100%;
-  margin-bottom: 20px;
-}
+<Box className={styles.searchResetRow}>
+  <Button
+    variant="contained"
+    size="small"
+    onClick={() => {
+      setBreakupDataRows({});
+      fetchDifference();
+    }}
+  >
+    Search
+  </Button>
+
+  <Button
+    variant="outlined"
+    size="small"
+    onClick={handleReset}
+  >
+    Reset
+  </Button>
+</Box>
 
 
 
-.navTab {
-  flex: 1;
-  max-width: none !important;
-  min-height: 44px !important;
-  color: rgba(30, 20, 60, 0.55) !important;
-  font-weight: 600;
-  text-transform: none;
-  border-radius: 0;
-  padding: 8px 12px;
-  background: transparent;
-  border-bottom: 2px solid transparent;
-  box-shadow: none !important;
-}
 
-.navTab:hover {
-  background: transparent;
-  color: #6C5CE7 !important;
-}
 
-.navTab:global(.Mui-selected) {
-  color: #6C5CE7 !important;
-  background: transparent;
-  border-bottom: 2px solid #6C5CE7;
-  font-weight: 700;
-  box-shadow: none !important;
-}
 
-.navTab:global(.Mui-disabled) {
-  opacity: 0.4;
-}
+const handleReset = () => {
+  // Clear Circle only when it is editable
+  if (hasWholeBank) {
+    setSelectedCircle(null);
+    setCircleInput('');
+  }
+
+  // Clear Branch only when it is editable
+  if (!isBranchUser) {
+    setSelectedBranch(null);
+    setBranchInput('');
+    setBranchOptions([]);
+  }
+
+  setGlifDataFilter({});
+  setReportDateError(null);
+  setDataRows({});
+  setBreakupDataRows({});
+  setSelectedGlcc('');
+};
+
+
+
+
+
+
+
