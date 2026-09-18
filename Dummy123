@@ -1,24 +1,21 @@
-const handleReset = () => {
-  // Clear Circle only when editable
-  if (hasWholeBank) {
-    setSelectedCircle(null);
-    setCircleInput('');
+onChange={(newValue) => {
+  if (!newValue || !newValue.isValid()) {
+    setReportDateError("Please enter a valid Report Date");
+    return;
   }
 
-  // Clear Branch only when editable
-  if (!isBranchUser) {
-    setSelectedBranch(null);
-    setBranchInput('');
-    setBranchOptions([]);
+  if (newValue.isBefore(MIN_ALLOWED_DATE, "day")) {
+    setReportDateError(
+      `Report Date cannot be earlier than ${MIN_ALLOWED_DATE.format("DD-MM-YYYY")}`
+    );
+    return;
   }
 
-  // Clear Report Date
-  setUserDate(null);
+  if (etlDate && newValue.isAfter(dayjs(etlDate), "day")) {
+    setReportDateError("Report Date cannot be later than ETL Date");
+    return;
+  }
 
-  // Clear results and filters
-  setGlifDataFilter({});
   setReportDateError(null);
-  setDataRows({});
-  setBreakupDataRows({});
-  setSelectedGlcc('');
-};
+  setUserDate(newValue.format("YYYY-MM-DD"));
+}}
