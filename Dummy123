@@ -1,15 +1,24 @@
-let circleValue = hasWholeBank
-  ? (selectedCircle?.code || "")
-  : (user?.circleCode || "");
+const handleReset = () => {
+  // Clear Circle only when editable
+  if (hasWholeBank) {
+    setSelectedCircle(null);
+    setCircleInput('');
+  }
 
-switch (user?.roleAccess) {
-  case "W":
-    circleValue = selectedCircle?.code || "";
-    break;
-  case "C":
-  case "B":
-    circleValue = user?.circleCode || "";
-    break;
-  default:
-    circleValue = "";
-}
+  // Clear Branch only when editable
+  if (!isBranchUser) {
+    setSelectedBranch(null);
+    setBranchInput('');
+    setBranchOptions([]);
+  }
+
+  // Clear Report Date
+  setUserDate(null);
+
+  // Clear results and filters
+  setGlifDataFilter({});
+  setReportDateError(null);
+  setDataRows({});
+  setBreakupDataRows({});
+  setSelectedGlcc('');
+};
