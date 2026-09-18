@@ -1,7 +1,15 @@
-.searchResetRow {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 16px;
-  margin-top: 16px;
+let circleValue = hasWholeBank
+  ? (selectedCircle?.code || "")
+  : (user?.circleCode || "");
+
+switch (user?.roleAccess) {
+  case "W":
+    circleValue = selectedCircle?.code || "";
+    break;
+  case "C":
+  case "B":
+    circleValue = user?.circleCode || "";
+    break;
+  default:
+    circleValue = "";
 }
