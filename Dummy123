@@ -1,1 +1,12 @@
+const alterDateFormat = (date) => {
+  if (!date) return "";
 
+  if (dayjs.isDayjs(date)) {
+    return date.format("YYYY-MM-DD");
+  }
+
+  const dateRegex =
+    /^(0[1-9]|[12][0-9]|3[01])([-/.])(0[1-9]|1[0-2])\2(\d{4})$/;
+
+  return date.replace(dateRegex, "$4$2$3$2$1");
+};
