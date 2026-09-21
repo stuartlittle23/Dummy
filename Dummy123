@@ -1,1 +1,45 @@
+const [userDate, setUserDate] = useState(null);
+const [reportDateError, setReportDateError] = useState(null);
 
+
+
+
+<LocalizationProvider dateAdapter={AdapterDayjs}>
+  <DatePicker
+    value={userDate}
+    format="DD-MM-YYYY"
+    minDate={MIN_ALLOWED_DATE}
+    maxDate={etlDate}
+    views={["year", "month", "day"]}
+    onChange={(value) => {
+      setUserDate(value);
+    }}
+    onError={(error) => {
+      setReportDateError(error || null);
+    }}
+    slotProps={{
+      textField: {
+        size: "small",
+        fullWidth: true,
+        placeholder: "DD-MM-YYYY",
+        error: !!reportDateError,
+        helperText:
+          reportDateError === "maxDate"
+            ? "Report Date cannot be in future"
+            : reportDateError === "minDate"
+              ? `Report Date cannot be before ${MIN_ALLOWED_DATE.format(
+                  "DD-MM-YYYY"
+                )}`
+              : reportDateError === "invalidDate"
+                ? "Please enter a valid Report Date"
+                : "",
+      },
+    }}
+  />
+</LocalizationProvider>
+
+
+
+
+
+.
