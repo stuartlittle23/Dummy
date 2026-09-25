@@ -1,36 +1,3 @@
-package com.fincore.process_status_service.dto;
-
-import lombok.Data;
-
-import java.util.List;
-
-@Data
-public class UnmappedCglEvent {
-
-    private String type;
-
-    private List<List<String>> unmappedcgls;
-
-    private String date;
-}
-
-
-
-
-void handleUnmappedCglEvent(UnmappedCglEvent unmappedCglEvent);
-
-import com.fincore.process_status_service.dto.UnmappedCglEvent;
-
-
-
-
-
-import com.fincore.process_status_service.dto.UnmappedCglEvent;
-
-import java.util.HashMap;
-import java.util.Map;
-import java.util.UUID;
-
 @Override
 public void handleUnmappedCglEvent(UnmappedCglEvent unmappedCglEvent) {
 
@@ -38,102 +5,48 @@ public void handleUnmappedCglEvent(UnmappedCglEvent unmappedCglEvent) {
 
     String etlDate = unmappedCglEvent.getDate();
 
-    payload.put("processDate", etlDate);
-
     if ("notempty".equalsIgnoreCase(unmappedCglEvent.getType())) {
 
+        // Unmapped CGLs are available
+        payload.put("processDate", etlDate);
         payload.put("unmappedCgls", unmappedCglEvent.getUnmappedcgls());
+
+        CommunicationEvent commEvent = new CommunicationEvent();
+
+        commEvent.setEventId("evt-" + UUID.randomUUID());
+        commEvent.setTraceId("trc-" + UUID.randomUUID());
+        commEvent.setCorrelationId("batch-" + etlDate);
+        commEvent.setProducerService(Constants.PRODUCER_SERVICE);
+        commEvent.setEventType(Constants.EVENT_TYPE);
+        commEvent.setPriority(Constants.PRIORITY);
+        commEvent.setChannels(Constants.CHANNELS);
+        commEvent.setRecipients(new Recipients());
+        commEvent.setTemplateId(Constants.UNMAPPED_CGL_TEMPLATE_ID);
+        commEvent.setPayload(payload);
+        commEvent.setPersonalized(true);
+
+        communicationProducer.produceEvent(commEvent);
 
     } else if ("listempty".equalsIgnoreCase(unmappedCglEvent.getType())) {
 
+        // No unmapped CGLs
+        payload.put("processDate", etlDate);
         payload.put("cgl", null);
-    }
 
-    CommunicationEvent commEvent = new CommunicationEvent();
+        CommunicationEvent commEvent = new CommunicationEvent();
 
-    commEvent.setEventId("evt-" + UUID.randomUUID());
-    commEvent.setTraceId("trc-" + UUID.randomUUID());
-    commEvent.setCorrelationId("batch-" + etlDate);
-    commEvent.setProducerService(Constants.PRODUCER_SERVICE);
-    commEvent.setEventType(Constants.EVENT_TYPE);
-    commEvent.setPriority(Constants.PRIORITY);
-    commEvent.setChannels(Constants.CHANNELS);
+        commEvent.setEventId("evt-" + UUID.randomUUID());
+        commEvent.setTraceId("trc-" + UUID.randomUUID());
+        commEvent.setCorrelationId("batch-" + etlDate);
+        commEvent.setProducerService(Constants.PRODUCER_SERVICE);
+        commEvent.setEventType(Constants.EVENT_TYPE);
+        commEvent.setPriority(Constants.PRIORITY);
+        commEvent.setChannels(Constants.CHANNELS);
+        commEvent.setRecipients(new Recipients());
+        commEvent.setTemplateId(Constants.UNMAPPED_CGL_EMPTY_TEMPLATE_ID);
+        commEvent.setPayload(payload);
+        commEvent.setPersonalized(true);
 
-    commEvent.setTemplateId(Constants.TEMPLATE_ID);
-
-    commEvent.setPayload(payload);
-    commEvent.setPersonalized(true);
-
-    communicationProducer.produceEvent(commEvent);
-}
-
-
-package com.fincore.process_status_service.consumer;
-
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fincore.process_status_service.dto.AirflowDagEvent;
-import com.fincore.process_status_service.dto.UnmappedCglEvent;
-import com.fincore.process_status_service.service.ProcessStatusService;
-import com.fincore.process_status_service.util.Constants;
-import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
-import org.springframework.kafka.annotation.KafkaListener;
-import org.springframework.kafka.support.KafkaHeaders;
-import org.springframework.messaging.handler.annotation.Header;
-import org.springframework.stereotype.Component;
-
-@Component
-@RequiredArgsConstructor
-@Slf4j
-public class AirflowEventConsumer {
-
-    private final ProcessStatusService processStatusService;
-
-    private final ObjectMapper objectMapper;
-
-    @KafkaListener(
-            topics = "airflow-events",
-            groupId = "Airflow_ETL",
-            properties = {
-                    "spring.json.value.default.type=com.fasterxml.jackson.databind.JsonNode"
-            }
-    )
-    public void consume(
-            JsonNode event,
-            @Header(name = KafkaHeaders.RECEIVED_KEY, required = false) String key) {
-
-        log.info("Received Airflow event with key: {}", key);
-
-        try {
-
-            if ("unmapped_cgl".equals(key)) {
-
-                UnmappedCglEvent unmappedCglEvent =
-                        objectMapper.treeToValue(event, UnmappedCglEvent.class);
-
-                processStatusService.handleUnmappedCglEvent(unmappedCglEvent);
-
-            } else {
-
-                AirflowDagEvent dagEvent =
-                        objectMapper.treeToValue(event, AirflowDagEvent.class);
-
-                log.info("Received Airflow event : {}", dagEvent);
-
-                // EXISTING EOD CODE - DO NOT CHANGE
-                if (String.valueOf(Constants.WAITING_FOR_APPROVAL)
-                        .equals(dagEvent.getStatus())) {
-                    processStatusService.handleAirflowEvent(dagEvent);
-                }
-
-                processStatusService.sendProcessStatusUpdates();
-            }
-
-        } catch (Exception e) {
-            log.error("Error processing Airflow event", e);
-        }
+        communicationProducer.produceEvent(commEvent);
     }
 }
-
-
