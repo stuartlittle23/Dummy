@@ -1,115 +1,19 @@
-@Override
-public void handleUnmappedCglEvent(UnmappedCglEvent unmappedCglEvent) {
-
-    String etlDate = unmappedCglEvent.getDate();
-
-    Map<String, Object> payload = new HashMap<>();
-    payload.put("processDate", etlDate);
-
-    String templateId;
-
-    if ("notempty".equalsIgnoreCase(unmappedCglEvent.getType())) {
-
-        payload.put("unmappedCgls", unmappedCglEvent.getUnmappedcgls());
-        templateId = Constants.UNMAPPED_CGL_TEMPLATE_ID;
-
-    } else if ("listempty".equalsIgnoreCase(unmappedCglEvent.getType())) {
-
-        payload.put("cgl", null);
-        templateId = Constants.UNMAPPED_CGL_EMPTY_TEMPLATE_ID;
-
-    } else {
-        log.warn("Unknown unmapped CGL event type: {}",
-                unmappedCglEvent.getType());
-        return;
-    }
-
-    CommunicationEvent commEvent = new CommunicationEvent();
-
-    commEvent.setEventId("evt-" + UUID.randomUUID());
-    commEvent.setTraceId("trc-" + UUID.randomUUID());
-    commEvent.setCorrelationId("batch-" + etlDate);
-    commEvent.setProducerService(Constants.PRODUCER_SERVICE);
-    commEvent.setEventType(Constants.EVENT_TYPE);
-    commEvent.setPriority(Constants.PRIORITY);
-    commEvent.setChannels(Constants.CHANNELS);
-    commEvent.setRecipients(new Recipients());
-    commEvent.setTemplateId(templateId);
-    commEvent.setPayload(payload);
-    commEvent.setPersonalized(true);
-
-    communicationProducer.produceEvent(commEvent);
+{
+  "type": "notempty",
+  "unmappedcgls": [
+    ["CGL001", "Reason for CGL001"],
+    ["CGL002", "Reason for CGL002"]
+  ],
+  "date": "2026-09-25"
 }
 
 
 
-package com.fincore.process_status_service.consumer;
 
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fincore.process_status_service.dto.AirflowDagEvent;
-import com.fincore.process_status_service.dto.UnmappedCglEvent;
-import com.fincore.process_status_service.service.ProcessStatusService;
-import com.fincore.process_status_service.util.Constants;
-import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
-import org.springframework.kafka.annotation.KafkaListener;
-import org.springframework.kafka.support.KafkaHeaders;
-import org.springframework.messaging.handler.annotation.Header;
-import org.springframework.stereotype.Component;
 
-@Component
-@RequiredArgsConstructor
-@Slf4j
-public class AirflowEventConsumer {
 
-    private final ProcessStatusService processStatusService;
-
-    private final ObjectMapper objectMapper;
-
-    @KafkaListener(
-            topics = "airflow-events",
-            groupId = "Airflow_ETL",
-            properties = {
-                    "spring.json.value.default.type=com.fasterxml.jackson.databind.JsonNode"
-            }
-    )
-    public void consume(
-            JsonNode event,
-            @Header(name = KafkaHeaders.RECEIVED_KEY, required = false) String key) {
-
-        log.info("Received Airflow event with key: {}", key);
-
-        try {
-
-            if ("unmapped_cgl".equals(key)) {
-
-                UnmappedCglEvent unmappedCglEvent =
-                        objectMapper.treeToValue(event, UnmappedCglEvent.class);
-
-                processStatusService.handleUnmappedCglEvent(unmappedCglEvent);
-
-            } else {
-
-                AirflowDagEvent dagEvent =
-                        objectMapper.treeToValue(event, AirflowDagEvent.class);
-
-                log.info("Received Airflow event : {}", dagEvent);
-
-                // EXISTING EOD CODE - DO NOT CHANGE
-                if (String.valueOf(Constants.WAITING_FOR_APPROVAL)
-                        .equals(dagEvent.getStatus())) {
-                    processStatusService.handleAirflowEvent(dagEvent);
-                }
-
-                processStatusService.sendProcessStatusUpdates();
-            }
-
-        } catch (Exception e) {
-            log.error("Error processing Airflow event", e);
-        }
-    }
+{
+  "type": "listempty",
+  "unmappedcgls": [],
+  "date": "2026-09-25"
 }
-
-
-
