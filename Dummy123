@@ -1,28 +1,624 @@
-package com.fincore.process_status_service.consumer;
-
-import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
-
-import org.springframework.kafka.annotation.KafkaListener;
-import org.springframework.kafka.support.KafkaHeaders;
-import org.springframework.messaging.handler.annotation.Header;
-import org.springframework.stereotype.Component;
-
-@Component
-@RequiredArgsConstructor
-@Slf4j
-public class AirflowEventConsumer {
-
-    @KafkaListener(
-            topics = "airflow-events",
-            groupId = "Airflow_ETL_TEST"
-    )
-    public void consume(
-            String event,
-            @Header(name = KafkaHeaders.RECEIVED_KEY, required = false) String key) {
-
-        log.info("******** AIRFLOW CONSUMER METHOD CALLED ********");
-        log.info("Received key: {}", key);
-        log.info("Received event: {}", event);
-    }
-}
+ng group 
+{"@timestamp":"2026-09-28T11:45:31.0189844+05:30","level":"INFO","service":"ProcessStatusService","traceId":"","userId":"","clientIp":"","apiPath":"","requestUrl":"","httpMethod":"","httpStatus":"","class":"o.a.k.c.c.internals.ConsumerCoordinator","message":"[Consumer clientId=consumer-Airflow_ETL-dlt-11, groupId=Airflow_ETL-dlt] (Re-)joining group","stack_trace":""}
+2026-09-28 11:45:31.022 INFO  [main] o.a.k.c.c.i.ClassicKafkaConsumer: [Consumer clientId=consumer-Airflow_ETL_TEST-12, groupId=Airflow_ETL_TEST] Subscribed to topic(s): airflow-events 
+{"@timestamp":"2026-09-28T11:45:31.0229845+05:30","level":"INFO","service":"ProcessStatusService","traceId":"","userId":"","clientIp":"","apiPath":"","requestUrl":"","httpMethod":"","httpStatus":"","class":"o.a.k.c.c.internals.ClassicKafkaConsumer","message":"[Consumer clientId=consumer-Airflow_ETL_TEST-12, groupId=Airflow_ETL_TEST] Subscribed to topic(s): airflow-events","stack_trace":""}
+2026-09-28 11:45:31.025 INFO  [main] o.a.k.c.c.AbstractConfig: ConsumerConfig values: 
+        allow.auto.create.topics = true
+        auto.commit.interval.ms = 5000
+        auto.offset.reset = earliest
+        bootstrap.servers = [10.0.17.242:9092]
+        check.crcs = true
+        client.dns.lookup = use_all_dns_ips
+        client.id = consumer-Report-Batch-13
+        client.rack = 
+        config.providers = []
+        connections.max.idle.ms = 540000
+        default.api.timeout.ms = 60000
+        enable.auto.commit = false
+        enable.metrics.push = true
+        exclude.internal.topics = true
+        fetch.max.bytes = 52428800
+        fetch.max.wait.ms = 500
+        fetch.min.bytes = 1
+        group.id = Report-Batch
+        group.instance.id = null
+        group.protocol = classic
+        group.remote.assignor = null
+        heartbeat.interval.ms = 3000
+        interceptor.classes = []
+        internal.throw.on.fetch.stable.offset.unsupported = false
+        isolation.level = read_uncommitted
+        key.deserializer = class org.springframework.kafka.support.serializer.ErrorHandlingDeserializer
+        max.partition.fetch.bytes = 1048576
+        max.poll.interval.ms = 300000
+        max.poll.records = 500
+        metadata.max.age.ms = 300000
+        metadata.recovery.rebootstrap.trigger.ms = 300000
+        metadata.recovery.strategy = rebootstrap
+        metric.reporters = [org.apache.kafka.common.metrics.JmxReporter]
+        metrics.num.samples = 2
+        metrics.recording.level = INFO
+        metrics.sample.window.ms = 30000
+        partition.assignment.strategy = [class org.apache.kafka.clients.consumer.RangeAssignor, class org.apache.kafka.clients.consumer.CooperativeStickyAssignor]
+        receive.buffer.bytes = 65536
+        reconnect.backoff.max.ms = 1000
+        reconnect.backoff.ms = 50
+        request.timeout.ms = 30000
+        retry.backoff.max.ms = 1000
+        retry.backoff.ms = 100
+        sasl.client.callback.handler.class = null
+        sasl.jaas.config = null
+        sasl.kerberos.kinit.cmd = /usr/bin/kinit
+        sasl.kerberos.min.time.before.relogin = 60000
+        sasl.kerberos.service.name = null
+        sasl.kerberos.ticket.renew.jitter = 0.05
+        sasl.kerberos.ticket.renew.window.factor = 0.8
+        sasl.login.callback.handler.class = null
+        sasl.login.class = null
+        sasl.login.connect.timeout.ms = null
+        sasl.login.read.timeout.ms = null
+        sasl.login.refresh.buffer.seconds = 300
+        sasl.login.refresh.min.period.seconds = 60
+        sasl.login.refresh.window.factor = 0.8
+        sasl.login.refresh.window.jitter = 0.05
+        sasl.login.retry.backoff.max.ms = 10000
+        sasl.login.retry.backoff.ms = 100
+        sasl.mechanism = GSSAPI
+        sasl.oauthbearer.assertion.algorithm = RS256
+        sasl.oauthbearer.assertion.claim.aud = null
+        sasl.oauthbearer.assertion.claim.exp.seconds = 300
+        sasl.oauthbearer.assertion.claim.iss = null
+        sasl.oauthbearer.assertion.claim.jti.include = false
+        sasl.oauthbearer.assertion.claim.nbf.seconds = 60
+        sasl.oauthbearer.assertion.claim.sub = null
+        sasl.oauthbearer.assertion.file = null
+        sasl.oauthbearer.assertion.private.key.file = null
+        sasl.oauthbearer.assertion.private.key.passphrase = null
+        sasl.oauthbearer.assertion.template.file = null
+        sasl.oauthbearer.client.credentials.client.id = null
+        sasl.oauthbearer.client.credentials.client.secret = null
+        sasl.oauthbearer.clock.skew.seconds = 30
+        sasl.oauthbearer.expected.audience = []
+        sasl.oauthbearer.expected.issuer = null
+        sasl.oauthbearer.header.urlencode = false
+        sasl.oauthbearer.jwks.endpoint.refresh.ms = 3600000
+        sasl.oauthbearer.jwks.endpoint.retry.backoff.max.ms = 10000
+        sasl.oauthbearer.jwks.endpoint.retry.backoff.ms = 100
+        sasl.oauthbearer.jwks.endpoint.url = null
+        sasl.oauthbearer.jwt.retriever.class = class org.apache.kafka.common.security.oauthbearer.DefaultJwtRetriever
+        sasl.oauthbearer.jwt.validator.class = class org.apache.kafka.common.security.oauthbearer.DefaultJwtValidator
+        sasl.oauthbearer.scope = null
+        sasl.oauthbearer.scope.claim.name = scope
+        sasl.oauthbearer.sub.claim.name = sub
+        sasl.oauthbearer.token.endpoint.url = null
+        security.protocol = PLAINTEXT
+        security.providers = null
+        send.buffer.bytes = 131072
+        session.timeout.ms = 45000
+        share.acknowledgement.mode = implicit
+        share.acquire.mode = BATCH_OPTIMIZED
+        socket.connection.setup.timeout.max.ms = 30000
+        socket.connection.setup.timeout.ms = 10000
+        ssl.cipher.suites = []
+        ssl.enabled.protocols = [TLSv1.2, TLSv1.3]
+        ssl.endpoint.identification.algorithm = https
+        ssl.engine.factory.class = null
+        ssl.key.password = null
+        ssl.keymanager.algorithm = SunX509
+        ssl.keystore.certificate.chain = null
+        ssl.keystore.key = null
+        ssl.keystore.location = null
+        ssl.keystore.password = null
+        ssl.keystore.type = JKS
+        ssl.protocol = TLSv1.3
+        ssl.provider = null
+        ssl.secure.random.implementation = null
+        ssl.trustmanager.algorithm = PKIX
+        ssl.truststore.certificates = null
+        ssl.truststore.location = null
+        ssl.truststore.password = null
+        ssl.truststore.type = JKS
+        value.deserializer = class org.springframework.kafka.support.serializer.ErrorHandlingDeserializer
+ 
+{"@timestamp":"2026-09-28T11:45:31.0259868+05:30","level":"INFO","service":"ProcessStatusService","traceId":"","userId":"","clientIp":"","apiPath":"","requestUrl":"","httpMethod":"","httpStatus":"","class":"o.a.kafka.common.config.AbstractConfig","message":"ConsumerConfig values: \r\n\tallow.auto.create.topics = true\r\n\tauto.commit.interval.ms = 5000\r\n\tauto.offset.reset = earliest\r\n\tbootstrap.servers = [10.0.17.242:9092]\r\n\tcheck.crcs = true\r\n\tclient.dns.lookup = use_all_dns_ips\r\n\tclient.id = consumer-Report-Batch-13\r\n\tclient.rack = \r\n\tconfig.providers = []\r\n\tconnections.max.idle.ms = 540000\r\n\tdefault.api.timeout.ms =60000\r\n\tenable.auto.commit = false\r\n\tenable.metrics.push = true\r\n\texclude.internal.topics = true\r\n\tfetch.max.bytes = 52428800\r\n\tfetch.max.wait.ms = 500\r\n\tfetch.min.bytes = 1\r\n\tgroup.id = Report-Batch\r\n\tgroup.instance.id = null\r\n\tgroup.protocol = classic\r\n\tgroup.remote.assignor = null\r\n\theartbeat.interval.ms = 3000\r\n\tinterceptor.classes = []\r\n\tinternal.throw.on.fetch.stable.offset.unsupported =false\r\n\tisolation.level = read_uncommitted\r\n\tkey.deserializer = class org.springframework.kafka.support.serializer.ErrorHandlingDeserializer\r\n\tmax.partition.fetch.bytes = 1048576\r\n\tmax.poll.interval.ms = 300000\r\n\tmax.poll.records = 500\r\n\tmetadata.max.age.ms = 300000\r\n\tmetadata.recovery.rebootstrap.trigger.ms = 300000\r\n\tmetadata.recovery.strategy = rebootstrap\r\n\tmetric.reporters = [org.apache.kafka.common.metrics.JmxReporter]\r\n\tmetrics.num.samples = 2\r\n\tmetrics.recording.level = INFO\r\n\tmetrics.sample.window.ms = 30000\r\n\tpartition.assignment.strategy = [class org.apache.kafka.clients.consumer.RangeAssignor, class org.apache.kafka.clients.consumer.CooperativeStickyAssignor]\r\n\treceive.buffer.bytes = 65536\r\n\treconnect.backoff.max.ms = 1000\r\n\treconnect.backoff.ms = 50\r\n\trequest.timeout.ms = 30000\r\n\tretry.backoff.max.ms = 1000\r\n\tretry.backoff.ms = 100\r\n\tsasl.client.callback.handler.class = null\r\n\tsasl.jaas.config = null\r\n\tsasl.kerberos.kinit.cmd = /usr/bin/kinit\r\n\tsasl.kerberos.min.time.before.relogin = 60000\r\n\tsasl.kerberos.service.name = null\r\n\tsasl.kerberos.ticket.renew.jitter = 0.05\r\n\tsasl.kerberos.ticket.renew.window.factor = 0.8\r\n\tsasl.login.callback.handler.class = null\r\n\tsasl.login.class = null\r\n\tsasl.login.connect.timeout.ms = null\r\n\tsasl.login.read.timeout.ms = null\r\n\tsasl.login.refresh.buffer.seconds = 300\r\n\tsasl.login.refresh.min.period.seconds = 60\r\n\tsasl.login.refresh.window.factor = 0.8\r\n\tsasl.login.refresh.window.jitter = 0.05\r\n\tsasl.login.retry.backoff.max.ms = 10000\r\n\tsasl.login.retry.backoff.ms = 100\r\n\tsasl.mechanism = GSSAPI\r\n\tsasl.oauthbearer.assertion.algorithm = RS256\r\n\tsasl.oauthbearer.assertion.claim.aud = null\r\n\tsasl.oauthbearer.assertion.claim.exp.seconds = 300\r\n\tsasl.oauthbearer.assertion.claim.iss = null\r\n\tsasl.oauthbearer.assertion.claim.jti.include = false\r\n\tsasl.oauthbearer.assertion.claim.nbf.seconds = 60\r\n\tsasl.oauthbearer.assertion.claim.sub = null\r\n\tsasl.oauthbearer.assertion.file = null\r\n\tsasl.oauthbearer.assertion.private.key.file = null\r\n\tsasl.oauthbearer.assertion.private.key.passphrase = null\r\n\tsasl.oauthbearer.assertion.template.file = null\r\n\tsasl.oauthbearer.client.credentials.client.id = null\r\n\tsasl.oauthbearer.client.credentials.client.secret = null\r\n\tsasl.oauthbearer.clock.skew.seconds = 30\r\n\tsasl.oauthbearer.expected.audience = []\r\n\tsasl.oauthbearer.expected.issuer = null\r\n\tsasl.oauthbearer.header.urlencode = false\r\n\tsasl.oauthbearer.jwks.endpoint.refresh.ms = 3600000\r\n\tsasl.oauthbearer.jwks.endpoint.retry.backoff.max.ms = 10000\r\n\tsasl.oauthbearer.jwks.endpoint.retry.backoff.ms = 100\r\n\tsasl.oauthbearer.jwks.endpoint.url = null\r\n\tsasl.oauthbearer.jwt.retriever.class = class org.apache.kafka.common.security.oauthbearer.DefaultJwtRetriever\r\n\tsasl.oauthbearer.jwt.validator.class = class org.apache.kafka.common.security.oauthbearer.DefaultJwtValidator\r\n\tsasl.oauthbearer.scope = null\r\n\tsasl.oauthbearer.scope.claim.name = scope\r\n\tsasl.oauthbearer.sub.claim.name = sub\r\n\tsasl.oauthbearer.token.endpoint.url = null\r\n\tsecurity.protocol = PLAINTEXT\r\n\tsecurity.providers = null\r\n\tsend.buffer.bytes = 131072\r\n\tsession.timeout.ms = 45000\r\n\tshare.acknowledgement.mode = implicit\r\n\tshare.acquire.mode = BATCH_OPTIMIZED\r\n\tsocket.connection.setup.timeout.max.ms = 30000\r\n\tsocket.connection.setup.timeout.ms = 10000\r\n\tssl.cipher.suites = []\r\n\tssl.enabled.protocols = [TLSv1.2, TLSv1.3]\r\n\tssl.endpoint.identification.algorithm = https\r\n\tssl.engine.factory.class = null\r\n\tssl.key.password = null\r\n\tssl.keymanager.algorithm = SunX509\r\n\tssl.keystore.certificate.chain = null\r\n\tssl.keystore.key = null\r\n\tssl.keystore.location = null\r\n\tssl.keystore.password = null\r\n\tssl.keystore.type = JKS\r\n\tssl.protocol = TLSv1.3\r\n\tssl.provider = null\r\n\tssl.secure.random.implementation = null\r\n\tssl.trustmanager.algorithm = PKIX\r\n\tssl.truststore.certificates = null\r\n\tssl.truststore.location = null\r\n\tssl.truststore.password = null\r\n\tssl.truststore.type = JKS\r\n\tvalue.deserializer = class org.springframework.kafka.support.serializer.ErrorHandlingDeserializer\r\n","stack_trace":""}
+2026-09-28 11:45:31.026 INFO  [main] o.a.k.c.t.i.KafkaMetricsCollector$StateLedger: initializing Kafka metrics collector 
+{"@timestamp":"2026-09-28T11:45:31.0269854+05:30","level":"INFO","service":"ProcessStatusService","traceId":"","userId":"","clientIp":"","apiPath":"","requestUrl":"","httpMethod":"","httpStatus":"","class":"o.a.k.c.t.i.KafkaMetricsCollector","message":"initializing Kafka metrics collector","stack_trace":""}
+2026-09-28 11:45:31.032 INFO  [org.springframework.kafka.KafkaListenerEndpointContainer#0-0-C-1] o.a.k.c.Metadata: [Consumer clientId=consumer-Airflow_ETL_TEST-12, groupId=Airflow_ETL_TEST] Cluster ID:  
+{"@timestamp":"2026-09-28T11:45:31.0329978+05:30","level":"INFO","service":"ProcessStatusService","traceId":"","userId":"","clientIp":"","apiPath":"","requestUrl":"","httpMethod":"","httpStatus":"","class":"org.apache.kafka.clients.Metadata","message":"[Consumer clientId=consumer-Airflow_ETL_TEST-12, groupId=Airflow_ETL_TEST] Cluster ID: ","stack_trace":""}
+2026-09-28 11:45:31.034 INFO  [org.springframework.kafka.KafkaListenerEndpointContainer#0-0-C-1] o.a.k.c.c.i.AbstractCoordinator$FindCoordinatorResponseHandler: [Consumer clientId=consumer-Airflow_ETL_TEST-12, groupId=Airflow_ETL_TEST] Discovered group coordinator 10.0.17.242:9092 (id: 2147483646 rack: null isFenced: false) 
+{"@timestamp":"2026-09-28T11:45:31.0349865+05:30","level":"INFO","service":"ProcessStatusService","traceId":"","userId":"","clientIp":"","apiPath":"","requestUrl":"","httpMethod":"","httpStatus":"","class":"o.a.k.c.c.internals.ConsumerCoordinator","message":"[Consumer clientId=consumer-Airflow_ETL_TEST-12, groupId=Airflow_ETL_TEST] Discovered group coordinator 10.0.17.242:9092 (id: 2147483646 rack: null isFenced: false)","stack_trace":""}
+2026-09-28 11:45:31.037 INFO  [org.springframework.kafka.KafkaListenerEndpointContainer#0-0-C-1] o.a.k.c.c.i.AbstractCoordinator: [Consumer clientId=consumer-Airflow_ETL_TEST-12, groupId=Airflow_ETL_TEST] (Re-)joininggroup 
+{"@timestamp":"2026-09-28T11:45:31.037986+05:30","level":"INFO","service":"ProcessStatusService","traceId":"","userId":"","clientIp":"","apiPath":"","requestUrl":"","httpMethod":"","httpStatus":"","class":"o.a.k.c.c.internals.ConsumerCoordinator","message":"[Consumer clientId=consumer-Airflow_ETL_TEST-12, groupId=Airflow_ETL_TEST] (Re-)joining group","stack_trace":""}
+2026-09-28 11:45:31.044 INFO  [org.springframework.kafka.KafkaListenerEndpointContainer#0-0-C-1] o.a.k.c.c.i.AbstractCoordinator: [Consumer clientId=consumer-Airflow_ETL_TEST-12, groupId=Airflow_ETL_TEST] Request joining group due to: need to re-join with the given member-id: consumer-Airflow_ETL_TEST-12-0de5b6c9-7869-4396-8c68-2b44ba7c144f 
+{"@timestamp":"2026-09-28T11:45:31.0449845+05:30","level":"INFO","service":"ProcessStatusService","traceId":"","userId":"","clientIp":"","apiPath":"","requestUrl":"","httpMethod":"","httpStatus":"","class":"o.a.k.c.c.internals.ConsumerCoordinator","message":"[Consumer clientId=consumer-Airflow_ETL_TEST-12, groupId=Airflow_ETL_TEST] Request joining group due to: need to re-join with the given member-id: consumer-Airflow_ETL_TEST-12-0de5b6c9-7869-4396-8c68-2b44ba7c144f","stack_trace":""}
+2026-09-28 11:45:31.044 INFO  [org.springframework.kafka.KafkaListenerEndpointContainer#0-0-C-1] o.a.k.c.c.i.AbstractCoordinator: [Consumer clientId=consumer-Airflow_ETL_TEST-12, groupId=Airflow_ETL_TEST] (Re-)joininggroup 
+{"@timestamp":"2026-09-28T11:45:31.0449845+05:30","level":"INFO","service":"ProcessStatusService","traceId":"","userId":"","clientIp":"","apiPath":"","requestUrl":"","httpMethod":"","httpStatus":"","class":"o.a.k.c.c.internals.ConsumerCoordinator","message":"[Consumer clientId=consumer-Airflow_ETL_TEST-12, groupId=Airflow_ETL_TEST] (Re-)joining group","stack_trace":""}
+2026-09-28 11:45:31.045 INFO  [main] o.a.k.c.u.AppInfoParser$AppInfo: Kafka version: 4.2.1 
+{"@timestamp":"2026-09-28T11:45:31.0459852+05:30","level":"INFO","service":"ProcessStatusService","traceId":"","userId":"","clientIp":"","apiPath":"","requestUrl":"","httpMethod":"","httpStatus":"","class":"o.a.kafka.common.utils.AppInfoParser","message":"Kafka version: 4.2.1","stack_trace":""}
+2026-09-28 11:45:31.045 INFO  [main] o.a.k.c.u.AppInfoParser$AppInfo: Kafka commitId: 92f61c44867f39dc 
+{"@timestamp":"2026-09-28T11:45:31.0459852+05:30","level":"INFO","service":"ProcessStatusService","traceId":"","userId":"","clientIp":"","apiPath":"","requestUrl":"","httpMethod":"","httpStatus":"","class":"o.a.kafka.common.utils.AppInfoParser","message":"Kafka commitId: 92f61c44867f39dc","stack_trace":""}
+2026-09-28 11:45:31.045 INFO  [main] o.a.k.c.u.AppInfoParser$AppInfo: Kafka startTimeMs: 1790576131045 
+{"@timestamp":"2026-09-28T11:45:31.0459852+05:30","level":"INFO","service":"ProcessStatusService","traceId":"","userId":"","clientIp":"","apiPath":"","requestUrl":"","httpMethod":"","httpStatus":"","class":"o.a.kafka.common.utils.AppInfoParser","message":"Kafka startTimeMs: 1790576131045","stack_trace":""}
+2026-09-28 11:45:31.048 INFO  [org.springframework.kafka.KafkaListenerEndpointContainer#0-0-C-1] o.a.k.c.c.i.AbstractCoordinator$JoinGroupResponseHandler: [Consumer clientId=consumer-Airflow_ETL_TEST-12, groupId=Airflow_ETL_TEST] Successfully joined group with generation Generation{generationId=24, memberId='consumer-Airflow_ETL_TEST-12-0de5b6c9-7869-4396-8c68-2b44ba7c144f', protocol='range'} 
+{"@timestamp":"2026-09-28T11:45:31.0489863+05:30","level":"INFO","service":"ProcessStatusService","traceId":"","userId":"","clientIp":"","apiPath":"","requestUrl":"","httpMethod":"","httpStatus":"","class":"o.a.k.c.c.internals.ConsumerCoordinator","message":"[Consumer clientId=consumer-Airflow_ETL_TEST-12, groupId=Airflow_ETL_TEST] Successfully joined group with generation Generation{generationId=24, memberId='consumer-Airflow_ETL_TEST-12-0de5b6c9-7869-4396-8c68-2b44ba7c144f', protocol='range'}","stack_trace":""}
+2026-09-28 11:45:31.049 INFO  [main] o.a.k.c.c.i.ClassicKafkaConsumer: [Consumer clientId=consumer-Report-Batch-13, groupId=Report-Batch] Subscribed to topic(s): nwsa-variance-report.started 
+{"@timestamp":"2026-09-28T11:45:31.0499851+05:30","level":"INFO","service":"ProcessStatusService","traceId":"","userId":"","clientIp":"","apiPath":"","requestUrl":"","httpMethod":"","httpStatus":"","class":"o.a.k.c.c.internals.ClassicKafkaConsumer","message":"[Consumer clientId=consumer-Report-Batch-13, groupId=Report-Batch] Subscribed to topic(s): nwsa-variance-report.started","stack_trace":""}
+2026-09-28 11:45:31.052 INFO  [main] o.a.k.c.c.AbstractConfig: ConsumerConfig values: 
+        allow.auto.create.topics = true
+        auto.commit.interval.ms = 5000
+        auto.offset.reset = earliest
+        bootstrap.servers = [10.0.17.242:9092]
+        check.crcs = true
+        client.dns.lookup = use_all_dns_ips
+        client.id = consumer-Airflow_ETL-14
+        client.rack = 
+        config.providers = []
+        connections.max.idle.ms = 540000
+        default.api.timeout.ms = 60000
+        enable.auto.commit = false
+        enable.metrics.push = true
+        exclude.internal.topics = true
+        fetch.max.bytes = 52428800
+        fetch.max.wait.ms = 500
+        fetch.min.bytes = 1
+        group.id = Airflow_ETL
+        group.instance.id = null
+        group.protocol = classic
+        group.remote.assignor = null
+        heartbeat.interval.ms = 3000
+        interceptor.classes = []
+        internal.throw.on.fetch.stable.offset.unsupported = false
+        isolation.level = read_uncommitted
+        key.deserializer = class org.springframework.kafka.support.serializer.ErrorHandlingDeserializer
+        max.partition.fetch.bytes = 1048576
+        max.poll.interval.ms = 300000
+        max.poll.records = 500
+        metadata.max.age.ms = 300000
+        metadata.recovery.rebootstrap.trigger.ms = 300000
+        metadata.recovery.strategy = rebootstrap
+        metric.reporters = [org.apache.kafka.common.metrics.JmxReporter]
+        metrics.num.samples = 2
+        metrics.recording.level = INFO
+        metrics.sample.window.ms = 30000
+        partition.assignment.strategy = [class org.apache.kafka.clients.consumer.RangeAssignor, class org.apache.kafka.clients.consumer.CooperativeStickyAssignor]
+        receive.buffer.bytes = 65536
+        reconnect.backoff.max.ms = 1000
+        reconnect.backoff.ms = 50
+        request.timeout.ms = 30000
+        retry.backoff.max.ms = 1000
+        retry.backoff.ms = 100
+        sasl.client.callback.handler.class = null
+        sasl.jaas.config = null
+        sasl.kerberos.kinit.cmd = /usr/bin/kinit
+        sasl.kerberos.min.time.before.relogin = 60000
+        sasl.kerberos.service.name = null
+        sasl.kerberos.ticket.renew.jitter = 0.05
+        sasl.kerberos.ticket.renew.window.factor = 0.8
+        sasl.login.callback.handler.class = null
+        sasl.login.class = null
+        sasl.login.connect.timeout.ms = null
+        sasl.login.read.timeout.ms = null
+        sasl.login.refresh.buffer.seconds = 300
+        sasl.login.refresh.min.period.seconds = 60
+        sasl.login.refresh.window.factor = 0.8
+        sasl.login.refresh.window.jitter = 0.05
+        sasl.login.retry.backoff.max.ms = 10000
+        sasl.login.retry.backoff.ms = 100
+        sasl.mechanism = GSSAPI
+        sasl.oauthbearer.assertion.algorithm = RS256
+        sasl.oauthbearer.assertion.claim.aud = null
+        sasl.oauthbearer.assertion.claim.exp.seconds = 300
+        sasl.oauthbearer.assertion.claim.iss = null
+        sasl.oauthbearer.assertion.claim.jti.include = false
+        sasl.oauthbearer.assertion.claim.nbf.seconds = 60
+        sasl.oauthbearer.assertion.claim.sub = null
+        sasl.oauthbearer.assertion.file = null
+        sasl.oauthbearer.assertion.private.key.file = null
+        sasl.oauthbearer.assertion.private.key.passphrase = null
+        sasl.oauthbearer.assertion.template.file = null
+        sasl.oauthbearer.client.credentials.client.id = null
+        sasl.oauthbearer.client.credentials.client.secret = null
+        sasl.oauthbearer.clock.skew.seconds = 30
+        sasl.oauthbearer.expected.audience = []
+        sasl.oauthbearer.expected.issuer = null
+        sasl.oauthbearer.header.urlencode = false
+        sasl.oauthbearer.jwks.endpoint.refresh.ms = 3600000
+        sasl.oauthbearer.jwks.endpoint.retry.backoff.max.ms = 10000
+        sasl.oauthbearer.jwks.endpoint.retry.backoff.ms = 100
+        sasl.oauthbearer.jwks.endpoint.url = null
+        sasl.oauthbearer.jwt.retriever.class = class org.apache.kafka.common.security.oauthbearer.DefaultJwtRetriever
+        sasl.oauthbearer.jwt.validator.class = class org.apache.kafka.common.security.oauthbearer.DefaultJwtValidator
+        sasl.oauthbearer.scope = null
+        sasl.oauthbearer.scope.claim.name = scope
+        sasl.oauthbearer.sub.claim.name = sub
+        sasl.oauthbearer.token.endpoint.url = null
+        security.protocol = PLAINTEXT
+        security.providers = null
+        send.buffer.bytes = 131072
+        session.timeout.ms = 45000
+        share.acknowledgement.mode = implicit
+        share.acquire.mode = BATCH_OPTIMIZED
+        socket.connection.setup.timeout.max.ms = 30000
+        socket.connection.setup.timeout.ms = 10000
+        ssl.cipher.suites = []
+        ssl.enabled.protocols = [TLSv1.2, TLSv1.3]
+        ssl.endpoint.identification.algorithm = https
+        ssl.engine.factory.class = null
+        ssl.key.password = null
+        ssl.keymanager.algorithm = SunX509
+        ssl.keystore.certificate.chain = null
+        ssl.keystore.key = null
+        ssl.keystore.location = null
+        ssl.keystore.password = null
+        ssl.keystore.type = JKS
+        ssl.protocol = TLSv1.3
+        ssl.provider = null
+        ssl.secure.random.implementation = null
+        ssl.trustmanager.algorithm = PKIX
+        ssl.truststore.certificates = null
+        ssl.truststore.location = null
+        ssl.truststore.password = null
+        ssl.truststore.type = JKS
+        value.deserializer = class org.springframework.kafka.support.serializer.ErrorHandlingDeserializer
+ 
+{"@timestamp":"2026-09-28T11:45:31.0529868+05:30","level":"INFO","service":"ProcessStatusService","traceId":"","userId":"","clientIp":"","apiPath":"","requestUrl":"","httpMethod":"","httpStatus":"","class":"o.a.kafka.common.config.AbstractConfig","message":"ConsumerConfig values: \r\n\tallow.auto.create.topics = true\r\n\tauto.commit.interval.ms = 5000\r\n\tauto.offset.reset = earliest\r\n\tbootstrap.servers = [10.0.17.242:9092]\r\n\tcheck.crcs = true\r\n\tclient.dns.lookup = use_all_dns_ips\r\n\tclient.id = consumer-Airflow_ETL-14\r\n\tclient.rack = \r\n\tconfig.providers = []\r\n\tconnections.max.idle.ms = 540000\r\n\tdefault.api.timeout.ms = 60000\r\n\tenable.auto.commit = false\r\n\tenable.metrics.push = true\r\n\texclude.internal.topics = true\r\n\tfetch.max.bytes = 52428800\r\n\tfetch.max.wait.ms = 500\r\n\tfetch.min.bytes = 1\r\n\tgroup.id = Airflow_ETL\r\n\tgroup.instance.id = null\r\n\tgroup.protocol = classic\r\n\tgroup.remote.assignor = null\r\n\theartbeat.interval.ms = 3000\r\n\tinterceptor.classes = []\r\n\tinternal.throw.on.fetch.stable.offset.unsupported = false\r\n\tisolation.level = read_uncommitted\r\n\tkey.deserializer = class org.springframework.kafka.support.serializer.ErrorHandlingDeserializer\r\n\tmax.partition.fetch.bytes = 1048576\r\n\tmax.poll.interval.ms = 300000\r\n\tmax.poll.records = 500\r\n\tmetadata.max.age.ms = 300000\r\n\tmetadata.recovery.rebootstrap.trigger.ms = 300000\r\n\tmetadata.recovery.strategy = rebootstrap\r\n\tmetric.reporters = [org.apache.kafka.common.metrics.JmxReporter]\r\n\tmetrics.num.samples = 2\r\n\tmetrics.recording.level = INFO\r\n\tmetrics.sample.window.ms = 30000\r\n\tpartition.assignment.strategy = [class org.apache.kafka.clients.consumer.RangeAssignor, class org.apache.kafka.clients.consumer.CooperativeStickyAssignor]\r\n\treceive.buffer.bytes = 65536\r\n\treconnect.backoff.max.ms = 1000\r\n\treconnect.backoff.ms = 50\r\n\trequest.timeout.ms = 30000\r\n\tretry.backoff.max.ms = 1000\r\n\tretry.backoff.ms = 100\r\n\tsasl.client.callback.handler.class = null\r\n\tsasl.jaas.config = null\r\n\tsasl.kerberos.kinit.cmd = /usr/bin/kinit\r\n\tsasl.kerberos.min.time.before.relogin = 60000\r\n\tsasl.kerberos.service.name = null\r\n\tsasl.kerberos.ticket.renew.jitter = 0.05\r\n\tsasl.kerberos.ticket.renew.window.factor = 0.8\r\n\tsasl.login.callback.handler.class = null\r\n\tsasl.login.class = null\r\n\tsasl.login.connect.timeout.ms = null\r\n\tsasl.login.read.timeout.ms = null\r\n\tsasl.login.refresh.buffer.seconds = 300\r\n\tsasl.login.refresh.min.period.seconds = 60\r\n\tsasl.login.refresh.window.factor = 0.8\r\n\tsasl.login.refresh.window.jitter = 0.05\r\n\tsasl.login.retry.backoff.max.ms = 10000\r\n\tsasl.login.retry.backoff.ms = 100\r\n\tsasl.mechanism = GSSAPI\r\n\tsasl.oauthbearer.assertion.algorithm = RS256\r\n\tsasl.oauthbearer.assertion.claim.aud = null\r\n\tsasl.oauthbearer.assertion.claim.exp.seconds = 300\r\n\tsasl.oauthbearer.assertion.claim.iss = null\r\n\tsasl.oauthbearer.assertion.claim.jti.include = false\r\n\tsasl.oauthbearer.assertion.claim.nbf.seconds = 60\r\n\tsasl.oauthbearer.assertion.claim.sub = null\r\n\tsasl.oauthbearer.assertion.file = null\r\n\tsasl.oauthbearer.assertion.private.key.file = null\r\n\tsasl.oauthbearer.assertion.private.key.passphrase = null\r\n\tsasl.oauthbearer.assertion.template.file = null\r\n\tsasl.oauthbearer.client.credentials.client.id = null\r\n\tsasl.oauthbearer.client.credentials.client.secret = null\r\n\tsasl.oauthbearer.clock.skew.seconds = 30\r\n\tsasl.oauthbearer.expected.audience = []\r\n\tsasl.oauthbearer.expected.issuer = null\r\n\tsasl.oauthbearer.header.urlencode = false\r\n\tsasl.oauthbearer.jwks.endpoint.refresh.ms = 3600000\r\n\tsasl.oauthbearer.jwks.endpoint.retry.backoff.max.ms = 10000\r\n\tsasl.oauthbearer.jwks.endpoint.retry.backoff.ms = 100\r\n\tsasl.oauthbearer.jwks.endpoint.url = null\r\n\tsasl.oauthbearer.jwt.retriever.class = class org.apache.kafka.common.security.oauthbearer.DefaultJwtRetriever\r\n\tsasl.oauthbearer.jwt.validator.class = class org.apache.kafka.common.security.oauthbearer.DefaultJwtValidator\r\n\tsasl.oauthbearer.scope = null\r\n\tsasl.oauthbearer.scope.claim.name = scope\r\n\tsasl.oauthbearer.sub.claim.name = sub\r\n\tsasl.oauthbearer.token.endpoint.url = null\r\n\tsecurity.protocol = PLAINTEXT\r\n\tsecurity.providers = null\r\n\tsend.buffer.bytes = 131072\r\n\tsession.timeout.ms = 45000\r\n\tshare.acknowledgement.mode = implicit\r\n\tshare.acquire.mode = BATCH_OPTIMIZED\r\n\tsocket.connection.setup.timeout.max.ms = 30000\r\n\tsocket.connection.setup.timeout.ms = 10000\r\n\tssl.cipher.suites = []\r\n\tssl.enabled.protocols = [TLSv1.2, TLSv1.3]\r\n\tssl.endpoint.identification.algorithm = https\r\n\tssl.engine.factory.class = null\r\n\tssl.key.password = null\r\n\tssl.keymanager.algorithm = SunX509\r\n\tssl.keystore.certificate.chain = null\r\n\tssl.keystore.key = null\r\n\tssl.keystore.location = null\r\n\tssl.keystore.password = null\r\n\tssl.keystore.type = JKS\r\n\tssl.protocol = TLSv1.3\r\n\tssl.provider = null\r\n\tssl.secure.random.implementation = null\r\n\tssl.trustmanager.algorithm = PKIX\r\n\tssl.truststore.certificates = null\r\n\tssl.truststore.location = null\r\n\tssl.truststore.password = null\r\n\tssl.truststore.type = JKS\r\n\tvalue.deserializer = class org.springframework.kafka.support.serializer.ErrorHandlingDeserializer\r\n","stack_trace":""}
+2026-09-28 11:45:31.053 INFO  [main] o.a.k.c.t.i.KafkaMetricsCollector$StateLedger: initializing Kafka metrics collector 
+{"@timestamp":"2026-09-28T11:45:31.0539882+05:30","level":"INFO","service":"ProcessStatusService","traceId":"","userId":"","clientIp":"","apiPath":"","requestUrl":"","httpMethod":"","httpStatus":"","class":"o.a.k.c.t.i.KafkaMetricsCollector","message":"initializing Kafka metrics collector","stack_trace":""}
+2026-09-28 11:45:31.055 INFO  [org.springframework.kafka.KafkaListenerEndpointContainer#0-0-C-1] o.a.k.c.c.i.ConsumerCoordinator: [Consumer clientId=consumer-Airflow_ETL_TEST-12, groupId=Airflow_ETL_TEST] Finished assignment for group at generation 24: {consumer-Airflow_ETL_TEST-12-0de5b6c9-7869-4396-8c68-2b44ba7c144f=Assignment(partitions=[airflow-events-0])} 
+{"@timestamp":"2026-09-28T11:45:31.0559852+05:30","level":"INFO","service":"ProcessStatusService","traceId":"","userId":"","clientIp":"","apiPath":"","requestUrl":"","httpMethod":"","httpStatus":"","class":"o.a.k.c.c.internals.ConsumerCoordinator","message":"[Consumer clientId=consumer-Airflow_ETL_TEST-12, groupId=Airflow_ETL_TEST] Finished assignment for group at generation 24: {consumer-Airflow_ETL_TEST-12-0de5b6c9-7869-4396-8c68-2b44ba7c144f=Assignment(partitions=[airflow-events-0])}","stack_trace":""}
+2026-09-28 11:45:31.059 INFO  [org.springframework.kafka.KafkaListenerEndpointContainer#1-0-C-1] o.a.k.c.Metadata: [Consumer clientId=consumer-Report-Batch-13, groupId=Report-Batch] Cluster ID:  
+{"@timestamp":"2026-09-28T11:45:31.0599928+05:30","level":"INFO","service":"ProcessStatusService","traceId":"","userId":"","clientIp":"","apiPath":"","requestUrl":"","httpMethod":"","httpStatus":"","class":"org.apache.kafka.clients.Metadata","message":"[Consumer clientId=consumer-Report-Batch-13, groupId=Report-Batch] Cluster ID: ","stack_trace":""}
+2026-09-28 11:45:31.060 INFO  [org.springframework.kafka.KafkaListenerEndpointContainer#1-0-C-1] o.a.k.c.c.i.AbstractCoordinator$FindCoordinatorResponseHandler: [Consumer clientId=consumer-Report-Batch-13, groupId=Report-Batch] Discovered group coordinator 10.0.17.242:9092 (id: 2147483646 rack: null isFenced: false) 
+{"@timestamp":"2026-09-28T11:45:31.0609853+05:30","level":"INFO","service":"ProcessStatusService","traceId":"","userId":"","clientIp":"","apiPath":"","requestUrl":"","httpMethod":"","httpStatus":"","class":"o.a.k.c.c.internals.ConsumerCoordinator","message":"[Consumer clientId=consumer-Report-Batch-13, groupId=Report-Batch] Discovered group coordinator 10.0.17.242:9092 (id: 2147483646 rack: null isFenced: false)","stack_trace":""}
+2026-09-28 11:45:31.062 INFO  [org.springframework.kafka.KafkaListenerEndpointContainer#1-0-C-1] o.a.k.c.c.i.AbstractCoordinator: [Consumer clientId=consumer-Report-Batch-13, groupId=Report-Batch] (Re-)joining group 
+{"@timestamp":"2026-09-28T11:45:31.0629877+05:30","level":"INFO","service":"ProcessStatusService","traceId":"","userId":"","clientIp":"","apiPath":"","requestUrl":"","httpMethod":"","httpStatus":"","class":"o.a.k.c.c.internals.ConsumerCoordinator","message":"[Consumer clientId=consumer-Report-Batch-13, groupId=Report-Batch] (Re-)joining group","stack_trace":""}
+2026-09-28 11:45:31.066 INFO  [org.springframework.kafka.KafkaListenerEndpointContainer#0-0-C-1] o.a.k.c.c.i.AbstractCoordinator$SyncGroupResponseHandler: [Consumer clientId=consumer-Airflow_ETL_TEST-12, groupId=Airflow_ETL_TEST] Successfully synced group in generation Generation{generationId=24, memberId='consumer-Airflow_ETL_TEST-12-0de5b6c9-7869-4396-8c68-2b44ba7c144f', protocol='range'} 
+{"@timestamp":"2026-09-28T11:45:31.0669853+05:30","level":"INFO","service":"ProcessStatusService","traceId":"","userId":"","clientIp":"","apiPath":"","requestUrl":"","httpMethod":"","httpStatus":"","class":"o.a.k.c.c.internals.ConsumerCoordinator","message":"[Consumer clientId=consumer-Airflow_ETL_TEST-12, groupId=Airflow_ETL_TEST] Successfully synced group in generation Generation{generationId=24, memberId='consumer-Airflow_ETL_TEST-12-0de5b6c9-7869-4396-8c68-2b44ba7c144f', protocol='range'}","stack_trace":""}
+2026-09-28 11:45:31.067 INFO  [org.springframework.kafka.KafkaListenerEndpointContainer#0-0-C-1] o.a.k.c.c.i.ConsumerCoordinator: [Consumer clientId=consumer-Airflow_ETL_TEST-12, groupId=Airflow_ETL_TEST] Notifying assignor about the new Assignment(partitions=[airflow-events-0]) 
+{"@timestamp":"2026-09-28T11:45:31.0679864+05:30","level":"INFO","service":"ProcessStatusService","traceId":"","userId":"","clientIp":"","apiPath":"","requestUrl":"","httpMethod":"","httpStatus":"","class":"o.a.k.c.c.internals.ConsumerCoordinator","message":"[Consumer clientId=consumer-Airflow_ETL_TEST-12, groupId=Airflow_ETL_TEST] Notifying assignor about the new Assignment(partitions=[airflow-events-0])","stack_trace":""}
+2026-09-28 11:45:31.068 INFO  [main] o.a.k.c.u.AppInfoParser$AppInfo: Kafka version: 4.2.1 
+{"@timestamp":"2026-09-28T11:45:31.0689874+05:30","level":"INFO","service":"ProcessStatusService","traceId":"","userId":"","clientIp":"","apiPath":"","requestUrl":"","httpMethod":"","httpStatus":"","class":"o.a.kafka.common.utils.AppInfoParser","message":"Kafka version: 4.2.1","stack_trace":""}
+2026-09-28 11:45:31.068 INFO  [main] o.a.k.c.u.AppInfoParser$AppInfo: Kafka commitId: 92f61c44867f39dc 
+{"@timestamp":"2026-09-28T11:45:31.0689874+05:30","level":"INFO","service":"ProcessStatusService","traceId":"","userId":"","clientIp":"","apiPath":"","requestUrl":"","httpMethod":"","httpStatus":"","class":"o.a.kafka.common.utils.AppInfoParser","message":"Kafka commitId: 92f61c44867f39dc","stack_trace":""}
+2026-09-28 11:45:31.068 INFO  [main] o.a.k.c.u.AppInfoParser$AppInfo: Kafka startTimeMs: 1790576131068 
+{"@timestamp":"2026-09-28T11:45:31.0689874+05:30","level":"INFO","service":"ProcessStatusService","traceId":"","userId":"","clientIp":"","apiPath":"","requestUrl":"","httpMethod":"","httpStatus":"","class":"o.a.kafka.common.utils.AppInfoParser","message":"Kafka startTimeMs: 1790576131068","stack_trace":""}
+2026-09-28 11:45:31.069 INFO  [org.springframework.kafka.KafkaListenerEndpointContainer#0-0-C-1] o.a.k.c.c.i.ConsumerRebalanceListenerInvoker: [Consumer clientId=consumer-Airflow_ETL_TEST-12, groupId=Airflow_ETL_TEST]Adding newly assigned partitions: [airflow-events-0] 
+{"@timestamp":"2026-09-28T11:45:31.0699864+05:30","level":"INFO","service":"ProcessStatusService","traceId":"","userId":"","clientIp":"","apiPath":"","requestUrl":"","httpMethod":"","httpStatus":"","class":"o.a.k.c.c.i.ConsumerRebalanceListenerInvoker","message":"[Consumer clientId=consumer-Airflow_ETL_TEST-12, groupId=Airflow_ETL_TEST] Adding newly assigned partitions: [airflow-events-0]","stack_trace":""}
+2026-09-28 11:45:31.070 INFO  [org.springframework.kafka.KafkaListenerEndpointContainer#1-0-C-1] o.a.k.c.c.i.AbstractCoordinator: [Consumer clientId=consumer-Report-Batch-13, groupId=Report-Batch] Request joining group due to: need to re-join with the given member-id: consumer-Report-Batch-13-b6e7c28a-9ce7-4013-842b-cbb64aff9e3e 
+{"@timestamp":"2026-09-28T11:45:31.0709874+05:30","level":"INFO","service":"ProcessStatusService","traceId":"","userId":"","clientIp":"","apiPath":"","requestUrl":"","httpMethod":"","httpStatus":"","class":"o.a.k.c.c.internals.ConsumerCoordinator","message":"[Consumer clientId=consumer-Report-Batch-13, groupId=Report-Batch] Request joining group due to: need to re-join with the given member-id: consumer-Report-Batch-13-b6e7c28a-9ce7-4013-842b-cbb64aff9e3e","stack_trace":""}
+2026-09-28 11:45:31.070 INFO  [org.springframework.kafka.KafkaListenerEndpointContainer#1-0-C-1] o.a.k.c.c.i.AbstractCoordinator: [Consumer clientId=consumer-Report-Batch-13, groupId=Report-Batch] (Re-)joining group 
+{"@timestamp":"2026-09-28T11:45:31.0709874+05:30","level":"INFO","service":"ProcessStatusService","traceId":"","userId":"","clientIp":"","apiPath":"","requestUrl":"","httpMethod":"","httpStatus":"","class":"o.a.k.c.c.internals.ConsumerCoordinator","message":"[Consumer clientId=consumer-Report-Batch-13, groupId=Report-Batch] (Re-)joining group","stack_trace":""}
+2026-09-28 11:45:31.072 INFO  [main] o.a.k.c.c.i.ClassicKafkaConsumer: [Consumer clientId=consumer-Airflow_ETL-14, groupId=Airflow_ETL] Subscribed to topic(s): trigger-events 
+{"@timestamp":"2026-09-28T11:45:31.0729854+05:30","level":"INFO","service":"ProcessStatusService","traceId":"","userId":"","clientIp":"","apiPath":"","requestUrl":"","httpMethod":"","httpStatus":"","class":"o.a.k.c.c.internals.ClassicKafkaConsumer","message":"[Consumer clientId=consumer-Airflow_ETL-14, groupId=Airflow_ETL] Subscribed to topic(s): trigger-events","stack_trace":""}
+2026-09-28 11:45:31.077 INFO  [org.springframework.kafka.KafkaListenerEndpointContainer#0-0-C-1] o.a.k.c.c.i.ConsumerUtils: Setting offset for partition airflow-events-0 to the committed offset FetchPosition{offset=19, offsetEpoch=Optional.empty, currentLeader=LeaderAndEpoch{leader=Optional[10.0.17.242:9092 (id: 1 rack: null isFenced: false)], epoch=6}} 
+{"@timestamp":"2026-09-28T11:45:31.0779906+05:30","level":"INFO","service":"ProcessStatusService","traceId":"","userId":"","clientIp":"","apiPath":"","requestUrl":"","httpMethod":"","httpStatus":"","class":"o.a.k.c.consumer.internals.ConsumerUtils","message":"Setting offset for partition airflow-events-0 to the committed offset FetchPosition{offset=19, offsetEpoch=Optional.empty, currentLeader=LeaderAndEpoch{leader=Optional[10.0.17.242:9092 (id: 1 rack: null isFenced: false)], epoch=6}}","stack_trace":""}
+2026-09-28 11:45:31.080 INFO  [org.springframework.kafka.KafkaListenerEndpointContainer#0-0-C-1] o.s.c.l.LogAccessor: Airflow_ETL_TEST: partitions assigned: [airflow-events-0] 
+{"@timestamp":"2026-09-28T11:45:31.0809911+05:30","level":"INFO","service":"ProcessStatusService","traceId":"","userId":"","clientIp":"","apiPath":"","requestUrl":"","httpMethod":"","httpStatus":"","class":"o.s.k.l.KafkaMessageListenerContainer","message":"Airflow_ETL_TEST: partitions assigned: [airflow-events-0]","stack_trace":""}
+2026-09-28 11:45:31.082 INFO  [org.springframework.kafka.KafkaListenerEndpointContainer#10-0-C-1] o.a.k.c.Metadata: [Consumer clientId=consumer-Airflow_ETL-14, groupId=Airflow_ETL] Cluster ID:  
+{"@timestamp":"2026-09-28T11:45:31.0829899+05:30","level":"INFO","service":"ProcessStatusService","traceId":"","userId":"","clientIp":"","apiPath":"","requestUrl":"","httpMethod":"","httpStatus":"","class":"org.apache.kafka.clients.Metadata","message":"[Consumer clientId=consumer-Airflow_ETL-14, groupId=Airflow_ETL] Cluster ID: ","stack_trace":""}
+2026-09-28 11:45:31.083 INFO  [org.springframework.kafka.KafkaListenerEndpointContainer#10-0-C-1] o.a.k.c.c.i.AbstractCoordinator$FindCoordinatorResponseHandler: [Consumer clientId=consumer-Airflow_ETL-14, groupId=Airflow_ETL] Discovered group coordinator 10.0.17.242:9092 (id: 2147483646 rack: null isFenced: false) 
+{"@timestamp":"2026-09-28T11:45:31.0839921+05:30","level":"INFO","service":"ProcessStatusService","traceId":"","userId":"","clientIp":"","apiPath":"","requestUrl":"","httpMethod":"","httpStatus":"","class":"o.a.k.c.c.internals.ConsumerCoordinator","message":"[Consumer clientId=consumer-Airflow_ETL-14, groupId=Airflow_ETL] Discovered group coordinator 10.0.17.242:9092 (id: 2147483646 rack: null isFenced: false)","stack_trace":""}
+2026-09-28 11:45:31.083 INFO  [main] o.s.b.StartupInfoLogger: Started ProcessStatusApplication in 10.904 seconds (process running for 11.779) 
+{"@timestamp":"2026-09-28T11:45:31.0839921+05:30","level":"INFO","service":"ProcessStatusService","traceId":"","userId":"","clientIp":"","apiPath":"","requestUrl":"","httpMethod":"","httpStatus":"","class":"c.f.p.ProcessStatusApplication","message":"Started ProcessStatusApplication in 10.904 seconds (process running for 11.779)","stack_trace":""}
+2026-09-28 11:45:31.084 INFO  [org.springframework.kafka.KafkaListenerEndpointContainer#10-0-C-1] o.a.k.c.c.i.AbstractCoordinator: [Consumer clientId=consumer-Airflow_ETL-14, groupId=Airflow_ETL] (Re-)joining group 
+{"@timestamp":"2026-09-28T11:45:31.084992+05:30","level":"INFO","service":"ProcessStatusService","traceId":"","userId":"","clientIp":"","apiPath":"","requestUrl":"","httpMethod":"","httpStatus":"","class":"o.a.k.c.c.internals.ConsumerCoordinator","message":"[Consumer clientId=consumer-Airflow_ETL-14, groupId=Airflow_ETL] (Re-)joining group","stack_trace":""}
+2026-09-28 11:45:31.091 INFO  [org.springframework.kafka.KafkaListenerEndpointContainer#10-0-C-1] o.a.k.c.c.i.AbstractCoordinator: [Consumer clientId=consumer-Airflow_ETL-14, groupId=Airflow_ETL] Request joining groupdue to: need to re-join with the given member-id: consumer-Airflow_ETL-14-2123958b-a467-4bfe-b58e-3dfe287d189f 
+{"@timestamp":"2026-09-28T11:45:31.0915058+05:30","level":"INFO","service":"ProcessStatusService","traceId":"","userId":"","clientIp":"","apiPath":"","requestUrl":"","httpMethod":"","httpStatus":"","class":"o.a.k.c.c.internals.ConsumerCoordinator","message":"[Consumer clientId=consumer-Airflow_ETL-14, groupId=Airflow_ETL] Request joining group due to: need to re-join with the given member-id: consumer-Airflow_ETL-14-2123958b-a467-4bfe-b58e-3dfe287d189f","stack_trace":""}
+2026-09-28 11:45:31.092 INFO  [org.springframework.kafka.KafkaListenerEndpointContainer#10-0-C-1] o.a.k.c.c.i.AbstractCoordinator: [Consumer clientId=consumer-Airflow_ETL-14, groupId=Airflow_ETL] (Re-)joining group 
+{"@timestamp":"2026-09-28T11:45:31.0925065+05:30","level":"INFO","service":"ProcessStatusService","traceId":"","userId":"","clientIp":"","apiPath":"","requestUrl":"","httpMethod":"","httpStatus":"","class":"o.a.k.c.c.internals.ConsumerCoordinator","message":"[Consumer clientId=consumer-Airflow_ETL-14, groupId=Airflow_ETL] (Re-)joining group","stack_trace":""}
+2026-09-28 11:45:31.094 INFO  [org.springframework.kafka.KafkaListenerEndpointContainer#9-0-C-1] o.a.k.c.c.i.AbstractCoordinator$SyncGroupResponseHandler: [Consumer clientId=consumer-Airflow_ETL-4, groupId=Airflow_ETL] SyncGroup failed: The group began another rebalance. Need to re-join the group. Sent generation was Generation{generationId=44, memberId='consumer-Airflow_ETL-4-c476201e-9bd4-4742-b574-8ffe7a596bb7', protocol='range'} 
+2026-09-28 11:45:31.094 INFO  [org.springframework.kafka.KafkaListenerEndpointContainer#8-0-C-1] o.a.k.c.c.i.AbstractCoordinator$SyncGroupResponseHandler: [Consumer clientId=consumer-Airflow_ETL-3, groupId=Airflow_ETL] SyncGroup failed: The group began another rebalance. Need to re-join the group. Sent generation was Generation{generationId=44, memberId='consumer-Airflow_ETL-3-11e930ab-da59-4aaf-a64c-32e8f8986b84', protocol='range'} 
+{"@timestamp":"2026-09-28T11:45:31.0945116+05:30","level":"INFO","service":"ProcessStatusService","traceId":"","userId":"","clientIp":"","apiPath":"","requestUrl":"","httpMethod":"","httpStatus":"","class":"o.a.k.c.c.internals.ConsumerCoordinator","message":"[Consumer clientId=consumer-Airflow_ETL-4, groupId=Airflow_ETL] SyncGroup failed: The group began another rebalance. Need to re-join the group. Sent generation was Generation{generationId=44, memberId='consumer-Airflow_ETL-4-c476201e-9bd4-4742-b574-8ffe7a596bb7', protocol='range'}","stack_trace":""}
+2026-09-28 11:45:31.094 INFO  [org.springframework.kafka.KafkaListenerEndpointContainer#6-0-C-1] o.a.k.c.c.i.AbstractCoordinator$SyncGroupResponseHandler: [Consumer clientId=consumer-Airflow_ETL-1, groupId=Airflow_ETL] SyncGroup failed: The group began another rebalance. Need to re-join the group. Sent generation was Generation{generationId=44, memberId='consumer-Airflow_ETL-1-ec5949da-9a65-480b-90da-847d44ef433b', protocol='range'} 
+{"@timestamp":"2026-09-28T11:45:31.0945116+05:30","level":"INFO","service":"ProcessStatusService","traceId":"","userId":"","clientIp":"","apiPath":"","requestUrl":"","httpMethod":"","httpStatus":"","class":"o.a.k.c.c.internals.ConsumerCoordinator","message":"[Consumer clientId=consumer-Airflow_ETL-3, groupId=Airflow_ETL] SyncGroup failed: The group began another rebalance. Need to re-join the group. Sent generation was Generation{generationId=44, memberId='consumer-Airflow_ETL-3-11e930ab-da59-4aaf-a64c-32e8f8986b84', protocol='range'}","stack_trace":""}
+{"@timestamp":"2026-09-28T11:45:31.0945116+05:30","level":"INFO","service":"ProcessStatusService","traceId":"","userId":"","clientIp":"","apiPath":"","requestUrl":"","httpMethod":"","httpStatus":"","class":"o.a.k.c.c.internals.ConsumerCoordinator","message":"[Consumer clientId=consumer-Airflow_ETL-1, groupId=Airflow_ETL] SyncGroup failed: The group began another rebalance. Need to re-join the group. Sent generation was Generation{generationId=44, memberId='consumer-Airflow_ETL-1-ec5949da-9a65-480b-90da-847d44ef433b', protocol='range'}","stack_trace":""}
+2026-09-28 11:45:31.094 INFO  [org.springframework.kafka.KafkaListenerEndpointContainer#7-0-C-1] o.a.k.c.c.i.AbstractCoordinator$SyncGroupResponseHandler: [Consumer clientId=consumer-Airflow_ETL-2, groupId=Airflow_ETL] SyncGroup failed: The group began another rebalance. Need to re-join the group. Sent generation was Generation{generationId=44, memberId='consumer-Airflow_ETL-2-55748758-9fc5-44c0-92ed-d0b5a0d8fa0c', protocol='range'} 
+{"@timestamp":"2026-09-28T11:45:31.0945116+05:30","level":"INFO","service":"ProcessStatusService","traceId":"","userId":"","clientIp":"","apiPath":"","requestUrl":"","httpMethod":"","httpStatus":"","class":"o.a.k.c.c.internals.ConsumerCoordinator","message":"[Consumer clientId=consumer-Airflow_ETL-2, groupId=Airflow_ETL] SyncGroup failed: The group began another rebalance. Need to re-join the group. Sent generation was Generation{generationId=44, memberId='consumer-Airflow_ETL-2-55748758-9fc5-44c0-92ed-d0b5a0d8fa0c', protocol='range'}","stack_trace":""}
+2026-09-28 11:45:31.095 INFO  [org.springframework.kafka.KafkaListenerEndpointContainer#9-0-C-1] o.a.k.c.c.i.AbstractCoordinator: [Consumer clientId=consumer-Airflow_ETL-4, groupId=Airflow_ETL] Request joining group due to: rebalance failed due to 'The group is rebalancing, so a rejoin is needed.' (RebalanceInProgressException) 
+2026-09-28 11:45:31.095 INFO  [org.springframework.kafka.KafkaListenerEndpointContainer#6-0-C-1] o.a.k.c.c.i.AbstractCoordinator: [Consumer clientId=consumer-Airflow_ETL-1, groupId=Airflow_ETL] Request joining group due to: rebalance failed due to 'The group is rebalancing, so a rejoin is needed.' (RebalanceInProgressException) 
+2026-09-28 11:45:31.095 INFO  [org.springframework.kafka.KafkaListenerEndpointContainer#7-0-C-1] o.a.k.c.c.i.AbstractCoordinator: [Consumer clientId=consumer-Airflow_ETL-2, groupId=Airflow_ETL] Request joining group due to: rebalance failed due to 'The group is rebalancing, so a rejoin is needed.' (RebalanceInProgressException) 
+{"@timestamp":"2026-09-28T11:45:31.0955058+05:30","level":"INFO","service":"ProcessStatusService","traceId":"","userId":"","clientIp":"","apiPath":"","requestUrl":"","httpMethod":"","httpStatus":"","class":"o.a.k.c.c.internals.ConsumerCoordinator","message":"[Consumer clientId=consumer-Airflow_ETL-4, groupId=Airflow_ETL] Request joining group due to: rebalance failed due to 'The group is rebalancing, so a rejoin is needed.' (RebalanceInProgressException)","stack_trace":""}
+2026-09-28 11:45:31.095 INFO  [org.springframework.kafka.KafkaListenerEndpointContainer#8-0-C-1] o.a.k.c.c.i.AbstractCoordinator: [Consumer clientId=consumer-Airflow_ETL-3, groupId=Airflow_ETL] Request joining group due to: rebalance failed due to 'The group is rebalancing, so a rejoin is needed.' (RebalanceInProgressException) 
+{"@timestamp":"2026-09-28T11:45:31.0955058+05:30","level":"INFO","service":"ProcessStatusService","traceId":"","userId":"","clientIp":"","apiPath":"","requestUrl":"","httpMethod":"","httpStatus":"","class":"o.a.k.c.c.internals.ConsumerCoordinator","message":"[Consumer clientId=consumer-Airflow_ETL-1, groupId=Airflow_ETL] Request joining group due to: rebalance failed due to 'The group is rebalancing, so a rejoin is needed.' (RebalanceInProgressException)","stack_trace":""}
+2026-09-28 11:45:31.095 INFO  [org.springframework.kafka.KafkaListenerEndpointContainer#9-0-C-1] o.a.k.c.c.i.AbstractCoordinator: [Consumer clientId=consumer-Airflow_ETL-4, groupId=Airflow_ETL] (Re-)joining group 
+{"@timestamp":"2026-09-28T11:45:31.0955058+05:30","level":"INFO","service":"ProcessStatusService","traceId":"","userId":"","clientIp":"","apiPath":"","requestUrl":"","httpMethod":"","httpStatus":"","class":"o.a.k.c.c.internals.ConsumerCoordinator","message":"[Consumer clientId=consumer-Airflow_ETL-2, groupId=Airflow_ETL] Request joining group due to: rebalance failed due to 'The group is rebalancing, so a rejoin is needed.' (RebalanceInProgressException)","stack_trace":""}
+2026-09-28 11:45:31.095 INFO  [org.springframework.kafka.KafkaListenerEndpointContainer#6-0-C-1] o.a.k.c.c.i.AbstractCoordinator: [Consumer clientId=consumer-Airflow_ETL-1, groupId=Airflow_ETL] (Re-)joining group 
+{"@timestamp":"2026-09-28T11:45:31.0955058+05:30","level":"INFO","service":"ProcessStatusService","traceId":"","userId":"","clientIp":"","apiPath":"","requestUrl":"","httpMethod":"","httpStatus":"","class":"o.a.k.c.c.internals.ConsumerCoordinator","message":"[Consumer clientId=consumer-Airflow_ETL-3, groupId=Airflow_ETL] Request joining group due to: rebalance failed due to 'The group is rebalancing, so a rejoin is needed.' (RebalanceInProgressException)","stack_trace":""}
+{"@timestamp":"2026-09-28T11:45:31.0955058+05:30","level":"INFO","service":"ProcessStatusService","traceId":"","userId":"","clientIp":"","apiPath":"","requestUrl":"","httpMethod":"","httpStatus":"","class":"o.a.k.c.c.internals.ConsumerCoordinator","message":"[Consumer clientId=consumer-Airflow_ETL-1, groupId=Airflow_ETL] (Re-)joining group","stack_trace":""}
+2026-09-28 11:45:31.095 INFO  [org.springframework.kafka.KafkaListenerEndpointContainer#7-0-C-1] o.a.k.c.c.i.AbstractCoordinator: [Consumer clientId=consumer-Airflow_ETL-2, groupId=Airflow_ETL] (Re-)joining group 
+{"@timestamp":"2026-09-28T11:45:31.0955058+05:30","level":"INFO","service":"ProcessStatusService","traceId":"","userId":"","clientIp":"","apiPath":"","requestUrl":"","httpMethod":"","httpStatus":"","class":"o.a.k.c.c.internals.ConsumerCoordinator","message":"[Consumer clientId=consumer-Airflow_ETL-4, groupId=Airflow_ETL] (Re-)joining group","stack_trace":""}
+2026-09-28 11:45:31.095 INFO  [org.springframework.kafka.KafkaListenerEndpointContainer#8-0-C-1] o.a.k.c.c.i.AbstractCoordinator: [Consumer clientId=consumer-Airflow_ETL-3, groupId=Airflow_ETL] (Re-)joining group 
+{"@timestamp":"2026-09-28T11:45:31.0955058+05:30","level":"INFO","service":"ProcessStatusService","traceId":"","userId":"","clientIp":"","apiPath":"","requestUrl":"","httpMethod":"","httpStatus":"","class":"o.a.k.c.c.internals.ConsumerCoordinator","message":"[Consumer clientId=consumer-Airflow_ETL-2, groupId=Airflow_ETL] (Re-)joining group","stack_trace":""}
+{"@timestamp":"2026-09-28T11:45:31.0955058+05:30","level":"INFO","service":"ProcessStatusService","traceId":"","userId":"","clientIp":"","apiPath":"","requestUrl":"","httpMethod":"","httpStatus":"","class":"o.a.k.c.c.internals.ConsumerCoordinator","message":"[Consumer clientId=consumer-Airflow_ETL-3, groupId=Airflow_ETL] (Re-)joining group","stack_trace":""}
+2026-09-28 11:45:31.172 INFO  [org.springframework.kafka.KafkaListenerEndpointContainer#10-0-C-1] o.a.k.c.c.i.AbstractCoordinator$JoinGroupResponseHandler: [Consumer clientId=consumer-Airflow_ETL-14, groupId=Airflow_ETL] Successfully joined group with generation Generation{generationId=45, memberId='consumer-Airflow_ETL-14-2123958b-a467-4bfe-b58e-3dfe287d189f', protocol='range'} 
+2026-09-28 11:45:31.172 INFO  [org.springframework.kafka.KafkaListenerEndpointContainer#6-0-C-1] o.a.k.c.c.i.AbstractCoordinator$JoinGroupResponseHandler: [Consumer clientId=consumer-Airflow_ETL-1, groupId=Airflow_ETL] Successfully joined group with generation Generation{generationId=45, memberId='consumer-Airflow_ETL-1-ec5949da-9a65-480b-90da-847d44ef433b', protocol='range'} 
+{"@timestamp":"2026-09-28T11:45:31.172225+05:30","level":"INFO","service":"ProcessStatusService","traceId":"","userId":"","clientIp":"","apiPath":"","requestUrl":"","httpMethod":"","httpStatus":"","class":"o.a.k.c.c.internals.ConsumerCoordinator","message":"[Consumer clientId=consumer-Airflow_ETL-14, groupId=Airflow_ETL] Successfully joined group with generation Generation{generationId=45, memberId='consumer-Airflow_ETL-14-2123958b-a467-4bfe-b58e-3dfe287d189f', protocol='range'}","stack_trace":""}
+{"@timestamp":"2026-09-28T11:45:31.172225+05:30","level":"INFO","service":"ProcessStatusService","traceId":"","userId":"","clientIp":"","apiPath":"","requestUrl":"","httpMethod":"","httpStatus":"","class":"o.a.k.c.c.internals.ConsumerCoordinator","message":"[Consumer clientId=consumer-Airflow_ETL-1, groupId=Airflow_ETL] Successfully joined group with generation Generation{generationId=45, memberId='consumer-Airflow_ETL-1-ec5949da-9a65-480b-90da-847d44ef433b', protocol='range'}","stack_trace":""}
+2026-09-28 11:45:31.172 INFO  [org.springframework.kafka.KafkaListenerEndpointContainer#8-0-C-1] o.a.k.c.c.i.AbstractCoordinator$JoinGroupResponseHandler: [Consumer clientId=consumer-Airflow_ETL-3, groupId=Airflow_ETL] Successfully joined group with generation Generation{generationId=45, memberId='consumer-Airflow_ETL-3-11e930ab-da59-4aaf-a64c-32e8f8986b84', protocol='range'} 
+2026-09-28 11:45:31.172 INFO  [org.springframework.kafka.KafkaListenerEndpointContainer#9-0-C-1] o.a.k.c.c.i.AbstractCoordinator$JoinGroupResponseHandler: [Consumer clientId=consumer-Airflow_ETL-4, groupId=Airflow_ETL] Successfully joined group with generation Generation{generationId=45, memberId='consumer-Airflow_ETL-4-c476201e-9bd4-4742-b574-8ffe7a596bb7', protocol='range'} 
+2026-09-28 11:45:31.172 INFO  [org.springframework.kafka.KafkaListenerEndpointContainer#7-0-C-1] o.a.k.c.c.i.AbstractCoordinator$JoinGroupResponseHandler: [Consumer clientId=consumer-Airflow_ETL-2, groupId=Airflow_ETL] Successfully joined group with generation Generation{generationId=45, memberId='consumer-Airflow_ETL-2-55748758-9fc5-44c0-92ed-d0b5a0d8fa0c', protocol='range'} 
+{"@timestamp":"2026-09-28T11:45:31.172225+05:30","level":"INFO","service":"ProcessStatusService","traceId":"","userId":"","clientIp":"","apiPath":"","requestUrl":"","httpMethod":"","httpStatus":"","class":"o.a.k.c.c.internals.ConsumerCoordinator","message":"[Consumer clientId=consumer-Airflow_ETL-3, groupId=Airflow_ETL] Successfully joined group with generation Generation{generationId=45, memberId='consumer-Airflow_ETL-3-11e930ab-da59-4aaf-a64c-32e8f8986b84', protocol='range'}","stack_trace":""}
+{"@timestamp":"2026-09-28T11:45:31.172225+05:30","level":"INFO","service":"ProcessStatusService","traceId":"","userId":"","clientIp":"","apiPath":"","requestUrl":"","httpMethod":"","httpStatus":"","class":"o.a.k.c.c.internals.ConsumerCoordinator","message":"[Consumer clientId=consumer-Airflow_ETL-4, groupId=Airflow_ETL] Successfully joined group with generation Generation{generationId=45, memberId='consumer-Airflow_ETL-4-c476201e-9bd4-4742-b574-8ffe7a596bb7', protocol='range'}","stack_trace":""}
+{"@timestamp":"2026-09-28T11:45:31.172225+05:30","level":"INFO","service":"ProcessStatusService","traceId":"","userId":"","clientIp":"","apiPath":"","requestUrl":"","httpMethod":"","httpStatus":"","class":"o.a.k.c.c.internals.ConsumerCoordinator","message":"[Consumer clientId=consumer-Airflow_ETL-2, groupId=Airflow_ETL] Successfully joined group with generation Generation{generationId=45, memberId='consumer-Airflow_ETL-2-55748758-9fc5-44c0-92ed-d0b5a0d8fa0c', protocol='range'}","stack_trace":""}
+2026-09-28 11:45:31.200 INFO  [org.springframework.kafka.KafkaListenerEndpointContainer#10-0-C-1] o.a.k.c.c.i.AbstractCoordinator$SyncGroupResponseHandler: [Consumer clientId=consumer-Airflow_ETL-14, groupId=Airflow_ETL] Successfully synced group in generation Generation{generationId=45, memberId='consumer-Airflow_ETL-14-2123958b-a467-4bfe-b58e-3dfe287d189f', protocol='range'} 
+2026-09-28 11:45:31.200 INFO  [org.springframework.kafka.KafkaListenerEndpointContainer#9-0-C-1] o.a.k.c.c.i.AbstractCoordinator$SyncGroupResponseHandler: [Consumer clientId=consumer-Airflow_ETL-4, groupId=Airflow_ETL] Successfully synced group in generation Generation{generationId=45, memberId='consumer-Airflow_ETL-4-c476201e-9bd4-4742-b574-8ffe7a596bb7', protocol='range'} 
+2026-09-28 11:45:31.200 INFO  [org.springframework.kafka.KafkaListenerEndpointContainer#6-0-C-1] o.a.k.c.c.i.AbstractCoordinator$SyncGroupResponseHandler: [Consumer clientId=consumer-Airflow_ETL-1, groupId=Airflow_ETL] Successfully synced group in generation Generation{generationId=45, memberId='consumer-Airflow_ETL-1-ec5949da-9a65-480b-90da-847d44ef433b', protocol='range'} 
+{"@timestamp":"2026-09-28T11:45:31.200771+05:30","level":"INFO","service":"ProcessStatusService","traceId":"","userId":"","clientIp":"","apiPath":"","requestUrl":"","httpMethod":"","httpStatus":"","class":"o.a.k.c.c.internals.ConsumerCoordinator","message":"[Consumer clientId=consumer-Airflow_ETL-14, groupId=Airflow_ETL] Successfully synced group in generation Generation{generationId=45, memberId='consumer-Airflow_ETL-14-2123958b-a467-4bfe-b58e-3dfe287d189f', protocol='range'}","stack_trace":""}
+2026-09-28 11:45:31.200 INFO  [org.springframework.kafka.KafkaListenerEndpointContainer#8-0-C-1] o.a.k.c.c.i.AbstractCoordinator$SyncGroupResponseHandler: [Consumer clientId=consumer-Airflow_ETL-3, groupId=Airflow_ETL] Successfully synced group in generation Generation{generationId=45, memberId='consumer-Airflow_ETL-3-11e930ab-da59-4aaf-a64c-32e8f8986b84', protocol='range'} 
+{"@timestamp":"2026-09-28T11:45:31.200771+05:30","level":"INFO","service":"ProcessStatusService","traceId":"","userId":"","clientIp":"","apiPath":"","requestUrl":"","httpMethod":"","httpStatus":"","class":"o.a.k.c.c.internals.ConsumerCoordinator","message":"[Consumer clientId=consumer-Airflow_ETL-4, groupId=Airflow_ETL] Successfully synced group in generation Generation{generationId=45, memberId='consumer-Airflow_ETL-4-c476201e-9bd4-4742-b574-8ffe7a596bb7', protocol='range'}","stack_trace":""}
+2026-09-28 11:45:31.200 INFO  [org.springframework.kafka.KafkaListenerEndpointContainer#7-0-C-1] o.a.k.c.c.i.AbstractCoordinator$SyncGroupResponseHandler: [Consumer clientId=consumer-Airflow_ETL-2, groupId=Airflow_ETL] Successfully synced group in generation Generation{generationId=45, memberId='consumer-Airflow_ETL-2-55748758-9fc5-44c0-92ed-d0b5a0d8fa0c', protocol='range'} 
+{"@timestamp":"2026-09-28T11:45:31.200771+05:30","level":"INFO","service":"ProcessStatusService","traceId":"","userId":"","clientIp":"","apiPath":"","requestUrl":"","httpMethod":"","httpStatus":"","class":"o.a.k.c.c.internals.ConsumerCoordinator","message":"[Consumer clientId=consumer-Airflow_ETL-1, groupId=Airflow_ETL] Successfully synced group in generation Generation{generationId=45, memberId='consumer-Airflow_ETL-1-ec5949da-9a65-480b-90da-847d44ef433b', protocol='range'}","stack_trace":""}
+{"@timestamp":"2026-09-28T11:45:31.200771+05:30","level":"INFO","service":"ProcessStatusService","traceId":"","userId":"","clientIp":"","apiPath":"","requestUrl":"","httpMethod":"","httpStatus":"","class":"o.a.k.c.c.internals.ConsumerCoordinator","message":"[Consumer clientId=consumer-Airflow_ETL-3, groupId=Airflow_ETL] Successfully synced group in generation Generation{generationId=45, memberId='consumer-Airflow_ETL-3-11e930ab-da59-4aaf-a64c-32e8f8986b84', protocol='range'}","stack_trace":""}
+{"@timestamp":"2026-09-28T11:45:31.200771+05:30","level":"INFO","service":"ProcessStatusService","traceId":"","userId":"","clientIp":"","apiPath":"","requestUrl":"","httpMethod":"","httpStatus":"","class":"o.a.k.c.c.internals.ConsumerCoordinator","message":"[Consumer clientId=consumer-Airflow_ETL-2, groupId=Airflow_ETL] Successfully synced group in generation Generation{generationId=45, memberId='consumer-Airflow_ETL-2-55748758-9fc5-44c0-92ed-d0b5a0d8fa0c', protocol='range'}","stack_trace":""}
+2026-09-28 11:45:31.201 INFO  [org.springframework.kafka.KafkaListenerEndpointContainer#10-0-C-1] o.a.k.c.c.i.ConsumerCoordinator: [Consumer clientId=consumer-Airflow_ETL-14, groupId=Airflow_ETL] Notifying assignor about the new Assignment(partitions=[trigger-events-0]) 
+2026-09-28 11:45:31.201 INFO  [org.springframework.kafka.KafkaListenerEndpointContainer#9-0-C-1] o.a.k.c.c.i.ConsumerCoordinator: [Consumer clientId=consumer-Airflow_ETL-4, groupId=Airflow_ETL] Notifying assignor about the new Assignment(partitions=[spark-events-0]) 
+{"@timestamp":"2026-09-28T11:45:31.2017709+05:30","level":"INFO","service":"ProcessStatusService","traceId":"","userId":"","clientIp":"","apiPath":"","requestUrl":"","httpMethod":"","httpStatus":"","class":"o.a.k.c.c.internals.ConsumerCoordinator","message":"[Consumer clientId=consumer-Airflow_ETL-14, groupId=Airflow_ETL] Notifying assignor about the new Assignment(partitions=[trigger-events-0])","stack_trace":""}
+{"@timestamp":"2026-09-28T11:45:31.2017709+05:30","level":"INFO","service":"ProcessStatusService","traceId":"","userId":"","clientIp":"","apiPath":"","requestUrl":"","httpMethod":"","httpStatus":"","class":"o.a.k.c.c.internals.ConsumerCoordinator","message":"[Consumer clientId=consumer-Airflow_ETL-4, groupId=Airflow_ETL] Notifying assignor about the new Assignment(partitions=[spark-events-0])","stack_trace":""}
+2026-09-28 11:45:31.201 INFO  [org.springframework.kafka.KafkaListenerEndpointContainer#7-0-C-1] o.a.k.c.c.i.ConsumerCoordinator: [Consumer clientId=consumer-Airflow_ETL-2, groupId=Airflow_ETL] Notifying assignor about the new Assignment(partitions=[report-builder.single-mode.started-0]) 
+2026-09-28 11:45:31.201 INFO  [org.springframework.kafka.KafkaListenerEndpointContainer#10-0-C-1] o.a.k.c.c.i.ConsumerRebalanceListenerInvoker: [Consumer clientId=consumer-Airflow_ETL-14, groupId=Airflow_ETL] Adding newly assigned partitions: [trigger-events-0] 
+2026-09-28 11:45:31.201 INFO  [org.springframework.kafka.KafkaListenerEndpointContainer#8-0-C-1] o.a.k.c.c.i.ConsumerCoordinator: [Consumer clientId=consumer-Airflow_ETL-3, groupId=Airflow_ETL] Notifying assignor about the new Assignment(partitions=[]) 
+{"@timestamp":"2026-09-28T11:45:31.2017709+05:30","level":"INFO","service":"ProcessStatusService","traceId":"","userId":"","clientIp":"","apiPath":"","requestUrl":"","httpMethod":"","httpStatus":"","class":"o.a.k.c.c.internals.ConsumerCoordinator","message":"[Consumer clientId=consumer-Airflow_ETL-2, groupId=Airflow_ETL] Notifying assignor about the new Assignment(partitions=[report-builder.single-mode.started-0])","stack_trace":""}
+2026-09-28 11:45:31.201 INFO  [org.springframework.kafka.KafkaListenerEndpointContainer#6-0-C-1] o.a.k.c.c.i.ConsumerCoordinator: [Consumer clientId=consumer-Airflow_ETL-1, groupId=Airflow_ETL] Notifying assignor about the new Assignment(partitions=[]) 
+{"@timestamp":"2026-09-28T11:45:31.2017709+05:30","level":"INFO","service":"ProcessStatusService","traceId":"","userId":"","clientIp":"","apiPath":"","requestUrl":"","httpMethod":"","httpStatus":"","class":"o.a.k.c.c.i.ConsumerRebalanceListenerInvoker","message":"[Consumer clientId=consumer-Airflow_ETL-14, groupId=Airflow_ETL] Adding newly assigned partitions: [trigger-events-0]","stack_trace":""}
+2026-09-28 11:45:31.201 INFO  [org.springframework.kafka.KafkaListenerEndpointContainer#9-0-C-1] o.a.k.c.c.i.ConsumerRebalanceListenerInvoker: [Consumer clientId=consumer-Airflow_ETL-4, groupId=Airflow_ETL] Adding newly assigned partitions: [spark-events-0] 
+2026-09-28 11:45:31.201 INFO  [org.springframework.kafka.KafkaListenerEndpointContainer#7-0-C-1] o.a.k.c.c.i.ConsumerRebalanceListenerInvoker: [Consumer clientId=consumer-Airflow_ETL-2, groupId=Airflow_ETL] Adding newly assigned partitions: [report-builder.single-mode.started-0] 
+{"@timestamp":"2026-09-28T11:45:31.2017709+05:30","level":"INFO","service":"ProcessStatusService","traceId":"","userId":"","clientIp":"","apiPath":"","requestUrl":"","httpMethod":"","httpStatus":"","class":"o.a.k.c.c.internals.ConsumerCoordinator","message":"[Consumer clientId=consumer-Airflow_ETL-3, groupId=Airflow_ETL] Notifying assignor about the new Assignment(partitions=[])","stack_trace":""}
+{"@timestamp":"2026-09-28T11:45:31.2017709+05:30","level":"INFO","service":"ProcessStatusService","traceId":"","userId":"","clientIp":"","apiPath":"","requestUrl":"","httpMethod":"","httpStatus":"","class":"o.a.k.c.c.internals.ConsumerCoordinator","message":"[Consumer clientId=consumer-Airflow_ETL-1, groupId=Airflow_ETL] Notifying assignor about the new Assignment(partitions=[])","stack_trace":""}
+2026-09-28 11:45:31.201 INFO  [org.springframework.kafka.KafkaListenerEndpointContainer#8-0-C-1] o.a.k.c.c.i.ConsumerRebalanceListenerInvoker: [Consumer clientId=consumer-Airflow_ETL-3, groupId=Airflow_ETL] Adding newly assigned partitions: [] 
+{"@timestamp":"2026-09-28T11:45:31.2017709+05:30","level":"INFO","service":"ProcessStatusService","traceId":"","userId":"","clientIp":"","apiPath":"","requestUrl":"","httpMethod":"","httpStatus":"","class":"o.a.k.c.c.i.ConsumerRebalanceListenerInvoker","message":"[Consumer clientId=consumer-Airflow_ETL-2, groupId=Airflow_ETL] Adding newly assigned partitions: [report-builder.single-mode.started-0]","stack_trace":""}
+2026-09-28 11:45:31.201 INFO  [org.springframework.kafka.KafkaListenerEndpointContainer#6-0-C-1] o.a.k.c.c.i.ConsumerRebalanceListenerInvoker: [Consumer clientId=consumer-Airflow_ETL-1, groupId=Airflow_ETL] Adding newly assigned partitions: [] 
+{"@timestamp":"2026-09-28T11:45:31.2017709+05:30","level":"INFO","service":"ProcessStatusService","traceId":"","userId":"","clientIp":"","apiPath":"","requestUrl":"","httpMethod":"","httpStatus":"","class":"o.a.k.c.c.i.ConsumerRebalanceListenerInvoker","message":"[Consumer clientId=consumer-Airflow_ETL-4, groupId=Airflow_ETL] Adding newly assigned partitions: [spark-events-0]","stack_trace":""}
+{"@timestamp":"2026-09-28T11:45:31.2017709+05:30","level":"INFO","service":"ProcessStatusService","traceId":"","userId":"","clientIp":"","apiPath":"","requestUrl":"","httpMethod":"","httpStatus":"","class":"o.a.k.c.c.i.ConsumerRebalanceListenerInvoker","message":"[Consumer clientId=consumer-Airflow_ETL-3, groupId=Airflow_ETL] Adding newly assigned partitions: []","stack_trace":""}
+{"@timestamp":"2026-09-28T11:45:31.2017709+05:30","level":"INFO","service":"ProcessStatusService","traceId":"","userId":"","clientIp":"","apiPath":"","requestUrl":"","httpMethod":"","httpStatus":"","class":"o.a.k.c.c.i.ConsumerRebalanceListenerInvoker","message":"[Consumer clientId=consumer-Airflow_ETL-1, groupId=Airflow_ETL] Adding newly assigned partitions: []","stack_trace":""}
+2026-09-28 11:45:31.202 INFO  [org.springframework.kafka.KafkaListenerEndpointContainer#8-0-C-1] o.s.c.l.LogAccessor: Airflow_ETL: partitions assigned: [] 
+2026-09-28 11:45:31.202 INFO  [org.springframework.kafka.KafkaListenerEndpointContainer#6-0-C-1] o.s.c.l.LogAccessor: Airflow_ETL: partitions assigned: [] 
+{"@timestamp":"2026-09-28T11:45:31.2027715+05:30","level":"INFO","service":"ProcessStatusService","traceId":"","userId":"","clientIp":"","apiPath":"","requestUrl":"","httpMethod":"","httpStatus":"","class":"o.s.k.l.KafkaMessageListenerContainer","message":"Airflow_ETL: partitions assigned: []","stack_trace":""}
+{"@timestamp":"2026-09-28T11:45:31.2027715+05:30","level":"INFO","service":"ProcessStatusService","traceId":"","userId":"","clientIp":"","apiPath":"","requestUrl":"","httpMethod":"","httpStatus":"","class":"o.s.k.l.KafkaMessageListenerContainer","message":"Airflow_ETL: partitions assigned: []","stack_trace":""}
+2026-09-28 11:45:31.204 INFO  [org.springframework.kafka.KafkaListenerEndpointContainer#10-0-C-1] o.a.k.c.c.i.ConsumerCoordinator$OffsetFetchResponseHandler: [Consumer clientId=consumer-Airflow_ETL-14, groupId=Airflow_ETL] Found no committed offset for partition trigger-events-0 
+2026-09-28 11:45:31.204 INFO  [org.springframework.kafka.KafkaListenerEndpointContainer#9-0-C-1] o.a.k.c.c.i.ConsumerCoordinator$OffsetFetchResponseHandler: [Consumer clientId=consumer-Airflow_ETL-4, groupId=Airflow_ETL] Found no committed offset for partition spark-events-0 
+2026-09-28 11:45:31.204 INFO  [org.springframework.kafka.KafkaListenerEndpointContainer#7-0-C-1] o.a.k.c.c.i.ConsumerCoordinator$OffsetFetchResponseHandler: [Consumer clientId=consumer-Airflow_ETL-2, groupId=Airflow_ETL] Found no committed offset for partition report-builder.single-mode.started-0 
+{"@timestamp":"2026-09-28T11:45:31.20479+05:30","level":"INFO","service":"ProcessStatusService","traceId":"","userId":"","clientIp":"","apiPath":"","requestUrl":"","httpMethod":"","httpStatus":"","class":"o.a.k.c.c.internals.ConsumerCoordinator","message":"[Consumer clientId=consumer-Airflow_ETL-4, groupId=Airflow_ETL] Found no committed offset for partition spark-events-0","stack_trace":""}
+{"@timestamp":"2026-09-28T11:45:31.20479+05:30","level":"INFO","service":"ProcessStatusService","traceId":"","userId":"","clientIp":"","apiPath":"","requestUrl":"","httpMethod":"","httpStatus":"","class":"o.a.k.c.c.internals.ConsumerCoordinator","message":"[Consumer clientId=consumer-Airflow_ETL-14, groupId=Airflow_ETL] Found no committed offset for partition trigger-events-0","stack_trace":""}
+{"@timestamp":"2026-09-28T11:45:31.20479+05:30","level":"INFO","service":"ProcessStatusService","traceId":"","userId":"","clientIp":"","apiPath":"","requestUrl":"","httpMethod":"","httpStatus":"","class":"o.a.k.c.c.internals.ConsumerCoordinator","message":"[Consumer clientId=consumer-Airflow_ETL-2, groupId=Airflow_ETL] Found no committed offset for partition report-builder.single-mode.started-0","stack_trace":""}
+2026-09-28 11:45:31.216 INFO  [org.springframework.kafka.KafkaListenerEndpointContainer#10-0-C-1] o.a.k.c.c.i.SubscriptionState: [Consumer clientId=consumer-Airflow_ETL-14, groupId=Airflow_ETL] Resetting offset for partition trigger-events-0 to position FetchPosition{offset=0, offsetEpoch=Optional.empty, currentLeader=LeaderAndEpoch{leader=Optional[10.0.17.242:9092 (id: 1 rack: null isFenced: false)], epoch=6}}. 
+2026-09-28 11:45:31.216 INFO  [org.springframework.kafka.KafkaListenerEndpointContainer#9-0-C-1] o.a.k.c.c.i.SubscriptionState: [Consumer clientId=consumer-Airflow_ETL-4, groupId=Airflow_ETL] Resetting offset for partition spark-events-0 to position FetchPosition{offset=0, offsetEpoch=Optional.empty, currentLeader=LeaderAndEpoch{leader=Optional[10.0.17.242:9092 (id: 1 rack: null isFenced: false)], epoch=6}}. 
+2026-09-28 11:45:31.216 INFO  [org.springframework.kafka.KafkaListenerEndpointContainer#7-0-C-1] o.a.k.c.c.i.SubscriptionState: [Consumer clientId=consumer-Airflow_ETL-2, groupId=Airflow_ETL] Resetting offset for partition report-builder.single-mode.started-0 to position FetchPosition{offset=0, offsetEpoch=Optional.empty, currentLeader=LeaderAndEpoch{leader=Optional[10.0.17.242:9092 (id: 1 rack: null isFenced: false)], epoch=6}}. 
+{"@timestamp":"2026-09-28T11:45:31.2167729+05:30","level":"INFO","service":"ProcessStatusService","traceId":"","userId":"","clientIp":"","apiPath":"","requestUrl":"","httpMethod":"","httpStatus":"","class":"o.a.k.c.c.internals.SubscriptionState","message":"[Consumer clientId=consumer-Airflow_ETL-14, groupId=Airflow_ETL] Resetting offset for partition trigger-events-0 to position FetchPosition{offset=0, offsetEpoch=Optional.empty, currentLeader=LeaderAndEpoch{leader=Optional[10.0.17.242:9092 (id: 1 rack: null isFenced: false)], epoch=6}}.","stack_trace":""}
+{"@timestamp":"2026-09-28T11:45:31.2167729+05:30","level":"INFO","service":"ProcessStatusService","traceId":"","userId":"","clientIp":"","apiPath":"","requestUrl":"","httpMethod":"","httpStatus":"","class":"o.a.k.c.c.internals.SubscriptionState","message":"[Consumer clientId=consumer-Airflow_ETL-4, groupId=Airflow_ETL] Resetting offset for partition spark-events-0 to position FetchPosition{offset=0, offsetEpoch=Optional.empty, currentLeader=LeaderAndEpoch{leader=Optional[10.0.17.242:9092 (id: 1 rack: null isFenced: false)], epoch=6}}.","stack_trace":""}
+{"@timestamp":"2026-09-28T11:45:31.2167729+05:30","level":"INFO","service":"ProcessStatusService","traceId":"","userId":"","clientIp":"","apiPath":"","requestUrl":"","httpMethod":"","httpStatus":"","class":"o.a.k.c.c.internals.SubscriptionState","message":"[Consumer clientId=consumer-Airflow_ETL-2, groupId=Airflow_ETL] Resetting offset for partition report-builder.single-mode.started-0 to position FetchPosition{offset=0, offsetEpoch=Optional.empty, currentLeader=LeaderAndEpoch{leader=Optional[10.0.17.242:9092 (id: 1 rack: null isFenced: false)], epoch=6}}.","stack_trace":""}
+2026-09-28 11:45:31.217 INFO  [org.springframework.kafka.KafkaListenerEndpointContainer#10-0-C-1] o.s.c.l.LogAccessor: Airflow_ETL: partitions assigned: [trigger-events-0] 
+2026-09-28 11:45:31.217 INFO  [org.springframework.kafka.KafkaListenerEndpointContainer#9-0-C-1] o.s.c.l.LogAccessor: Airflow_ETL: partitions assigned: [spark-events-0] 
+{"@timestamp":"2026-09-28T11:45:31.2177708+05:30","level":"INFO","service":"ProcessStatusService","traceId":"","userId":"","clientIp":"","apiPath":"","requestUrl":"","httpMethod":"","httpStatus":"","class":"o.s.k.l.KafkaMessageListenerContainer","message":"Airflow_ETL: partitions assigned: [trigger-events-0]","stack_trace":""}
+2026-09-28 11:45:31.217 INFO  [org.springframework.kafka.KafkaListenerEndpointContainer#7-0-C-1] o.s.c.l.LogAccessor: Airflow_ETL: partitions assigned: [report-builder.single-mode.started-0] 
+{"@timestamp":"2026-09-28T11:45:31.2177708+05:30","level":"INFO","service":"ProcessStatusService","traceId":"","userId":"","clientIp":"","apiPath":"","requestUrl":"","httpMethod":"","httpStatus":"","class":"o.s.k.l.KafkaMessageListenerContainer","message":"Airflow_ETL: partitions assigned: [spark-events-0]","stack_trace":""}
+{"@timestamp":"2026-09-28T11:45:31.2177708+05:30","level":"INFO","service":"ProcessStatusService","traceId":"","userId":"","clientIp":"","apiPath":"","requestUrl":"","httpMethod":"","httpStatus":"","class":"o.s.k.l.KafkaMessageListenerContainer","message":"Airflow_ETL: partitions assigned: [report-builder.single-mode.started-0]","stack_trace":""}
+2026-09-28 11:45:31.572 INFO  [org.springframework.kafka.KafkaListenerEndpointContainer#10-dlt-0-C-1] o.a.k.c.c.i.AbstractCoordinator$JoinGroupResponseHandler: [Consumer clientId=consumer-Airflow_ETL-dlt-11, groupId=Airflow_ETL-dlt] Successfully joined group with generation Generation{generationId=37, memberId='consumer-Airflow_ETL-dlt-11-64936937-7e84-4f14-823f-d2034c78c9a4', protocol='range'} 
+{"@timestamp":"2026-09-28T11:45:31.5724117+05:30","level":"INFO","service":"ProcessStatusService","traceId":"","userId":"","clientIp":"","apiPath":"","requestUrl":"","httpMethod":"","httpStatus":"","class":"o.a.k.c.c.internals.ConsumerCoordinator","message":"[Consumer clientId=consumer-Airflow_ETL-dlt-11, groupId=Airflow_ETL-dlt] Successfully joined group with generation Generation{generationId=37, memberId='consumer-Airflow_ETL-dlt-11-64936937-7e84-4f14-823f-d2034c78c9a4', protocol='range'}","stack_trace":""}
+2026-09-28 11:45:31.580 INFO  [org.springframework.kafka.KafkaListenerEndpointContainer#10-dlt-0-C-1] o.a.k.c.c.i.AbstractCoordinator$SyncGroupResponseHandler: [Consumer clientId=consumer-Airflow_ETL-dlt-11, groupId=Airflow_ETL-dlt] Successfully synced group in generation Generation{generationId=37, memberId='consumer-Airflow_ETL-dlt-11-64936937-7e84-4f14-823f-d2034c78c9a4', protocol='range'} 
+{"@timestamp":"2026-09-28T11:45:31.5804164+05:30","level":"INFO","service":"ProcessStatusService","traceId":"","userId":"","clientIp":"","apiPath":"","requestUrl":"","httpMethod":"","httpStatus":"","class":"o.a.k.c.c.internals.ConsumerCoordinator","message":"[Consumer clientId=consumer-Airflow_ETL-dlt-11, groupId=Airflow_ETL-dlt] Successfully synced group in generation Generation{generationId=37, memberId='consumer-Airflow_ETL-dlt-11-64936937-7e84-4f14-823f-d2034c78c9a4', protocol='range'}","stack_trace":""}
+2026-09-28 11:45:31.581 INFO  [org.springframework.kafka.KafkaListenerEndpointContainer#10-dlt-0-C-1] o.a.k.c.c.i.ConsumerCoordinator: [Consumer clientId=consumer-Airflow_ETL-dlt-11, groupId=Airflow_ETL-dlt] Notifyingassignor about the new Assignment(partitions=[trigger-events-dlt-0]) 
+{"@timestamp":"2026-09-28T11:45:31.5814163+05:30","level":"INFO","service":"ProcessStatusService","traceId":"","userId":"","clientIp":"","apiPath":"","requestUrl":"","httpMethod":"","httpStatus":"","class":"o.a.k.c.c.internals.ConsumerCoordinator","message":"[Consumer clientId=consumer-Airflow_ETL-dlt-11, groupId=Airflow_ETL-dlt] Notifying assignor about the new Assignment(partitions=[trigger-events-dlt-0])","stack_trace":""}
+2026-09-28 11:45:31.581 INFO  [org.springframework.kafka.KafkaListenerEndpointContainer#10-dlt-0-C-1] o.a.k.c.c.i.ConsumerRebalanceListenerInvoker: [Consumer clientId=consumer-Airflow_ETL-dlt-11, groupId=Airflow_ETL-dlt] Adding newly assigned partitions: [trigger-events-dlt-0] 
+{"@timestamp":"2026-09-28T11:45:31.5814163+05:30","level":"INFO","service":"ProcessStatusService","traceId":"","userId":"","clientIp":"","apiPath":"","requestUrl":"","httpMethod":"","httpStatus":"","class":"o.a.k.c.c.i.ConsumerRebalanceListenerInvoker","message":"[Consumer clientId=consumer-Airflow_ETL-dlt-11, groupId=Airflow_ETL-dlt] Adding newly assigned partitions: [trigger-events-dlt-0]","stack_trace":""}
+2026-09-28 11:45:31.583 INFO  [org.springframework.kafka.KafkaListenerEndpointContainer#10-dlt-0-C-1] o.a.k.c.c.i.ConsumerCoordinator$OffsetFetchResponseHandler: [Consumer clientId=consumer-Airflow_ETL-dlt-11, groupId=Airflow_ETL-dlt] Found no committed offset for partition trigger-events-dlt-0 
+{"@timestamp":"2026-09-28T11:45:31.5834186+05:30","level":"INFO","service":"ProcessStatusService","traceId":"","userId":"","clientIp":"","apiPath":"","requestUrl":"","httpMethod":"","httpStatus":"","class":"o.a.k.c.c.internals.ConsumerCoordinator","message":"[Consumer clientId=consumer-Airflow_ETL-dlt-11, groupId=Airflow_ETL-dlt] Found no committed offset for partition trigger-events-dlt-0","stack_trace":""}
+2026-09-28 11:45:31.591 INFO  [org.springframework.kafka.KafkaListenerEndpointContainer#10-dlt-0-C-1] o.a.k.c.c.i.SubscriptionState: [Consumer clientId=consumer-Airflow_ETL-dlt-11, groupId=Airflow_ETL-dlt] Resetting offset for partition trigger-events-dlt-0 to position FetchPosition{offset=0, offsetEpoch=Optional.empty, currentLeader=LeaderAndEpoch{leader=Optional[10.0.17.242:9092 (id: 1 rack: null isFenced: false)], epoch=6}}. 
+{"@timestamp":"2026-09-28T11:45:31.5919278+05:30","level":"INFO","service":"ProcessStatusService","traceId":"","userId":"","clientIp":"","apiPath":"","requestUrl":"","httpMethod":"","httpStatus":"","class":"o.a.k.c.c.internals.SubscriptionState","message":"[Consumer clientId=consumer-Airflow_ETL-dlt-11, groupId=Airflow_ETL-dlt] Resetting offset for partition trigger-events-dlt-0 to position FetchPosition{offset=0, offsetEpoch=Optional.empty, currentLeader=LeaderAndEpoch{leader=Optional[10.0.17.242:9092 (id: 1 rack: null isFenced: false)], epoch=6}}.","stack_trace":""}
+2026-09-28 11:45:31.591 INFO  [org.springframework.kafka.KafkaListenerEndpointContainer#10-dlt-0-C-1] o.s.c.l.LogAccessor: Airflow_ETL-dlt: partitions assigned: [trigger-events-dlt-0] 
+{"@timestamp":"2026-09-28T11:45:31.5919278+05:30","level":"INFO","service":"ProcessStatusService","traceId":"","userId":"","clientIp":"","apiPath":"","requestUrl":"","httpMethod":"","httpStatus":"","class":"o.s.k.l.KafkaMessageListenerContainer","message":"Airflow_ETL-dlt: partitions assigned: [trigger-events-dlt-0]","stack_trace":""}
+2026-09-28 11:45:32.050 INFO  [org.springframework.kafka.KafkaListenerEndpointContainer#10-retry-4000-0-C-1] o.a.k.c.c.i.AbstractCoordinator$JoinGroupResponseHandler: [Consumer clientId=consumer-Airflow_ETL-retry-4000-10, groupId=Airflow_ETL-retry-4000] Successfully joined group with generation Generation{generationId=34, memberId='consumer-Airflow_ETL-retry-4000-10-58b635fd-0cc4-4871-82b1-1d49ca11744b', protocol='range'} 
+{"@timestamp":"2026-09-28T11:45:32.0501948+05:30","level":"INFO","service":"ProcessStatusService","traceId":"","userId":"","clientIp":"","apiPath":"","requestUrl":"","httpMethod":"","httpStatus":"","class":"o.a.k.c.c.internals.ConsumerCoordinator","message":"[Consumer clientId=consumer-Airflow_ETL-retry-4000-10, groupId=Airflow_ETL-retry-4000] Successfully joined group with generation Generation{generationId=34, memberId='consumer-Airflow_ETL-retry-4000-10-58b635fd-0cc4-4871-82b1-1d49ca11744b', protocol='range'}","stack_trace":""}
+2026-09-28 11:45:32.058 INFO  [org.springframework.kafka.KafkaListenerEndpointContainer#10-retry-4000-0-C-1] o.a.k.c.c.i.AbstractCoordinator$SyncGroupResponseHandler: [Consumer clientId=consumer-Airflow_ETL-retry-4000-10, groupId=Airflow_ETL-retry-4000] Successfully synced group in generation Generation{generationId=34, memberId='consumer-Airflow_ETL-retry-4000-10-58b635fd-0cc4-4871-82b1-1d49ca11744b', protocol='range'} 
+{"@timestamp":"2026-09-28T11:45:32.0584085+05:30","level":"INFO","service":"ProcessStatusService","traceId":"","userId":"","clientIp":"","apiPath":"","requestUrl":"","httpMethod":"","httpStatus":"","class":"o.a.k.c.c.internals.ConsumerCoordinator","message":"[Consumer clientId=consumer-Airflow_ETL-retry-4000-10, groupId=Airflow_ETL-retry-4000] Successfully synced group in generation Generation{generationId=34, memberId='consumer-Airflow_ETL-retry-4000-10-58b635fd-0cc4-4871-82b1-1d49ca11744b', protocol='range'}","stack_trace":""}
+2026-09-28 11:45:32.058 INFO  [org.springframework.kafka.KafkaListenerEndpointContainer#10-retry-4000-0-C-1] o.a.k.c.c.i.ConsumerCoordinator: [Consumer clientId=consumer-Airflow_ETL-retry-4000-10, groupId=Airflow_ETL-retry-4000] Notifying assignor about the new Assignment(partitions=[trigger-events-retry-4000-0]) 
+{"@timestamp":"2026-09-28T11:45:32.0584085+05:30","level":"INFO","service":"ProcessStatusService","traceId":"","userId":"","clientIp":"","apiPath":"","requestUrl":"","httpMethod":"","httpStatus":"","class":"o.a.k.c.c.internals.ConsumerCoordinator","message":"[Consumer clientId=consumer-Airflow_ETL-retry-4000-10, groupId=Airflow_ETL-retry-4000] Notifying assignor about the new Assignment(partitions=[trigger-events-retry-4000-0])","stack_trace":""}
+2026-09-28 11:45:32.059 INFO  [org.springframework.kafka.KafkaListenerEndpointContainer#10-retry-4000-0-C-1] o.a.k.c.c.i.ConsumerRebalanceListenerInvoker: [Consumer clientId=consumer-Airflow_ETL-retry-4000-10, groupId=Airflow_ETL-retry-4000] Adding newly assigned partitions: [trigger-events-retry-4000-0] 
+{"@timestamp":"2026-09-28T11:45:32.0594176+05:30","level":"INFO","service":"ProcessStatusService","traceId":"","userId":"","clientIp":"","apiPath":"","requestUrl":"","httpMethod":"","httpStatus":"","class":"o.a.k.c.c.i.ConsumerRebalanceListenerInvoker","message":"[Consumer clientId=consumer-Airflow_ETL-retry-4000-10, groupId=Airflow_ETL-retry-4000] Adding newly assigned partitions: [trigger-events-retry-4000-0]","stack_trace":""}
+2026-09-28 11:45:32.061 INFO  [org.springframework.kafka.KafkaListenerEndpointContainer#10-retry-4000-0-C-1] o.a.k.c.c.i.ConsumerCoordinator$OffsetFetchResponseHandler: [Consumer clientId=consumer-Airflow_ETL-retry-4000-10, groupId=Airflow_ETL-retry-4000] Found no committed offset for partition trigger-events-retry-4000-0 
+{"@timestamp":"2026-09-28T11:45:32.0619161+05:30","level":"INFO","service":"ProcessStatusService","traceId":"","userId":"","clientIp":"","apiPath":"","requestUrl":"","httpMethod":"","httpStatus":"","class":"o.a.k.c.c.internals.ConsumerCoordinator","message":"[Consumer clientId=consumer-Airflow_ETL-retry-4000-10, groupId=Airflow_ETL-retry-4000] Found no committed offset for partition trigger-events-retry-4000-0","stack_trace":""}
+2026-09-28 11:45:32.070 INFO  [org.springframework.kafka.KafkaListenerEndpointContainer#10-retry-4000-0-C-1] o.a.k.c.c.i.SubscriptionState: [Consumer clientId=consumer-Airflow_ETL-retry-4000-10, groupId=Airflow_ETL-retry-4000] Resetting offset for partition trigger-events-retry-4000-0 to position FetchPosition{offset=0, offsetEpoch=Optional.empty, currentLeader=LeaderAndEpoch{leader=Optional[10.0.17.242:9092 (id: 1 rack: null isFenced: false)], epoch=6}}. 
+{"@timestamp":"2026-09-28T11:45:32.0702198+05:30","level":"INFO","service":"ProcessStatusService","traceId":"","userId":"","clientIp":"","apiPath":"","requestUrl":"","httpMethod":"","httpStatus":"","class":"o.a.k.c.c.internals.SubscriptionState","message":"[Consumer clientId=consumer-Airflow_ETL-retry-4000-10, groupId=Airflow_ETL-retry-4000] Resetting offset for partition trigger-events-retry-4000-0 to position FetchPosition{offset=0, offsetEpoch=Optional.empty, currentLeader=LeaderAndEpoch{leader=Optional[10.0.17.242:9092 (id: 1 rack: null isFenced: false)], epoch=6}}.","stack_trace":""}
+2026-09-28 11:45:32.070 INFO  [org.springframework.kafka.KafkaListenerEndpointContainer#10-retry-4000-0-C-1] o.s.c.l.LogAccessor: Airflow_ETL-retry-4000: partitions assigned: [trigger-events-retry-4000-0] 
+{"@timestamp":"2026-09-28T11:45:32.0702198+05:30","level":"INFO","service":"ProcessStatusService","traceId":"","userId":"","clientIp":"","apiPath":"","requestUrl":"","httpMethod":"","httpStatus":"","class":"o.s.k.l.KafkaMessageListenerContainer","message":"Airflow_ETL-retry-4000: partitions assigned: [trigger-events-retry-4000-0]","stack_trace":""}
+2026-09-28 11:45:32.336 INFO  [org.springframework.kafka.KafkaListenerEndpointContainer#10-retry-2000-0-C-1] o.a.k.c.c.i.AbstractCoordinator$JoinGroupResponseHandler: [Consumer clientId=consumer-Airflow_ETL-retry-2000-8, groupId=Airflow_ETL-retry-2000] Successfully joined group with generation Generation{generationId=41, memberId='consumer-Airflow_ETL-retry-2000-8-b82e7679-50c2-44ad-91ed-f96d6bb975db', protocol='range'} 
+2026-09-28 11:45:32.336 INFO  [org.springframework.kafka.KafkaListenerEndpointContainer#3-0-C-1] o.a.k.c.c.i.AbstractCoordinator$JoinGroupResponseHandler: [Consumer clientId=consumer-pyspark-kafka-group-6, groupId=pyspark-kafka-group] Successfully joined group with generation Generation{generationId=33, memberId='consumer-pyspark-kafka-group-6-a840601b-8d5f-45a1-bfbd-5a4be252e3de', protocol='range'} 
+{"@timestamp":"2026-09-28T11:45:32.3366673+05:30","level":"INFO","service":"ProcessStatusService","traceId":"","userId":"","clientIp":"","apiPath":"","requestUrl":"","httpMethod":"","httpStatus":"","class":"o.a.k.c.c.internals.ConsumerCoordinator","message":"[Consumer clientId=consumer-Airflow_ETL-retry-2000-8, groupId=Airflow_ETL-retry-2000] Successfully joined group with generation Generation{generationId=41, memberId='consumer-Airflow_ETL-retry-2000-8-b82e7679-50c2-44ad-91ed-f96d6bb975db', protocol='range'}","stack_trace":""}
+{"@timestamp":"2026-09-28T11:45:32.3366673+05:30","level":"INFO","service":"ProcessStatusService","traceId":"","userId":"","clientIp":"","apiPath":"","requestUrl":"","httpMethod":"","httpStatus":"","class":"o.a.k.c.c.internals.ConsumerCoordinator","message":"[Consumer clientId=consumer-pyspark-kafka-group-6, groupId=pyspark-kafka-group] Successfully joined group with generation Generation{generationId=33, memberId='consumer-pyspark-kafka-group-6-a840601b-8d5f-45a1-bfbd-5a4be252e3de', protocol='range'}","stack_trace":""}
+2026-09-28 11:45:32.344 INFO  [org.springframework.kafka.KafkaListenerEndpointContainer#10-retry-2000-0-C-1] o.a.k.c.c.i.AbstractCoordinator$SyncGroupResponseHandler: [Consumer clientId=consumer-Airflow_ETL-retry-2000-8, groupId=Airflow_ETL-retry-2000] Successfully synced group in generation Generation{generationId=41, memberId='consumer-Airflow_ETL-retry-2000-8-b82e7679-50c2-44ad-91ed-f96d6bb975db', protocol='range'} 
+{"@timestamp":"2026-09-28T11:45:32.3446679+05:30","level":"INFO","service":"ProcessStatusService","traceId":"","userId":"","clientIp":"","apiPath":"","requestUrl":"","httpMethod":"","httpStatus":"","class":"o.a.k.c.c.internals.ConsumerCoordinator","message":"[Consumer clientId=consumer-Airflow_ETL-retry-2000-8, groupId=Airflow_ETL-retry-2000] Successfully synced group in generation Generation{generationId=41, memberId='consumer-Airflow_ETL-retry-2000-8-b82e7679-50c2-44ad-91ed-f96d6bb975db', protocol='range'}","stack_trace":""}
+2026-09-28 11:45:32.344 INFO  [org.springframework.kafka.KafkaListenerEndpointContainer#3-0-C-1] o.a.k.c.c.i.AbstractCoordinator$SyncGroupResponseHandler: [Consumer clientId=consumer-pyspark-kafka-group-6, groupId=pyspark-kafka-group] Successfully synced group in generation Generation{generationId=33, memberId='consumer-pyspark-kafka-group-6-a840601b-8d5f-45a1-bfbd-5a4be252e3de', protocol='range'} 
+{"@timestamp":"2026-09-28T11:45:32.3446679+05:30","level":"INFO","service":"ProcessStatusService","traceId":"","userId":"","clientIp":"","apiPath":"","requestUrl":"","httpMethod":"","httpStatus":"","class":"o.a.k.c.c.internals.ConsumerCoordinator","message":"[Consumer clientId=consumer-pyspark-kafka-group-6, groupId=pyspark-kafka-group] Successfully synced group in generation Generation{generationId=33, memberId='consumer-pyspark-kafka-group-6-a840601b-8d5f-45a1-bfbd-5a4be252e3de', protocol='range'}","stack_trace":""}
+2026-09-28 11:45:32.344 INFO  [org.springframework.kafka.KafkaListenerEndpointContainer#10-retry-2000-0-C-1] o.a.k.c.c.i.ConsumerCoordinator: [Consumer clientId=consumer-Airflow_ETL-retry-2000-8, groupId=Airflow_ETL-retry-2000] Notifying assignor about the new Assignment(partitions=[trigger-events-retry-2000-0]) 
+{"@timestamp":"2026-09-28T11:45:32.3446679+05:30","level":"INFO","service":"ProcessStatusService","traceId":"","userId":"","clientIp":"","apiPath":"","requestUrl":"","httpMethod":"","httpStatus":"","class":"o.a.k.c.c.internals.ConsumerCoordinator","message":"[Consumer clientId=consumer-Airflow_ETL-retry-2000-8, groupId=Airflow_ETL-retry-2000] Notifying assignor about the new Assignment(partitions=[trigger-events-retry-2000-0])","stack_trace":""}
+2026-09-28 11:45:32.344 INFO  [org.springframework.kafka.KafkaListenerEndpointContainer#3-0-C-1] o.a.k.c.c.i.ConsumerCoordinator: [Consumer clientId=consumer-pyspark-kafka-group-6, groupId=pyspark-kafka-group] Notifying assignor about the new Assignment(partitions=[]) 
+2026-09-28 11:45:32.345 INFO  [org.springframework.kafka.KafkaListenerEndpointContainer#10-retry-2000-0-C-1] o.a.k.c.c.i.ConsumerRebalanceListenerInvoker: [Consumer clientId=consumer-Airflow_ETL-retry-2000-8, groupId=Airflow_ETL-retry-2000] Adding newly assigned partitions: [trigger-events-retry-2000-0] 
+{"@timestamp":"2026-09-28T11:45:32.3446679+05:30","level":"INFO","service":"ProcessStatusService","traceId":"","userId":"","clientIp":"","apiPath":"","requestUrl":"","httpMethod":"","httpStatus":"","class":"o.a.k.c.c.internals.ConsumerCoordinator","message":"[Consumer clientId=consumer-pyspark-kafka-group-6, groupId=pyspark-kafka-group] Notifying assignor about the new Assignment(partitions=[])","stack_trace":""}
+{"@timestamp":"2026-09-28T11:45:32.3456672+05:30","level":"INFO","service":"ProcessStatusService","traceId":"","userId":"","clientIp":"","apiPath":"","requestUrl":"","httpMethod":"","httpStatus":"","class":"o.a.k.c.c.i.ConsumerRebalanceListenerInvoker","message":"[Consumer clientId=consumer-Airflow_ETL-retry-2000-8, groupId=Airflow_ETL-retry-2000] Adding newly assigned partitions: [trigger-events-retry-2000-0]","stack_trace":""}
+2026-09-28 11:45:32.345 INFO  [org.springframework.kafka.KafkaListenerEndpointContainer#3-0-C-1] o.a.k.c.c.i.ConsumerRebalanceListenerInvoker: [Consumer clientId=consumer-pyspark-kafka-group-6, groupId=pyspark-kafka-group] Adding newly assigned partitions: [] 
+{"@timestamp":"2026-09-28T11:45:32.3456672+05:30","level":"INFO","service":"ProcessStatusService","traceId":"","userId":"","clientIp":"","apiPath":"","requestUrl":"","httpMethod":"","httpStatus":"","class":"o.a.k.c.c.i.ConsumerRebalanceListenerInvoker","message":"[Consumer clientId=consumer-pyspark-kafka-group-6, groupId=pyspark-kafka-group] Adding newly assigned partitions: []","stack_trace":""}
+2026-09-28 11:45:32.345 INFO  [org.springframework.kafka.KafkaListenerEndpointContainer#3-0-C-1] o.s.c.l.LogAccessor: pyspark-kafka-group: partitions assigned: [] 
+{"@timestamp":"2026-09-28T11:45:32.3456672+05:30","level":"INFO","service":"ProcessStatusService","traceId":"","userId":"","clientIp":"","apiPath":"","requestUrl":"","httpMethod":"","httpStatus":"","class":"o.s.k.l.KafkaMessageListenerContainer","message":"pyspark-kafka-group: partitions assigned: []","stack_trace":""}
+2026-09-28 11:45:32.347 INFO  [org.springframework.kafka.KafkaListenerEndpointContainer#10-retry-2000-0-C-1] o.a.k.c.c.i.ConsumerCoordinator$OffsetFetchResponseHandler: [Consumer clientId=consumer-Airflow_ETL-retry-2000-8, groupId=Airflow_ETL-retry-2000] Found no committed offset for partition trigger-events-retry-2000-0 
+{"@timestamp":"2026-09-28T11:45:32.3476684+05:30","level":"INFO","service":"ProcessStatusService","traceId":"","userId":"","clientIp":"","apiPath":"","requestUrl":"","httpMethod":"","httpStatus":"","class":"o.a.k.c.c.internals.ConsumerCoordinator","message":"[Consumer clientId=consumer-Airflow_ETL-retry-2000-8, groupId=Airflow_ETL-retry-2000] Found no committed offset for partition trigger-events-retry-2000-0","stack_trace":""}
+2026-09-28 11:45:32.355 INFO  [org.springframework.kafka.KafkaListenerEndpointContainer#10-retry-2000-0-C-1] o.a.k.c.c.i.SubscriptionState: [Consumer clientId=consumer-Airflow_ETL-retry-2000-8, groupId=Airflow_ETL-retry-2000] Resetting offset for partition trigger-events-retry-2000-0 to position FetchPosition{offset=0, offsetEpoch=Optional.empty, currentLeader=LeaderAndEpoch{leader=Optional[10.0.17.242:9092 (id: 1 rack: null isFenced: false)], epoch=6}}. 
+{"@timestamp":"2026-09-28T11:45:32.3556688+05:30","level":"INFO","service":"ProcessStatusService","traceId":"","userId":"","clientIp":"","apiPath":"","requestUrl":"","httpMethod":"","httpStatus":"","class":"o.a.k.c.c.internals.SubscriptionState","message":"[Consumer clientId=consumer-Airflow_ETL-retry-2000-8, groupId=Airflow_ETL-retry-2000] Resetting offset for partition trigger-events-retry-2000-0 to position FetchPosition{offset=0, offsetEpoch=Optional.empty, currentLeader=LeaderAndEpoch{leader=Optional[10.0.17.242:9092 (id: 1 rack: null isFenced: false)], epoch=6}}.","stack_trace":""}
+2026-09-28 11:45:32.355 INFO  [org.springframework.kafka.KafkaListenerEndpointContainer#10-retry-2000-0-C-1] o.s.c.l.LogAccessor: Airflow_ETL-retry-2000: partitions assigned: [trigger-events-retry-2000-0] 
+{"@timestamp":"2026-09-28T11:45:32.3556688+05:30","level":"INFO","service":"ProcessStatusService","traceId":"","userId":"","clientIp":"","apiPath":"","requestUrl":"","httpMethod":"","httpStatus":"","class":"o.s.k.l.KafkaMessageListenerContainer","message":"Airflow_ETL-retry-2000: partitions assigned: [trigger-events-retry-2000-0]","stack_trace":""}
+2026-09-28 11:45:32.668 INFO  [org.springframework.kafka.KafkaListenerEndpointContainer#2-0-C-1] o.a.k.c.c.i.AbstractCoordinator$JoinGroupResponseHandler: [Consumer clientId=consumer-Report-Batch-5, groupId=Report-Batch] Successfully joined group with generation Generation{generationId=39, memberId='consumer-Report-Batch-5-ee2d0eac-656b-4c6d-8e1e-f10eedde4ff9', protocol='range'} 
+{"@timestamp":"2026-09-28T11:45:32.6682754+05:30","level":"INFO","service":"ProcessStatusService","traceId":"","userId":"","clientIp":"","apiPath":"","requestUrl":"","httpMethod":"","httpStatus":"","class":"o.a.k.c.c.internals.ConsumerCoordinator","message":"[Consumer clientId=consumer-Report-Batch-5, groupId=Report-Batch] Successfully joined group with generation Generation{generationId=39, memberId='consumer-Report-Batch-5-ee2d0eac-656b-4c6d-8e1e-f10eedde4ff9', protocol='range'}","stack_trace":""}
+2026-09-28 11:45:32.668 INFO  [org.springframework.kafka.KafkaListenerEndpointContainer#5-0-C-1] o.a.k.c.c.i.AbstractCoordinator$JoinGroupResponseHandler: [Consumer clientId=consumer-Report-Batch-9, groupId=Report-Batch] Successfully joined group with generation Generation{generationId=39, memberId='consumer-Report-Batch-9-3962241b-f12b-4205-9cd0-7e6a8a0ad1d0', protocol='range'} 
+{"@timestamp":"2026-09-28T11:45:32.6682754+05:30","level":"INFO","service":"ProcessStatusService","traceId":"","userId":"","clientIp":"","apiPath":"","requestUrl":"","httpMethod":"","httpStatus":"","class":"o.a.k.c.c.internals.ConsumerCoordinator","message":"[Consumer clientId=consumer-Report-Batch-9, groupId=Report-Batch] Successfully joined group with generation Generation{generationId=39, memberId='consumer-Report-Batch-9-3962241b-f12b-4205-9cd0-7e6a8a0ad1d0', protocol='range'}","stack_trace":""}
+2026-09-28 11:45:32.668 INFO  [org.springframework.kafka.KafkaListenerEndpointContainer#4-0-C-1] o.a.k.c.c.i.AbstractCoordinator$JoinGroupResponseHandler: [Consumer clientId=consumer-Report-Batch-7, groupId=Report-Batch] Successfully joined group with generation Generation{generationId=39, memberId='consumer-Report-Batch-7-62d1fa44-adde-4f39-9fc4-c00b9080e477', protocol='range'} 
+2026-09-28 11:45:32.668 INFO  [org.springframework.kafka.KafkaListenerEndpointContainer#1-0-C-1] o.a.k.c.c.i.AbstractCoordinator$JoinGroupResponseHandler: [Consumer clientId=consumer-Report-Batch-13, groupId=Report-Batch] Successfully joined group with generation Generation{generationId=39, memberId='consumer-Report-Batch-13-b6e7c28a-9ce7-4013-842b-cbb64aff9e3e', protocol='range'} 
+{"@timestamp":"2026-09-28T11:45:32.6682754+05:30","level":"INFO","service":"ProcessStatusService","traceId":"","userId":"","clientIp":"","apiPath":"","requestUrl":"","httpMethod":"","httpStatus":"","class":"o.a.k.c.c.internals.ConsumerCoordinator","message":"[Consumer clientId=consumer-Report-Batch-7, groupId=Report-Batch] Successfully joined group with generation Generation{generationId=39, memberId='consumer-Report-Batch-7-62d1fa44-adde-4f39-9fc4-c00b9080e477', protocol='range'}","stack_trace":""}
+{"@timestamp":"2026-09-28T11:45:32.6682754+05:30","level":"INFO","service":"ProcessStatusService","traceId":"","userId":"","clientIp":"","apiPath":"","requestUrl":"","httpMethod":"","httpStatus":"","class":"o.a.k.c.c.internals.ConsumerCoordinator","message":"[Consumer clientId=consumer-Report-Batch-13, groupId=Report-Batch] Successfully joined group with generation Generation{generationId=39, memberId='consumer-Report-Batch-13-b6e7c28a-9ce7-4013-842b-cbb64aff9e3e', protocol='range'}","stack_trace":""}
+2026-09-28 11:45:33.071 INFO  [org.springframework.kafka.KafkaListenerEndpointContainer#1-0-C-1] o.a.k.c.c.i.AbstractCoordinator$SyncGroupResponseHandler: [Consumer clientId=consumer-Report-Batch-13, groupId=Report-Batch] Successfully synced group in generation Generation{generationId=39, memberId='consumer-Report-Batch-13-b6e7c28a-9ce7-4013-842b-cbb64aff9e3e', protocol='range'} 
+{"@timestamp":"2026-09-28T11:45:33.0715998+05:30","level":"INFO","service":"ProcessStatusService","traceId":"","userId":"","clientIp":"","apiPath":"","requestUrl":"","httpMethod":"","httpStatus":"","class":"o.a.k.c.c.internals.ConsumerCoordinator","message":"[Consumer clientId=consumer-Report-Batch-13, groupId=Report-Batch] Successfully synced group in generation Generation{generationId=39, memberId='consumer-Report-Batch-13-b6e7c28a-9ce7-4013-842b-cbb64aff9e3e', protocol='range'}","stack_trace":""}
+2026-09-28 11:45:33.071 INFO  [org.springframework.kafka.KafkaListenerEndpointContainer#4-0-C-1] o.a.k.c.c.i.AbstractCoordinator$SyncGroupResponseHandler: [Consumer clientId=consumer-Report-Batch-7, groupId=Report-Batch] Successfully synced group in generation Generation{generationId=39, memberId='consumer-Report-Batch-7-62d1fa44-adde-4f39-9fc4-c00b9080e477', protocol='range'} 
+2026-09-28 11:45:33.071 INFO  [org.springframework.kafka.KafkaListenerEndpointContainer#2-0-C-1] o.a.k.c.c.i.AbstractCoordinator$SyncGroupResponseHandler: [Consumer clientId=consumer-Report-Batch-5, groupId=Report-Batch] Successfully synced group in generation Generation{generationId=39, memberId='consumer-Report-Batch-5-ee2d0eac-656b-4c6d-8e1e-f10eedde4ff9', protocol='range'} 
+2026-09-28 11:45:33.071 INFO  [org.springframework.kafka.KafkaListenerEndpointContainer#5-0-C-1] o.a.k.c.c.i.AbstractCoordinator$SyncGroupResponseHandler: [Consumer clientId=consumer-Report-Batch-9, groupId=Report-Batch] Successfully synced group in generation Generation{generationId=39, memberId='consumer-Report-Batch-9-3962241b-f12b-4205-9cd0-7e6a8a0ad1d0', protocol='range'} 
+{"@timestamp":"2026-09-28T11:45:33.0715998+05:30","level":"INFO","service":"ProcessStatusService","traceId":"","userId":"","clientIp":"","apiPath":"","requestUrl":"","httpMethod":"","httpStatus":"","class":"o.a.k.c.c.internals.ConsumerCoordinator","message":"[Consumer clientId=consumer-Report-Batch-7, groupId=Report-Batch] Successfully synced group in generation Generation{generationId=39, memberId='consumer-Report-Batch-7-62d1fa44-adde-4f39-9fc4-c00b9080e477', protocol='range'}","stack_trace":""}
+{"@timestamp":"2026-09-28T11:45:33.0715998+05:30","level":"INFO","service":"ProcessStatusService","traceId":"","userId":"","clientIp":"","apiPath":"","requestUrl":"","httpMethod":"","httpStatus":"","class":"o.a.k.c.c.internals.ConsumerCoordinator","message":"[Consumer clientId=consumer-Report-Batch-5, groupId=Report-Batch] Successfully synced group in generation Generation{generationId=39, memberId='consumer-Report-Batch-5-ee2d0eac-656b-4c6d-8e1e-f10eedde4ff9', protocol='range'}","stack_trace":""}
+2026-09-28 11:45:33.072 INFO  [org.springframework.kafka.KafkaListenerEndpointContainer#1-0-C-1] o.a.k.c.c.i.ConsumerCoordinator: [Consumer clientId=consumer-Report-Batch-13, groupId=Report-Batch] Notifying assignor about the new Assignment(partitions=[nwsa-variance-report.started-0]) 
+{"@timestamp":"2026-09-28T11:45:33.0715998+05:30","level":"INFO","service":"ProcessStatusService","traceId":"","userId":"","clientIp":"","apiPath":"","requestUrl":"","httpMethod":"","httpStatus":"","class":"o.a.k.c.c.internals.ConsumerCoordinator","message":"[Consumer clientId=consumer-Report-Batch-9, groupId=Report-Batch] Successfully synced group in generation Generation{generationId=39, memberId='consumer-Report-Batch-9-3962241b-f12b-4205-9cd0-7e6a8a0ad1d0', protocol='range'}","stack_trace":""}
+{"@timestamp":"2026-09-28T11:45:33.0725873+05:30","level":"INFO","service":"ProcessStatusService","traceId":"","userId":"","clientIp":"","apiPath":"","requestUrl":"","httpMethod":"","httpStatus":"","class":"o.a.k.c.c.internals.ConsumerCoordinator","message":"[Consumer clientId=consumer-Report-Batch-13, groupId=Report-Batch] Notifying assignor about the new Assignment(partitions=[nwsa-variance-report.started-0])","stack_trace":""}
+2026-09-28 11:45:33.072 INFO  [org.springframework.kafka.KafkaListenerEndpointContainer#4-0-C-1] o.a.k.c.c.i.ConsumerCoordinator: [Consumer clientId=consumer-Report-Batch-7, groupId=Report-Batch] Notifying assignor about the new Assignment(partitions=[report-builder.batch-mode.started-0]) 
+{"@timestamp":"2026-09-28T11:45:33.0725873+05:30","level":"INFO","service":"ProcessStatusService","traceId":"","userId":"","clientIp":"","apiPath":"","requestUrl":"","httpMethod":"","httpStatus":"","class":"o.a.k.c.c.internals.ConsumerCoordinator","message":"[Consumer clientId=consumer-Report-Batch-7, groupId=Report-Batch] Notifying assignor about the new Assignment(partitions=[report-builder.batch-mode.started-0])","stack_trace":""}
+2026-09-28 11:45:33.072 INFO  [org.springframework.kafka.KafkaListenerEndpointContainer#5-0-C-1] o.a.k.c.c.i.ConsumerCoordinator: [Consumer clientId=consumer-Report-Batch-9, groupId=Report-Batch] Notifying assignor about the new Assignment(partitions=[]) 
+2026-09-28 11:45:33.072 INFO  [org.springframework.kafka.KafkaListenerEndpointContainer#4-0-C-1] o.a.k.c.c.i.ConsumerRebalanceListenerInvoker: [Consumer clientId=consumer-Report-Batch-7, groupId=Report-Batch] Adding newly assigned partitions: [report-builder.batch-mode.started-0] 
+2026-09-28 11:45:33.072 INFO  [org.springframework.kafka.KafkaListenerEndpointContainer#2-0-C-1] o.a.k.c.c.i.ConsumerCoordinator: [Consumer clientId=consumer-Report-Batch-5, groupId=Report-Batch] Notifying assignor about the new Assignment(partitions=[]) 
+2026-09-28 11:45:33.072 INFO  [org.springframework.kafka.KafkaListenerEndpointContainer#1-0-C-1] o.a.k.c.c.i.ConsumerRebalanceListenerInvoker: [Consumer clientId=consumer-Report-Batch-13, groupId=Report-Batch] Adding newly assigned partitions: [nwsa-variance-report.started-0] 
+{"@timestamp":"2026-09-28T11:45:33.0725873+05:30","level":"INFO","service":"ProcessStatusService","traceId":"","userId":"","clientIp":"","apiPath":"","requestUrl":"","httpMethod":"","httpStatus":"","class":"o.a.k.c.c.internals.ConsumerCoordinator","message":"[Consumer clientId=consumer-Report-Batch-9, groupId=Report-Batch] Notifying assignor about the new Assignment(partitions=[])","stack_trace":""}
+{"@timestamp":"2026-09-28T11:45:33.0725873+05:30","level":"INFO","service":"ProcessStatusService","traceId":"","userId":"","clientIp":"","apiPath":"","requestUrl":"","httpMethod":"","httpStatus":"","class":"o.a.k.c.c.i.ConsumerRebalanceListenerInvoker","message":"[Consumer clientId=consumer-Report-Batch-7, groupId=Report-Batch] Adding newly assigned partitions: [report-builder.batch-mode.started-0]","stack_trace":""}
+2026-09-28 11:45:33.072 INFO  [org.springframework.kafka.KafkaListenerEndpointContainer#5-0-C-1] o.a.k.c.c.i.ConsumerRebalanceListenerInvoker: [Consumer clientId=consumer-Report-Batch-9, groupId=Report-Batch] Adding newly assigned partitions: [] 
+{"@timestamp":"2026-09-28T11:45:33.0725873+05:30","level":"INFO","service":"ProcessStatusService","traceId":"","userId":"","clientIp":"","apiPath":"","requestUrl":"","httpMethod":"","httpStatus":"","class":"o.a.k.c.c.internals.ConsumerCoordinator","message":"[Consumer clientId=consumer-Report-Batch-5, groupId=Report-Batch] Notifying assignor about the new Assignment(partitions=[])","stack_trace":""}
+{"@timestamp":"2026-09-28T11:45:33.0725873+05:30","level":"INFO","service":"ProcessStatusService","traceId":"","userId":"","clientIp":"","apiPath":"","requestUrl":"","httpMethod":"","httpStatus":"","class":"o.a.k.c.c.i.ConsumerRebalanceListenerInvoker","message":"[Consumer clientId=consumer-Report-Batch-13, groupId=Report-Batch] Adding newly assigned partitions: [nwsa-variance-report.started-0]","stack_trace":""}
+{"@timestamp":"2026-09-28T11:45:33.0725873+05:30","level":"INFO","service":"ProcessStatusService","traceId":"","userId":"","clientIp":"","apiPath":"","requestUrl":"","httpMethod":"","httpStatus":"","class":"o.a.k.c.c.i.ConsumerRebalanceListenerInvoker","message":"[Consumer clientId=consumer-Report-Batch-9, groupId=Report-Batch] Adding newly assigned partitions: []","stack_trace":""}
+2026-09-28 11:45:33.073 INFO  [org.springframework.kafka.KafkaListenerEndpointContainer#2-0-C-1] o.a.k.c.c.i.ConsumerRebalanceListenerInvoker: [Consumer clientId=consumer-Report-Batch-5, groupId=Report-Batch] Adding newly assigned partitions: [] 
+2026-09-28 11:45:33.073 INFO  [org.springframework.kafka.KafkaListenerEndpointContainer#5-0-C-1] o.s.c.l.LogAccessor: Report-Batch: partitions assigned: [] 
+{"@timestamp":"2026-09-28T11:45:33.0735878+05:30","level":"INFO","service":"ProcessStatusService","traceId":"","userId":"","clientIp":"","apiPath":"","requestUrl":"","httpMethod":"","httpStatus":"","class":"o.a.k.c.c.i.ConsumerRebalanceListenerInvoker","message":"[Consumer clientId=consumer-Report-Batch-5, groupId=Report-Batch] Adding newly assigned partitions: []","stack_trace":""}
+{"@timestamp":"2026-09-28T11:45:33.0735878+05:30","level":"INFO","service":"ProcessStatusService","traceId":"","userId":"","clientIp":"","apiPath":"","requestUrl":"","httpMethod":"","httpStatus":"","class":"o.s.k.l.KafkaMessageListenerContainer","message":"Report-Batch: partitions assigned: []","stack_trace":""}
+2026-09-28 11:45:33.073 INFO  [org.springframework.kafka.KafkaListenerEndpointContainer#2-0-C-1] o.s.c.l.LogAccessor: Report-Batch: partitions assigned: [] 
+{"@timestamp":"2026-09-28T11:45:33.0735878+05:30","level":"INFO","service":"ProcessStatusService","traceId":"","userId":"","clientIp":"","apiPath":"","requestUrl":"","httpMethod":"","httpStatus":"","class":"o.s.k.l.KafkaMessageListenerContainer","message":"Report-Batch: partitions assigned: []","stack_trace":""}
+2026-09-28 11:45:33.075 INFO  [org.springframework.kafka.KafkaListenerEndpointContainer#4-0-C-1] o.a.k.c.c.i.ConsumerCoordinator$OffsetFetchResponseHandler: [Consumer clientId=consumer-Report-Batch-7, groupId=Report-Batch] Found no committed offset for partition report-builder.batch-mode.started-0 
+2026-09-28 11:45:33.075 INFO  [org.springframework.kafka.KafkaListenerEndpointContainer#1-0-C-1] o.a.k.c.c.i.ConsumerCoordinator$OffsetFetchResponseHandler: [Consumer clientId=consumer-Report-Batch-13, groupId=Report-Batch] Found no committed offset for partition nwsa-variance-report.started-0 
+{"@timestamp":"2026-09-28T11:45:33.0756078+05:30","level":"INFO","service":"ProcessStatusService","traceId":"","userId":"","clientIp":"","apiPath":"","requestUrl":"","httpMethod":"","httpStatus":"","class":"o.a.k.c.c.internals.ConsumerCoordinator","message":"[Consumer clientId=consumer-Report-Batch-7, groupId=Report-Batch] Found no committed offset for partition report-builder.batch-mode.started-0","stack_trace":""}
+{"@timestamp":"2026-09-28T11:45:33.0756078+05:30","level":"INFO","service":"ProcessStatusService","traceId":"","userId":"","clientIp":"","apiPath":"","requestUrl":"","httpMethod":"","httpStatus":"","class":"o.a.k.c.c.internals.ConsumerCoordinator","message":"[Consumer clientId=consumer-Report-Batch-13, groupId=Report-Batch] Found no committed offset for partition nwsa-variance-report.started-0","stack_trace":""}
+2026-09-28 11:45:33.082 INFO  [org.springframework.kafka.KafkaListenerEndpointContainer#4-0-C-1] o.a.k.c.c.i.SubscriptionState: [Consumer clientId=consumer-Report-Batch-7, groupId=Report-Batch] Resetting offset for partition report-builder.batch-mode.started-0 to position FetchPosition{offset=0, offsetEpoch=Optional.empty, currentLeader=LeaderAndEpoch{leader=Optional[10.0.17.242:9092 (id: 1 rack: null isFenced: false)], epoch=6}}. 
+2026-09-28 11:45:33.082 INFO  [org.springframework.kafka.KafkaListenerEndpointContainer#1-0-C-1] o.a.k.c.c.i.SubscriptionState: [Consumer clientId=consumer-Report-Batch-13, groupId=Report-Batch] Resetting offset for partition nwsa-variance-report.started-0 to position FetchPosition{offset=0, offsetEpoch=Optional.empty, currentLeader=LeaderAndEpoch{leader=Optional[10.0.17.242:9092 (id: 1 rack: null isFenced: false)], epoch=6}}. 
+{"@timestamp":"2026-09-28T11:45:33.082615+05:30","level":"INFO","service":"ProcessStatusService","traceId":"","userId":"","clientIp":"","apiPath":"","requestUrl":"","httpMethod":"","httpStatus":"","class":"o.a.k.c.c.internals.SubscriptionState","message":"[Consumer clientId=consumer-Report-Batch-7, groupId=Report-Batch] Resetting offset for partition report-builder.batch-mode.started-0 to position FetchPosition{offset=0, offsetEpoch=Optional.empty, currentLeader=LeaderAndEpoch{leader=Optional[10.0.17.242:9092 (id: 1 rack: null isFenced: false)], epoch=6}}.","stack_trace":""}
+{"@timestamp":"2026-09-28T11:45:33.082615+05:30","level":"INFO","service":"ProcessStatusService","traceId":"","userId":"","clientIp":"","apiPath":"","requestUrl":"","httpMethod":"","httpStatus":"","class":"o.a.k.c.c.internals.SubscriptionState","message":"[Consumer clientId=consumer-Report-Batch-13, groupId=Report-Batch] Resetting offset for partition nwsa-variance-report.started-0 to position FetchPosition{offset=0, offsetEpoch=Optional.empty, currentLeader=LeaderAndEpoch{leader=Optional[10.0.17.242:9092 (id: 1 rack: null isFenced: false)], epoch=6}}.","stack_trace":""}
+2026-09-28 11:45:33.082 INFO  [org.springframework.kafka.KafkaListenerEndpointContainer#4-0-C-1] o.s.c.l.LogAccessor: Report-Batch: partitions assigned: [report-builder.batch-mode.started-0] 
+2026-09-28 11:45:33.082 INFO  [org.springframework.kafka.KafkaListenerEndpointContainer#1-0-C-1] o.s.c.l.LogAccessor: Report-Batch: partitions assigned: [nwsa-variance-report.started-0] 
+{"@timestamp":"2026-09-28T11:45:33.082615+05:30","level":"INFO","service":"ProcessStatusService","traceId":"","userId":"","clientIp":"","apiPath":"","requestUrl":"","httpMethod":"","httpStatus":"","class":"o.s.k.l.KafkaMessageListenerContainer","message":"Report-Batch: partitions assigned: [report-builder.batch-mode.started-0]","stack_trace":""}
+{"@timestamp":"2026-09-28T11:45:33.082615+05:30","level":"INFO","service":"ProcessStatusService","traceId":"","userId":"","clientIp":"","apiPath":"","requestUrl":"","httpMethod":"","httpStatus":"","class":"o.s.k.l.KafkaMessageListenerContainer","message":"Report-Batch: partitions assigned: [nwsa-variance-report.started-0]","stack_trace":""}
+2026-09-28 11:46:25.442 INFO  [org.springframework.kafka.KafkaListenerEndpointContainer#0-0-C-1] o.a.k.c.c.AbstractConfig: ProducerConfig values: 
+        acks = -1
+        batch.size = 16384
+        bootstrap.servers = [10.0.17.242:9092]
+        buffer.memory = 33554432
+        client.dns.lookup = use_all_dns_ips
+        client.id = ProcessStatusService-producer-1
+        compression.gzip.level = -1
+        compression.lz4.level = 9
+        compression.type = none
+        compression.zstd.level = 3
+        config.providers = []
+        connections.max.idle.ms = 540000
+        delivery.timeout.ms = 120000
+        enable.idempotence = true
+        enable.metrics.push = true
+        interceptor.classes = []
+        key.serializer = class org.apache.kafka.common.serialization.StringSerializer
+        linger.ms = 5
+        max.block.ms = 60000
+        max.in.flight.requests.per.connection = 5
+        max.request.size = 1048576
+        metadata.max.age.ms = 300000
+        metadata.max.idle.ms = 300000
+        metadata.recovery.rebootstrap.trigger.ms = 300000
+        metadata.recovery.strategy = rebootstrap
+        metric.reporters = [org.apache.kafka.common.metrics.JmxReporter]
+        metrics.num.samples = 2
+        metrics.recording.level = INFO
+        metrics.sample.window.ms = 30000
+        partitioner.adaptive.partitioning.enable = true
+        partitioner.availability.timeout.ms = 0
+        partitioner.class = null
+        partitioner.ignore.keys = false
+        receive.buffer.bytes = 32768
+        reconnect.backoff.max.ms = 1000
+        reconnect.backoff.ms = 50
+        request.timeout.ms = 30000
+        retries = 2147483647
+        retry.backoff.max.ms = 1000
+        retry.backoff.ms = 100
+        sasl.client.callback.handler.class = null
+        sasl.jaas.config = null
+        sasl.kerberos.kinit.cmd = /usr/bin/kinit
+        sasl.kerberos.min.time.before.relogin = 60000
+        sasl.kerberos.service.name = null
+        sasl.kerberos.ticket.renew.jitter = 0.05
+        sasl.kerberos.ticket.renew.window.factor = 0.8
+        sasl.login.callback.handler.class = null
+        sasl.login.class = null
+        sasl.login.connect.timeout.ms = null
+        sasl.login.read.timeout.ms = null
+        sasl.login.refresh.buffer.seconds = 300
+        sasl.login.refresh.min.period.seconds = 60
+        sasl.login.refresh.window.factor = 0.8
+        sasl.login.refresh.window.jitter = 0.05
+        sasl.login.retry.backoff.max.ms = 10000
+        sasl.login.retry.backoff.ms = 100
+        sasl.mechanism = GSSAPI
+        sasl.oauthbearer.assertion.algorithm = RS256
+        sasl.oauthbearer.assertion.claim.aud = null
+        sasl.oauthbearer.assertion.claim.exp.seconds = 300
+        sasl.oauthbearer.assertion.claim.iss = null
+        sasl.oauthbearer.assertion.claim.jti.include = false
+        sasl.oauthbearer.assertion.claim.nbf.seconds = 60
+        sasl.oauthbearer.assertion.claim.sub = null
+        sasl.oauthbearer.assertion.file = null
+        sasl.oauthbearer.assertion.private.key.file = null
+        sasl.oauthbearer.assertion.private.key.passphrase = null
+        sasl.oauthbearer.assertion.template.file = null
+        sasl.oauthbearer.client.credentials.client.id = null
+        sasl.oauthbearer.client.credentials.client.secret = null
+        sasl.oauthbearer.clock.skew.seconds = 30
+        sasl.oauthbearer.expected.audience = []
+        sasl.oauthbearer.expected.issuer = null
+        sasl.oauthbearer.header.urlencode = false
+        sasl.oauthbearer.jwks.endpoint.refresh.ms = 3600000
+        sasl.oauthbearer.jwks.endpoint.retry.backoff.max.ms = 10000
+        sasl.oauthbearer.jwks.endpoint.retry.backoff.ms = 100
+        sasl.oauthbearer.jwks.endpoint.url = null
+        sasl.oauthbearer.jwt.retriever.class = class org.apache.kafka.common.security.oauthbearer.DefaultJwtRetriever
+        sasl.oauthbearer.jwt.validator.class = class org.apache.kafka.common.security.oauthbearer.DefaultJwtValidator
+        sasl.oauthbearer.scope = null
+        sasl.oauthbearer.scope.claim.name = scope
+        sasl.oauthbearer.sub.claim.name = sub
+        sasl.oauthbearer.token.endpoint.url = null
+        security.protocol = PLAINTEXT
+        security.providers = null
+        send.buffer.bytes = 131072
+        socket.connection.setup.timeout.max.ms = 30000
+        socket.connection.setup.timeout.ms = 10000
+        ssl.cipher.suites = []
+        ssl.enabled.protocols = [TLSv1.2, TLSv1.3]
+        ssl.endpoint.identification.algorithm = https
+        ssl.engine.factory.class = null
+        ssl.key.password = null
+        ssl.keymanager.algorithm = SunX509
+        ssl.keystore.certificate.chain = null
+        ssl.keystore.key = null
+        ssl.keystore.location = null
+        ssl.keystore.password = null
+        ssl.keystore.type = JKS
+        ssl.protocol = TLSv1.3
+        ssl.provider = null
+        ssl.secure.random.implementation = null
+        ssl.trustmanager.algorithm = PKIX
+        ssl.truststore.certificates = null
+        ssl.truststore.location = null
+        ssl.truststore.password = null
+        ssl.truststore.type = JKS
+        transaction.timeout.ms = 60000
+        transaction.two.phase.commit.enable = false
+        transactional.id = null
+        value.serializer = class org.springframework.kafka.support.serializer.JsonSerializer
+ 
+{"@timestamp":"2026-09-28T11:46:25.4422511+05:30","level":"INFO","service":"ProcessStatusService","traceId":"","userId":"","clientIp":"","apiPath":"","requestUrl":"","httpMethod":"","httpStatus":"","class":"o.a.kafka.common.config.AbstractConfig","message":"ProducerConfig values: \r\n\tacks = -1\r\n\tbatch.size = 16384\r\n\tbootstrap.servers = [10.0.17.242:9092]\r\n\tbuffer.memory = 33554432\r\n\tclient.dns.lookup = use_all_dns_ips\r\n\tclient.id = ProcessStatusService-producer-1\r\n\tcompression.gzip.level = -1\r\n\tcompression.lz4.level = 9\r\n\tcompression.type = none\r\n\tcompression.zstd.level = 3\r\n\tconfig.providers = []\r\n\tconnections.max.idle.ms = 540000\r\n\tdelivery.timeout.ms = 120000\r\n\tenable.idempotence = true\r\n\tenable.metrics.push = true\r\n\tinterceptor.classes = []\r\n\tkey.serializer = class org.apache.kafka.common.serialization.StringSerializer\r\n\tlinger.ms = 5\r\n\tmax.block.ms = 60000\r\n\tmax.in.flight.requests.per.connection = 5\r\n\tmax.request.size = 1048576\r\n\tmetadata.max.age.ms = 300000\r\n\tmetadata.max.idle.ms = 300000\r\n\tmetadata.recovery.rebootstrap.trigger.ms = 300000\r\n\tmetadata.recovery.strategy = rebootstrap\r\n\tmetric.reporters = [org.apache.kafka.common.metrics.JmxReporter]\r\n\tmetrics.num.samples = 2\r\n\tmetrics.recording.level = INFO\r\n\tmetrics.sample.window.ms = 30000\r\n\tpartitioner.adaptive.partitioning.enable = true\r\n\tpartitioner.availability.timeout.ms = 0\r\n\tpartitioner.class = null\r\n\tpartitioner.ignore.keys = false\r\n\treceive.buffer.bytes = 32768\r\n\treconnect.backoff.max.ms = 1000\r\n\treconnect.backoff.ms = 50\r\n\trequest.timeout.ms = 30000\r\n\tretries = 2147483647\r\n\tretry.backoff.max.ms = 1000\r\n\tretry.backoff.ms = 100\r\n\tsasl.client.callback.handler.class = null\r\n\tsasl.jaas.config = null\r\n\tsasl.kerberos.kinit.cmd = /usr/bin/kinit\r\n\tsasl.kerberos.min.time.before.relogin = 60000\r\n\tsasl.kerberos.service.name = null\r\n\tsasl.kerberos.ticket.renew.jitter = 0.05\r\n\tsasl.kerberos.ticket.renew.window.factor = 0.8\r\n\tsasl.login.callback.handler.class = null\r\n\tsasl.login.class = null\r\n\tsasl.login.connect.timeout.ms = null\r\n\tsasl.login.read.timeout.ms = null\r\n\tsasl.login.refresh.buffer.seconds = 300\r\n\tsasl.login.refresh.min.period.seconds = 60\r\n\tsasl.login.refresh.window.factor = 0.8\r\n\tsasl.login.refresh.window.jitter = 0.05\r\n\tsasl.login.retry.backoff.max.ms = 10000\r\n\tsasl.login.retry.backoff.ms = 100\r\n\tsasl.mechanism = GSSAPI\r\n\tsasl.oauthbearer.assertion.algorithm = RS256\r\n\tsasl.oauthbearer.assertion.claim.aud = null\r\n\tsasl.oauthbearer.assertion.claim.exp.seconds = 300\r\n\tsasl.oauthbearer.assertion.claim.iss = null\r\n\tsasl.oauthbearer.assertion.claim.jti.include = false\r\n\tsasl.oauthbearer.assertion.claim.nbf.seconds = 60\r\n\tsasl.oauthbearer.assertion.claim.sub = null\r\n\tsasl.oauthbearer.assertion.file = null\r\n\tsasl.oauthbearer.assertion.private.key.file = null\r\n\tsasl.oauthbearer.assertion.private.key.passphrase = null\r\n\tsasl.oauthbearer.assertion.template.file = null\r\n\tsasl.oauthbearer.client.credentials.client.id = null\r\n\tsasl.oauthbearer.client.credentials.client.secret = null\r\n\tsasl.oauthbearer.clock.skew.seconds = 30\r\n\tsasl.oauthbearer.expected.audience = []\r\n\tsasl.oauthbearer.expected.issuer = null\r\n\tsasl.oauthbearer.header.urlencode = false\r\n\tsasl.oauthbearer.jwks.endpoint.refresh.ms = 3600000\r\n\tsasl.oauthbearer.jwks.endpoint.retry.backoff.max.ms = 10000\r\n\tsasl.oauthbearer.jwks.endpoint.retry.backoff.ms = 100\r\n\tsasl.oauthbearer.jwks.endpoint.url = null\r\n\tsasl.oauthbearer.jwt.retriever.class = class org.apache.kafka.common.security.oauthbearer.DefaultJwtRetriever\r\n\tsasl.oauthbearer.jwt.validator.class = class org.apache.kafka.common.security.oauthbearer.DefaultJwtValidator\r\n\tsasl.oauthbearer.scope = null\r\n\tsasl.oauthbearer.scope.claim.name = scope\r\n\tsasl.oauthbearer.sub.claim.name = sub\r\n\tsasl.oauthbearer.token.endpoint.url = null\r\n\tsecurity.protocol = PLAINTEXT\r\n\tsecurity.providers = null\r\n\tsend.buffer.bytes = 131072\r\n\tsocket.connection.setup.timeout.max.ms = 30000\r\n\tsocket.connection.setup.timeout.ms = 10000\r\n\tssl.cipher.suites = []\r\n\tssl.enabled.protocols = [TLSv1.2, TLSv1.3]\r\n\tssl.endpoint.identification.algorithm = https\r\n\tssl.engine.factory.class = null\r\n\tssl.key.password = null\r\n\tssl.keymanager.algorithm = SunX509\r\n\tssl.keystore.certificate.chain = null\r\n\tssl.keystore.key = null\r\n\tssl.keystore.location = null\r\n\tssl.keystore.password= null\r\n\tssl.keystore.type = JKS\r\n\tssl.protocol = TLSv1.3\r\n\tssl.provider = null\r\n\tssl.secure.random.implementation = null\r\n\tssl.trustmanager.algorithm = PKIX\r\n\tssl.truststore.certificates = null\r\n\tssl.truststore.location = null\r\n\tssl.truststore.password = null\r\n\tssl.truststore.type = JKS\r\n\ttransaction.timeout.ms = 60000\r\n\ttransaction.two.phase.commit.enable = false\r\n\ttransactional.id = null\r\n\tvalue.serializer = class org.springframework.kafka.support.serializer.JsonSerializer\r\n","stack_trace":""}
+2026-09-28 11:46:25.443 INFO  [org.springframework.kafka.KafkaListenerEndpointContainer#0-0-C-1] o.a.k.c.t.i.KafkaMetricsCollector$StateLedger: initializing Kafka metrics collector 
+{"@timestamp":"2026-09-28T11:46:25.4432423+05:30","level":"INFO","service":"ProcessStatusService","traceId":"","userId":"","clientIp":"","apiPath":"","requestUrl":"","httpMethod":"","httpStatus":"","class":"o.a.k.c.t.i.KafkaMetricsCollector","message":"initializing Kafka metrics collector","stack_trace":""}
+2026-09-28 11:46:25.461 INFO  [org.springframework.kafka.KafkaListenerEndpointContainer#0-0-C-1] o.a.k.c.p.KafkaProducer: [Producer clientId=ProcessStatusService-producer-1] Instantiated an idempotent producer. 
+{"@timestamp":"2026-09-28T11:46:25.4612651+05:30","level":"INFO","service":"ProcessStatusService","traceId":"","userId":"","clientIp":"","apiPath":"","requestUrl":"","httpMethod":"","httpStatus":"","class":"o.a.kafka.clients.producer.KafkaProducer","message":"[Producer clientId=ProcessStatusService-producer-1] Instantiated an idempotent producer.","stack_trace":""}
+2026-09-28 11:46:25.490 INFO  [org.springframework.kafka.KafkaListenerEndpointContainer#0-0-C-1] o.a.k.c.u.AppInfoParser$AppInfo: Kafka version: 4.2.1 
+{"@timestamp":"2026-09-28T11:46:25.4907943+05:30","level":"INFO","service":"ProcessStatusService","traceId":"","userId":"","clientIp":"","apiPath":"","requestUrl":"","httpMethod":"","httpStatus":"","class":"o.a.kafka.common.utils.AppInfoParser","message":"Kafka version: 4.2.1","stack_trace":""}
+2026-09-28 11:46:25.491 INFO  [org.springframework.kafka.KafkaListenerEndpointContainer#0-0-C-1] o.a.k.c.u.AppInfoParser$AppInfo: Kafka commitId: 92f61c44867f39dc 
+{"@timestamp":"2026-09-28T11:46:25.4917959+05:30","level":"INFO","service":"ProcessStatusService","traceId":"","userId":"","clientIp":"","apiPath":"","requestUrl":"","httpMethod":"","httpStatus":"","class":"o.a.kafka.common.utils.AppInfoParser","message":"Kafka commitId: 92f61c44867f39dc","stack_trace":""}
+2026-09-28 11:46:25.491 INFO  [org.springframework.kafka.KafkaListenerEndpointContainer#0-0-C-1] o.a.k.c.u.AppInfoParser$AppInfo: Kafka startTimeMs: 1790576185490 
+{"@timestamp":"2026-09-28T11:46:25.4917959+05:30","level":"INFO","service":"ProcessStatusService","traceId":"","userId":"","clientIp":"","apiPath":"","requestUrl":"","httpMethod":"","httpStatus":"","class":"o.a.kafka.common.utils.AppInfoParser","message":"Kafka startTimeMs: 1790576185490","stack_trace":""}
+2026-09-28 11:46:25.501 INFO  [kafka-producer-network-thread | ProcessStatusService-producer-1] o.a.k.c.Metadata: [Producer clientId=ProcessStatusService-producer-1] Cluster ID:  
+{"@timestamp":"2026-09-28T11:46:25.5017912+05:30","level":"INFO","service":"ProcessStatusService","traceId":"","userId":"","clientIp":"","apiPath":"","requestUrl":"","httpMethod":"","httpStatus":"","class":"org.apache.kafka.clients.Metadata","message":"[Producer clientId=ProcessStatusService-producer-1] Cluster ID: ","stack_trace":""}
+2026-09-28 11:46:25.503 INFO  [kafka-producer-network-thread | ProcessStatusService-producer-1] o.a.k.c.p.i.TransactionManager: [Producer clientId=ProcessStatusService-producer-1] ProducerId set to 3 with epoch 0 
+{"@timestamp":"2026-09-28T11:46:25.5037896+05:30","level":"INFO","service":"ProcessStatusService","traceId":"","userId":"","clientIp":"","apiPath":"","requestUrl":"","httpMethod":"","httpStatus":"","class":"o.a.k.c.p.internals.TransactionManager","message":"[Producer clientId=ProcessStatusService-producer-1] ProducerId set to 3 with epoch 0","stack_trace":""}
