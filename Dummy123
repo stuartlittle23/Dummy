@@ -1,14 +1,7 @@
 package com.fincore.process_status_service.consumer;
 
-
-import com.fincore.process_status_service.dto.AirflowDagEvent;
-import com.fincore.process_status_service.dto.UnmappedCglEvent;
-import com.fincore.process_status_service.service.ProcessStatusService;
-import com.fincore.process_status_service.util.Constants;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import tools.jackson.databind.JsonNode;
-import tools.jackson.databind.ObjectMapper;
 
 import org.springframework.kafka.annotation.KafkaListener;
 import org.springframework.kafka.support.KafkaHeaders;
@@ -20,53 +13,16 @@ import org.springframework.stereotype.Component;
 @Slf4j
 public class AirflowEventConsumer {
 
-    private final ProcessStatusService processStatusService;
-
-    private final ObjectMapper objectMapper;
-
     @KafkaListener(
             topics = "airflow-events",
-            groupId = "Airflow_ETL_TEST",
-            properties = {
-                    "spring.json.value.default.type=com.fasterxml.jackson.databind.JsonNode"
-            }
+            groupId = "Airflow_ETL_TEST"
     )
     public void consume(
-            JsonNode event,
+            String event,
             @Header(name = KafkaHeaders.RECEIVED_KEY, required = false) String key) {
 
-        log.info("Received Airflow event with key: {}", key);
-
-        try {
-
-
-            if ("unmapped_cgl".equals(key)) {
-                log.info("unmapped cgl recived");
-                UnmappedCglEvent unmappedCglEvent =
-                        objectMapper.treeToValue(event, UnmappedCglEvent.class);
-
-                log.info("unmapped cgl recived");
-
-                processStatusService.handleUnmappedCglEvent(unmappedCglEvent);
-
-            } else {
-
-                AirflowDagEvent dagEvent =
-                        objectMapper.treeToValue(event, AirflowDagEvent.class);
-
-                log.info("Received Airflow event : {}", dagEvent);
-
-                // EXISTING 
-                if (String.valueOf(Constants.WAITING_FOR_APPROVAL)
-                        .equals(dagEvent.getStatus())) {
-                    processStatusService.handleAirflowEvent(dagEvent);
-                }
-
-                processStatusService.sendProcessStatusUpdates();
-            }
-
-        } catch (Exception e) {
-            log.error("Error processing Airflow event", e);
-        }
+        log.info("******** AIRFLOW CONSUMER METHOD CALLED ********");
+        log.info("Received key: {}", key);
+        log.info("Received event: {}", event);
     }
 }
