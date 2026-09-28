@@ -1,203 +1,155 @@
-Received: 1 records 
-{"@timestamp":"2026-09-28T16:23:20.6933163+05:30","level":"DEBUG","service":"ProcessStatusService","traceId":"","userId":"","clientIp":"","apiPath":"","requestUrl":"","httpMethod":"","httpStatus":"","class":"o.s.k.l.KafkaMessageListenerContainer","message":"Received: 1 records","stack_trace":""}
-2026-09-28 16:23:20.693 TRACE [org.springframework.kafka.KafkaListenerEndpointContainer#0-0-C-1] o.s.c.l.LogAccessor: [airflow-events-0@73] 
-{"@timestamp":"2026-09-28T16:23:20.6933163+05:30","level":"TRACE","service":"ProcessStatusService","traceId":"","userId":"","clientIp":"","apiPath":"","requestUrl":"","httpMethod":"","httpStatus":"","class":"o.s.k.l.KafkaMessageListenerContainer","message":"[airflow-events-0@73]","stack_trace":""}
-2026-09-28 16:23:20.693 TRACE [org.springframework.kafka.KafkaListenerEndpointContainer#0-0-C-1] o.s.c.l.LogAccessor: Processing airflow-events-0@73 
-{"@timestamp":"2026-09-28T16:23:20.6933163+05:30","level":"TRACE","service":"ProcessStatusService","traceId":"","userId":"","clientIp":"","apiPath":"","requestUrl":"","httpMethod":"","httpStatus":"","class":"o.s.k.l.KafkaMessageListenerContainer","message":"Processing airflow-events-0@73","stack_trace":""}
-2026-09-28 16:23:20.693 DEBUG [org.springframework.kafka.KafkaListenerEndpointContainer#0-0-C-1] o.s.c.l.LogAccessor: Commit list: {} 
-{"@timestamp":"2026-09-28T16:23:20.6933163+05:30","level":"DEBUG","service":"ProcessStatusService","traceId":"","userId":"","clientIp":"","apiPath":"","requestUrl":"","httpMethod":"","httpStatus":"","class":"o.s.k.l.KafkaMessageListenerContainer","message":"Commit list: {}","stack_trace":""}
-2026-09-28 16:23:20.716 INFO  [org.springframework.kafka.KafkaListenerEndpointContainer#0-0-C-1] o.a.k.c.c.AbstractConfig: ProducerConfig values: 
-        acks = -1
-        batch.size = 16384
-        bootstrap.servers = [10.0.17.242:9092]
-        buffer.memory = 33554432
-        client.dns.lookup = use_all_dns_ips
-        client.id = ProcessStatusService-producer-1
-        compression.gzip.level = -1
-        compression.lz4.level = 9
-        compression.type = none
-        compression.zstd.level = 3
-        config.providers = []
-        connections.max.idle.ms = 540000
-        delivery.timeout.ms = 120000
-        enable.idempotence = true
-        enable.metrics.push = true
-        interceptor.classes = []
-        key.serializer = class org.apache.kafka.common.serialization.StringSerializer
-        linger.ms = 5
-        max.block.ms = 60000
-        max.in.flight.requests.per.connection = 5
-        max.request.size = 1048576
-        metadata.max.age.ms = 300000
-        metadata.max.idle.ms = 300000
-        metadata.recovery.rebootstrap.trigger.ms = 300000
-        metadata.recovery.strategy = rebootstrap
-        metric.reporters = [org.apache.kafka.common.metrics.JmxReporter]
-        metrics.num.samples = 2
-        metrics.recording.level = INFO
-        metrics.sample.window.ms = 30000
-        partitioner.adaptive.partitioning.enable = true
-        partitioner.availability.timeout.ms = 0
-        partitioner.class = null
-        partitioner.ignore.keys = false
-        receive.buffer.bytes = 32768
-        reconnect.backoff.max.ms = 1000
-        reconnect.backoff.ms = 50
-        request.timeout.ms = 30000
-        retries = 2147483647
-        retry.backoff.max.ms = 1000
-        retry.backoff.ms = 100
-        sasl.client.callback.handler.class = null
-        sasl.jaas.config = null
-        sasl.kerberos.kinit.cmd = /usr/bin/kinit
-        sasl.kerberos.min.time.before.relogin = 60000
-        sasl.kerberos.service.name = null
-        sasl.kerberos.ticket.renew.jitter = 0.05
-        sasl.kerberos.ticket.renew.window.factor = 0.8
-        sasl.login.callback.handler.class = null
-        sasl.login.class = null
-        sasl.login.connect.timeout.ms = null
-        sasl.login.read.timeout.ms = null
-        sasl.login.refresh.buffer.seconds = 300
-        sasl.login.refresh.min.period.seconds = 60
-        sasl.login.refresh.window.factor = 0.8
-        sasl.login.refresh.window.jitter = 0.05
-        sasl.login.retry.backoff.max.ms = 10000
-        sasl.login.retry.backoff.ms = 100
-        sasl.mechanism = GSSAPI
-        sasl.oauthbearer.assertion.algorithm = RS256
-        sasl.oauthbearer.assertion.claim.aud = null
-        sasl.oauthbearer.assertion.claim.exp.seconds = 300
-        sasl.oauthbearer.assertion.claim.iss = null
-        sasl.oauthbearer.assertion.claim.jti.include = false
-        sasl.oauthbearer.assertion.claim.nbf.seconds = 60
-        sasl.oauthbearer.assertion.claim.sub = null
-        sasl.oauthbearer.assertion.file = null
-        sasl.oauthbearer.assertion.private.key.file = null
-        sasl.oauthbearer.assertion.private.key.passphrase = null
-        sasl.oauthbearer.assertion.template.file = null
-        sasl.oauthbearer.client.credentials.client.id = null
-        sasl.oauthbearer.client.credentials.client.secret = null
-        sasl.oauthbearer.clock.skew.seconds = 30
-        sasl.oauthbearer.expected.audience = []
-        sasl.oauthbearer.expected.issuer = null
-        sasl.oauthbearer.header.urlencode = false
-        sasl.oauthbearer.jwks.endpoint.refresh.ms = 3600000
-        sasl.oauthbearer.jwks.endpoint.retry.backoff.max.ms = 10000
-        sasl.oauthbearer.jwks.endpoint.retry.backoff.ms = 100
-        sasl.oauthbearer.jwks.endpoint.url = null
-        sasl.oauthbearer.jwt.retriever.class = class org.apache.kafka.common.security.oauthbearer.DefaultJwtRetriever
-        sasl.oauthbearer.jwt.validator.class = class org.apache.kafka.common.security.oauthbearer.DefaultJwtValidator
-        sasl.oauthbearer.scope = null
-        sasl.oauthbearer.scope.claim.name = scope
-        sasl.oauthbearer.sub.claim.name = sub
-        sasl.oauthbearer.token.endpoint.url = null
-        security.protocol = PLAINTEXT
-        security.providers = null
-        send.buffer.bytes = 131072
-        socket.connection.setup.timeout.max.ms = 30000
-        socket.connection.setup.timeout.ms = 10000
-        ssl.cipher.suites = []
-        ssl.enabled.protocols = [TLSv1.2, TLSv1.3]
-        ssl.endpoint.identification.algorithm = https
-        ssl.engine.factory.class = null
-        ssl.key.password = null
-        ssl.keymanager.algorithm = SunX509
-        ssl.keystore.certificate.chain = null
-        ssl.keystore.key = null
-        ssl.keystore.location = null
-        ssl.keystore.password = null
-        ssl.keystore.type = JKS
-        ssl.protocol = TLSv1.3
-        ssl.provider = null
-        ssl.secure.random.implementation = null
-        ssl.trustmanager.algorithm = PKIX
-        ssl.truststore.certificates = null
-        ssl.truststore.location = null
-        ssl.truststore.password = null
-        ssl.truststore.type = JKS
-        transaction.timeout.ms = 60000
-        transaction.two.phase.commit.enable = false
-        transactional.id = null
-        value.serializer = class org.springframework.kafka.support.serializer.JsonSerializer
- 
-{"@timestamp":"2026-09-28T16:23:20.7165443+05:30","level":"INFO","service":"ProcessStatusService","traceId":"","userId":"","clientIp":"","apiPath":"","requestUrl":"","httpMethod":"","httpStatus":"","class":"o.a.kafka.common.config.AbstractConfig","message":"ProducerConfig values: \r\n\tacks = -1\r\n\tbatch.size = 16384\r\n\tbootstrap.servers = [10.0.17.242:9092]\r\n\tbuffer.memory = 33554432\r\n\tclient.dns.lookup = use_all_dns_ips\r\n\tclient.id = ProcessStatusService-producer-1\r\n\tcompression.gzip.level = -1\r\n\tcompression.lz4.level = 9\r\n\tcompression.type = none\r\n\tcompression.zstd.level = 3\r\n\tconfig.providers = []\r\n\tconnections.max.idle.ms = 540000\r\n\tdelivery.timeout.ms = 120000\r\n\tenable.idempotence = true\r\n\tenable.metrics.push = true\r\n\tinterceptor.classes = []\r\n\tkey.serializer = class org.apache.kafka.common.serialization.StringSerializer\r\n\tlinger.ms = 5\r\n\tmax.block.ms = 60000\r\n\tmax.in.flight.requests.per.connection = 5\r\n\tmax.request.size = 1048576\r\n\tmetadata.max.age.ms = 300000\r\n\tmetadata.max.idle.ms = 300000\r\n\tmetadata.recovery.rebootstrap.trigger.ms = 300000\r\n\tmetadata.recovery.strategy = rebootstrap\r\n\tmetric.reporters = [org.apache.kafka.common.metrics.JmxReporter]\r\n\tmetrics.num.samples = 2\r\n\tmetrics.recording.level = INFO\r\n\tmetrics.sample.window.ms = 30000\r\n\tpartitioner.adaptive.partitioning.enable = true\r\n\tpartitioner.availability.timeout.ms = 0\r\n\tpartitioner.class = null\r\n\tpartitioner.ignore.keys = false\r\n\treceive.buffer.bytes = 32768\r\n\treconnect.backoff.max.ms = 1000\r\n\treconnect.backoff.ms = 50\r\n\trequest.timeout.ms = 30000\r\n\tretries = 2147483647\r\n\tretry.backoff.max.ms = 1000\r\n\tretry.backoff.ms = 100\r\n\tsasl.client.callback.handler.class = null\r\n\tsasl.jaas.config = null\r\n\tsasl.kerberos.kinit.cmd = /usr/bin/kinit\r\n\tsasl.kerberos.min.time.before.relogin = 60000\r\n\tsasl.kerberos.service.name = null\r\n\tsasl.kerberos.ticket.renew.jitter = 0.05\r\n\tsasl.kerberos.ticket.renew.window.factor = 0.8\r\n\tsasl.login.callback.handler.class = null\r\n\tsasl.login.class = null\r\n\tsasl.login.connect.timeout.ms = null\r\n\tsasl.login.read.timeout.ms = null\r\n\tsasl.login.refresh.buffer.seconds = 300\r\n\tsasl.login.refresh.min.period.seconds = 60\r\n\tsasl.login.refresh.window.factor = 0.8\r\n\tsasl.login.refresh.window.jitter = 0.05\r\n\tsasl.login.retry.backoff.max.ms = 10000\r\n\tsasl.login.retry.backoff.ms = 100\r\n\tsasl.mechanism = GSSAPI\r\n\tsasl.oauthbearer.assertion.algorithm = RS256\r\n\tsasl.oauthbearer.assertion.claim.aud = null\r\n\tsasl.oauthbearer.assertion.claim.exp.seconds = 300\r\n\tsasl.oauthbearer.assertion.claim.iss = null\r\n\tsasl.oauthbearer.assertion.claim.jti.include = false\r\n\tsasl.oauthbearer.assertion.claim.nbf.seconds = 60\r\n\tsasl.oauthbearer.assertion.claim.sub = null\r\n\tsasl.oauthbearer.assertion.file = null\r\n\tsasl.oauthbearer.assertion.private.key.file = null\r\n\tsasl.oauthbearer.assertion.private.key.passphrase = null\r\n\tsasl.oauthbearer.assertion.template.file = null\r\n\tsasl.oauthbearer.client.credentials.client.id = null\r\n\tsasl.oauthbearer.client.credentials.client.secret = null\r\n\tsasl.oauthbearer.clock.skew.seconds = 30\r\n\tsasl.oauthbearer.expected.audience = []\r\n\tsasl.oauthbearer.expected.issuer = null\r\n\tsasl.oauthbearer.header.urlencode = false\r\n\tsasl.oauthbearer.jwks.endpoint.refresh.ms = 3600000\r\n\tsasl.oauthbearer.jwks.endpoint.retry.backoff.max.ms = 10000\r\n\tsasl.oauthbearer.jwks.endpoint.retry.backoff.ms = 100\r\n\tsasl.oauthbearer.jwks.endpoint.url = null\r\n\tsasl.oauthbearer.jwt.retriever.class = class org.apache.kafka.common.security.oauthbearer.DefaultJwtRetriever\r\n\tsasl.oauthbearer.jwt.validator.class = class org.apache.kafka.common.security.oauthbearer.DefaultJwtValidator\r\n\tsasl.oauthbearer.scope = null\r\n\tsasl.oauthbearer.scope.claim.name = scope\r\n\tsasl.oauthbearer.sub.claim.name = sub\r\n\tsasl.oauthbearer.token.endpoint.url = null\r\n\tsecurity.protocol = PLAINTEXT\r\n\tsecurity.providers = null\r\n\tsend.buffer.bytes = 131072\r\n\tsocket.connection.setup.timeout.max.ms = 30000\r\n\tsocket.connection.setup.timeout.ms = 10000\r\n\tssl.cipher.suites = []\r\n\tssl.enabled.protocols = [TLSv1.2, TLSv1.3]\r\n\tssl.endpoint.identification.algorithm = https\r\n\tssl.engine.factory.class = null\r\n\tssl.key.password = null\r\n\tssl.keymanager.algorithm = SunX509\r\n\tssl.keystore.certificate.chain = null\r\n\tssl.keystore.key = null\r\n\tssl.keystore.location = null\r\n\tssl.keystore.password = null\r\n\tssl.keystore.type = JKS\r\n\tssl.protocol = TLSv1.3\r\n\tssl.provider = null\r\n\tssl.secure.random.implementation = null\r\n\tssl.trustmanager.algorithm = PKIX\r\n\tssl.truststore.certificates = null\r\n\tssl.truststore.location = null\r\n\tssl.truststore.password = null\r\n\tssl.truststore.type = JKS\r\n\ttransaction.timeout.ms = 60000\r\n\ttransaction.two.phase.commit.enable = false\r\n\ttransactional.id = null\r\n\tvalue.serializer = class org.springframework.kafka.support.serializer.JsonSerializer\r\n","stack_trace":""}
-2026-09-28 16:23:20.717 INFO  [org.springframework.kafka.KafkaListenerEndpointContainer#0-0-C-1] o.a.k.c.t.i.KafkaMetricsCollector$StateLedger: initializing Kafka metrics collector 
-{"@timestamp":"2026-09-28T16:23:20.7175466+05:30","level":"INFO","service":"ProcessStatusService","traceId":"","userId":"","clientIp":"","apiPath":"","requestUrl":"","httpMethod":"","httpStatus":"","class":"o.a.k.c.t.i.KafkaMetricsCollector","message":"initializing Kafka metrics collector","stack_trace":""}
-2026-09-28 16:23:20.730 INFO  [org.springframework.kafka.KafkaListenerEndpointContainer#0-0-C-1] o.a.k.c.p.KafkaProducer: [Producer clientId=ProcessStatusService-producer-1] Instantiated an idempotent producer. 
-{"@timestamp":"2026-09-28T16:23:20.7306562+05:30","level":"INFO","service":"ProcessStatusService","traceId":"","userId":"","clientIp":"","apiPath":"","requestUrl":"","httpMethod":"","httpStatus":"","class":"o.a.kafka.clients.producer.KafkaProducer","message":"[Producer clientId=ProcessStatusService-producer-1] Instantiated an idempotent producer.","stack_trace":""}
-2026-09-28 16:23:20.746 INFO  [org.springframework.kafka.KafkaListenerEndpointContainer#0-0-C-1] o.a.k.c.u.AppInfoParser$AppInfo: Kafka version: 4.2.1 
-{"@timestamp":"2026-09-28T16:23:20.7465824+05:30","level":"INFO","service":"ProcessStatusService","traceId":"","userId":"","clientIp":"","apiPath":"","requestUrl":"","httpMethod":"","httpStatus":"","class":"o.a.kafka.common.utils.AppInfoParser","message":"Kafka version: 4.2.1","stack_trace":""}
-2026-09-28 16:23:20.746 INFO  [org.springframework.kafka.KafkaListenerEndpointContainer#0-0-C-1] o.a.k.c.u.AppInfoParser$AppInfo: Kafka commitId: 92f61c44867f39dc 
-{"@timestamp":"2026-09-28T16:23:20.7465824+05:30","level":"INFO","service":"ProcessStatusService","traceId":"","userId":"","clientIp":"","apiPath":"","requestUrl":"","httpMethod":"","httpStatus":"","class":"o.a.kafka.common.utils.AppInfoParser","message":"Kafka commitId: 92f61c44867f39dc","stack_trace":""}
-2026-09-28 16:23:20.746 INFO  [org.springframework.kafka.KafkaListenerEndpointContainer#0-0-C-1] o.a.k.c.u.AppInfoParser$AppInfo: Kafka startTimeMs: 1790592800746 
-{"@timestamp":"2026-09-28T16:23:20.7465824+05:30","level":"INFO","service":"ProcessStatusService","traceId":"","userId":"","clientIp":"","apiPath":"","requestUrl":"","httpMethod":"","httpStatus":"","class":"o.a.kafka.common.utils.AppInfoParser","message":"Kafka startTimeMs: 1790592800746","stack_trace":""}
-2026-09-28 16:23:20.746 DEBUG [org.springframework.kafka.KafkaListenerEndpointContainer#0-0-C-1] o.s.c.l.LogAccessor: Created new Producer: CloseSafeProducer [delegate=org.apache.kafka.clients.producer.KafkaProducer@7a135910] 
-{"@timestamp":"2026-09-28T16:23:20.7465824+05:30","level":"DEBUG","service":"ProcessStatusService","traceId":"","userId":"","clientIp":"","apiPath":"","requestUrl":"","httpMethod":"","httpStatus":"","class":"o.s.k.core.DefaultKafkaProducerFactory","message":"Created new Producer: CloseSafeProducer [delegate=org.apache.kafka.clients.producer.KafkaProducer@7a135910]","stack_trace":""}
-2026-09-28 16:23:20.761 INFO  [kafka-producer-network-thread | ProcessStatusService-producer-1] o.a.k.c.Metadata: [Producer clientId=ProcessStatusService-producer-1] Cluster ID:  
-{"@timestamp":"2026-09-28T16:23:20.761803+05:30","level":"INFO","service":"ProcessStatusService","traceId":"","userId":"","clientIp":"","apiPath":"","requestUrl":"","httpMethod":"","httpStatus":"","class":"org.apache.kafka.clients.Metadata","message":"[Producer clientId=ProcessStatusService-producer-1] Cluster ID: ","stack_trace":""}
-2026-09-28 16:23:20.761 INFO  [kafka-producer-network-thread | ProcessStatusService-producer-1] o.a.k.c.p.i.TransactionManager: [Producer clientId=ProcessStatusService-producer-1] ProducerId set to 18 with epoch 0 
-{"@timestamp":"2026-09-28T16:23:20.761803+05:30","level":"INFO","service":"ProcessStatusService","traceId":"","userId":"","clientIp":"","apiPath":"","requestUrl":"","httpMethod":"","httpStatus":"","class":"o.a.k.c.p.internals.TransactionManager","message":"[Producer clientId=ProcessStatusService-producer-1] ProducerId set to 18 with epoch 0","stack_trace":""}
-2026-09-28 16:23:20.799 DEBUG [org.springframework.kafka.KafkaListenerEndpointContainer#0-0-C-1] o.s.c.l.LogAccessor: Skipping seek of: airflow-events-0@73 
-{"@timestamp":"2026-09-28T16:23:20.7999679+05:30","level":"DEBUG","service":"ProcessStatusService","traceId":"","userId":"","clientIp":"","apiPath":"","requestUrl":"","httpMethod":"","httpStatus":"","class":"o.s.kafka.listener.DefaultErrorHandler","message":"Skipping seek of: airflow-events-0@73","stack_trace":""}
-2026-09-28 16:23:20.799 DEBUG [kafka-producer-network-thread | ProcessStatusService-producer-1] o.s.c.l.LogAccessor: Successful dead-letter publication: airflow-events-0@73 to airflow-events-dlt-0@122 
-{"@timestamp":"2026-09-28T16:23:20.7999679+05:30","level":"DEBUG","service":"ProcessStatusService","traceId":"","userId":"","clientIp":"","apiPath":"","requestUrl":"","httpMethod":"","httpStatus":"","class":"o.s.k.l.DeadLetterPublishingRecoverer","message":"Successful dead-letter publication: airflow-events-0@73 to airflow-events-dlt-0@122","stack_trace":""}
-2026-09-28 16:23:20.799 TRACE [org.springframework.kafka.KafkaListenerEndpointContainer#0-0-C-1] o.s.c.l.LogAccessor: Ack: airflow-events-0@73 
-{"@timestamp":"2026-09-28T16:23:20.7999679+05:30","level":"TRACE","service":"ProcessStatusService","traceId":"","userId":"","clientIp":"","apiPath":"","requestUrl":"","httpMethod":"","httpStatus":"","class":"o.s.k.l.KafkaMessageListenerContainer","message":"Ack: airflow-events-0@73","stack_trace":""}
-2026-09-28 16:23:20.799 DEBUG [org.springframework.kafka.KafkaListenerEndpointContainer#0-0-C-1] o.s.c.l.LogAccessor: Commit list: {airflow-events-0=OffsetAndMetadata{offset=74, leaderEpoch=null, metadata=''}} 
-{"@timestamp":"2026-09-28T16:23:20.7999679+05:30","level":"DEBUG","service":"ProcessStatusService","traceId":"","userId":"","clientIp":"","apiPath":"","requestUrl":"","httpMethod":"","httpStatus":"","class":"o.s.k.l.KafkaMessageListenerContainer","message":"Commit list: {airflow-events-0=OffsetAndMetadata{offset=74, leaderEpoch=null, metadata=''}}","stack_trace":""}
-2026-09-28 16:23:20.799 DEBUG [org.springframework.kafka.KafkaListenerEndpointContainer#0-0-C-1] o.s.c.l.LogAccessor: Committing: {airflow-events-0=OffsetAndMetadata{offset=74, leaderEpoch=null, metadata=''}} 
-{"@timestamp":"2026-09-28T16:23:20.7999679+05:30","level":"DEBUG","service":"ProcessStatusService","traceId":"","userId":"","clientIp":"","apiPath":"","requestUrl":"","httpMethod":"","httpStatus":"","class":"o.s.k.l.KafkaMessageListenerContainer","message":"Committing: {airflow-events-0=OffsetAndMetadata{offset=74, leaderEpoch=null, metadata=''}}","stack_trace":""}
-2026-09-28 16:23:21.799 DEBUG [org.springframework.kafka.KafkaListenerEndpointContainer#6-0-C-1] o.s.c.l.LogAccessor: Received: 0 records 
-{"@timestamp":"2026-09-28T16:23:21.7999276+05:30","level":"DEBUG","service":"ProcessStatusService","traceId":"","userId":"","clientIp":"","apiPath":"","requestUrl":"","httpMethod":"","httpStatus":"","class":"o.s.k.l.KafkaMessageListenerContainer","message":"Received: 0 records","stack_trace":""}
-2026-09-28 16:23:21.800 DEBUG [org.springframework.kafka.KafkaListenerEndpointContainer#6-0-C-1] o.s.c.l.LogAccessor: Commit list: {} 
-{"@timestamp":"2026-09-28T16:23:21.80092+05:30","level":"DEBUG","service":"ProcessStatusService","traceId":"","userId":"","clientIp":"","apiPath":"","requestUrl":"","httpMethod":"","httpStatus":"","class":"o.s.k.l.KafkaMessageListenerContainer","message":"Commit list: {}","stack_trace":""}
-2026-09-28 16:23:21.849 DEBUG [org.springframework.kafka.KafkaListenerEndpointContainer#7-0-C-1] o.s.c.l.LogAccessor: Received: 0 records 
-{"@timestamp":"2026-09-28T16:23:21.8499257+05:30","level":"DEBUG","service":"ProcessStatusService","traceId":"","userId":"","clientIp":"","apiPath":"","requestUrl":"","httpMethod":"","httpStatus":"","class":"o.s.k.l.KafkaMessageListenerContainer","message":"Received: 0 records","stack_trace":""}
-2026-09-28 16:23:21.849 DEBUG [org.springframework.kafka.KafkaListenerEndpointContainer#7-0-C-1] o.s.c.l.LogAccessor: Commit list: {} 
-{"@timestamp":"2026-09-28T16:23:21.8499257+05:30","level":"DEBUG","service":"ProcessStatusService","traceId":"","userId":"","clientIp":"","apiPath":"","requestUrl":"","httpMethod":"","httpStatus":"","class":"o.s.k.l.KafkaMessageListenerContainer","message":"Commit list: {}","stack_trace":""}
-2026-09-28 16:23:21.893 DEBUG [org.springframework.kafka.KafkaListenerEndpointContainer#8-0-C-1] o.s.c.l.LogAccessor: Received: 0 records 
-{"@timestamp":"2026-09-28T16:23:21.8934263+05:30","level":"DEBUG","service":"ProcessStatusService","traceId":"","userId":"","clientIp":"","apiPath":"","requestUrl":"","httpMethod":"","httpStatus":"","class":"o.s.k.l.KafkaMessageListenerContainer","message":"Received: 0 records","stack_trace":""}
-2026-09-28 16:23:21.893 DEBUG [org.springframework.kafka.KafkaListenerEndpointContainer#8-0-C-1] o.s.c.l.LogAccessor: Commit list: {} 
-{"@timestamp":"2026-09-28T16:23:21.8934263+05:30","level":"DEBUG","service":"ProcessStatusService","traceId":"","userId":"","clientIp":"","apiPath":"","requestUrl":"","httpMethod":"","httpStatus":"","class":"o.s.k.l.KafkaMessageListenerContainer","message":"Commit list: {}","stack_trace":""}
-2026-09-28 16:23:21.927 DEBUG [org.springframework.kafka.KafkaListenerEndpointContainer#9-0-C-1] o.s.c.l.LogAccessor: Received: 0 records 
-{"@timestamp":"2026-09-28T16:23:21.9274391+05:30","level":"DEBUG","service":"ProcessStatusService","traceId":"","userId":"","clientIp":"","apiPath":"","requestUrl":"","httpMethod":"","httpStatus":"","class":"o.s.k.l.KafkaMessageListenerContainer","message":"Received: 0 records","stack_trace":""}
-2026-09-28 16:23:21.927 DEBUG [org.springframework.kafka.KafkaListenerEndpointContainer#9-0-C-1] o.s.c.l.LogAccessor: Commit list: {} 
-{"@timestamp":"2026-09-28T16:23:21.9274391+05:30","level":"DEBUG","service":"ProcessStatusService","traceId":"","userId":"","clientIp":"","apiPath":"","requestUrl":"","httpMethod":"","httpStatus":"","class":"o.s.k.l.KafkaMessageListenerContainer","message":"Commit list: {}","stack_trace":""}
-2026-09-28 16:23:21.972 DEBUG [org.springframework.kafka.KafkaListenerEndpointContainer#2-0-C-1] o.s.c.l.LogAccessor: Received: 0 records 
-{"@timestamp":"2026-09-28T16:23:21.972438+05:30","level":"DEBUG","service":"ProcessStatusService","traceId":"","userId":"","clientIp":"","apiPath":"","requestUrl":"","httpMethod":"","httpStatus":"","class":"o.s.k.l.KafkaMessageListenerContainer","message":"Received: 0 records","stack_trace":""}
-2026-09-28 16:23:21.972 DEBUG [org.springframework.kafka.KafkaListenerEndpointContainer#2-0-C-1] o.s.c.l.LogAccessor: Commit list: {} 
-{"@timestamp":"2026-09-28T16:23:21.972438+05:30","level":"DEBUG","service":"ProcessStatusService","traceId":"","userId":"","clientIp":"","apiPath":"","requestUrl":"","httpMethod":"","httpStatus":"","class":"o.s.k.l.KafkaMessageListenerContainer","message":"Commit list: {}","stack_trace":""}
-2026-09-28 16:23:22.049 DEBUG [org.springframework.kafka.KafkaListenerEndpointContainer#3-0-C-1] o.s.c.l.LogAccessor: Received: 0 records 
-{"@timestamp":"2026-09-28T16:23:22.0499821+05:30","level":"DEBUG","service":"ProcessStatusService","traceId":"","userId":"","clientIp":"","apiPath":"","requestUrl":"","httpMethod":"","httpStatus":"","class":"o.s.k.l.KafkaMessageListenerContainer","message":"Received: 0 records","stack_trace":""}
-2026-09-28 16:23:22.049 DEBUG [org.springframework.kafka.KafkaListenerEndpointContainer#3-0-C-1] o.s.c.l.LogAccessor: Commit list: {} 
-{"@timestamp":"2026-09-28T16:23:22.0499821+05:30","level":"DEBUG","service":"ProcessStatusService","traceId":"","userId":"","clientIp":"","apiPath":"","requestUrl":"","httpMethod":"","httpStatus":"","class":"o.s.k.l.KafkaMessageListenerContainer","message":"Commit list: {}","stack_trace":""}
-2026-09-28 16:23:22.091 DEBUG [org.springframework.kafka.KafkaListenerEndpointContainer#4-0-C-1] o.s.c.l.LogAccessor: Received: 0 records 
-{"@timestamp":"2026-09-28T16:23:22.0919938+05:30","level":"DEBUG","service":"ProcessStatusService","traceId":"","userId":"","clientIp":"","apiPath":"","requestUrl":"","httpMethod":"","httpStatus":"","class":"o.s.k.l.KafkaMessageListenerContainer","message":"Received: 0 records","stack_trace":""}
-2026-09-28 16:23:22.091 DEBUG [org.springframework.kafka.KafkaListenerEndpointContainer#4-0-C-1] o.s.c.l.LogAccessor: Commit list: {} 
-{"@timestamp":"2026-09-28T16:23:22.0919938+05:30","level":"DEBUG","service":"ProcessStatusService","traceId":"","userId":"","clientIp":"","apiPath":"","requestUrl":"","httpMethod":"","httpStatus":"","class":"o.s.k.l.KafkaMessageListenerContainer","message":"Commit list: {}","stack_trace":""}
-2026-09-28 16:23:22.131 DEBUG [org.springframework.kafka.KafkaListenerEndpointContainer#10-retry-2000-0-C-1] o.s.c.l.LogAccessor: Received: 0 records 
-{"@timestamp":"2026-09-28T16:23:22.1315215+05:30","level":"DEBUG","service":"ProcessStatusService","traceId":"","userId":"","clientIp":"","apiPath":"","requestUrl":"","httpMethod":"","httpStatus":"","class":"o.s.k.l.KafkaMessageListenerContainer","message":"Received: 0 records","stack_trace":""}
-2026-09-28 16:23:22.131 DEBUG [org.springframework.kafka.KafkaListenerEndpointContainer#10-retry-2000-0-C-1] o.s.c.l.LogAccessor: Commit list: {} 
-{"@timestamp":"2026-09-28T16:23:22.1315215+05:30","level":"DEBUG","service":"ProcessStatusService","traceId":"","userId":"","clientIp":"","apiPath":"","requestUrl":"","httpMethod":"","httpStatus":"","class":"o.s.k.l.KafkaMessageListenerContainer","message":"Commit list: {}","stack_trace":""}
-2026-09-28 16:23:22.162 DEBUG [org.springframework.kafka.KafkaListenerEndpointContainer#5-0-C-1] o.s.c.l.LogAccessor: Received: 0 records 
-{"@timestamp":"2026-09-28T16:23:22.1625227+05:30","level":"DEBUG","service":"ProcessStatusService","traceId":"","userId":"","clientIp":"","apiPath":"","requestUrl":"","httpMethod":"","httpStatus":"","class":"o.s.k.l.KafkaMessageListenerContainer","message":"Received: 0 records","stack_trace":""}
-2026-09-28 16:23:22.162 DEBUG [org.springframework.kafka.KafkaListenerEndpointContainer#5-0-C-1] o.s.c.l.LogAccessor: Commit list: {} 
-{"@timestamp":"2026-09-28T16:23:22.1625227+05:30","level":"DEBUG","service":"ProcessStatusService","traceId":"","userId":"","clientIp":"","apiPath":"","requestUrl":"","httpMethod":"","httpStatus":"","class":"o.s.k.l.KafkaMessageListenerContainer","message":"Commit list: {}","stack_trace":""}
-2026-09-28 16:23:22.198 DEBUG [org.springframework.kafka.KafkaListenerEndpointContainer#10-retry-4000-0-C-1] o.s.c.l.LogAccessor: Received: 0 records 
-{"@timestamp":"2026-09-28T16:23:22.1980635+05:30","level":"DEBUG","service":"ProcessStatusService","traceId":"","userId":"","clientIp":"","apiPath":"","requestUrl":"","httpMethod":"","httpStatus":"","class":"o.s.k.l.KafkaMessageListenerContainer","message":"Received: 0 records","stack_trace":""}
-2026-09-28 16:23:22.198 DEBUG [org.springframework.kafka.KafkaListenerEndpointContainer#10-retry-4000-0-C-1] o.s.c.l.LogAccessor: Commit list: {} 
-{"@timestamp":"2026-09-28T16:23:22.1980635+05:30","level":"DEBUG","service":"ProcessStatusService","traceId":"","userId":"","clientIp":"","apiPath":"","requestUrl":"","httpMethod":"","httpStatus":"","class":"o.s.k.l.KafkaMessageListenerContainer","message":"Commit list: {}","stack_trace":""}
-2026-09-28 16:23:22.251 DEBUG [org.springframework.kafka.KafkaListenerEndpointContainer#10-dlt-0-C-1] o.s.c.l.LogAccessor: Received: 0 records 
-{"@timestamp":"2026-09-28T16:23:22.2510651+05:30","level":"DEBUG","service":"ProcessStatusService","traceId":"","userId":"","clientIp":"","apiPath":"","requestUrl":"","httpMethod":"","httpStatus":"","class":"o.s.k.l.KafkaMessageListenerContainer","message":"Received: 0 records","stack_trace":""}
-2026-09-28 16:23:22.251 DEBUG [org.springframework.kafka.KafkaListenerEndpointContainer#10-dlt-0-C-1] o.s.c.l.LogAccessor: Commit list: {} 
-{"@timestamp":"2026-09-28T16:23:22.2510651+05:30","level":"DEBUG","service":"ProcessStatusService","traceId":"","userId":"","clientIp":"","apiPath":"","requestUrl":"","httpMethod":"","httpStatus":"","class":"o.s.k.l.KafkaMessageListenerContainer","message":"Commit list: {}","stack_trace":""}
-2026-09-28 16:23:22.333 DEBUG [org.springframework.kafka.KafkaListenerEndpointContainer#1-0-C-1] o.s.c.l.LogAccessor: Received: 0 records 
-{"@timestamp":"2026-09-28T16:23:22.3336129+05:30","level":"DEBUG","service":"ProcessStatusService","traceId":"","userId":"","clientIp":"","apiPath":"","requestUrl":"","httpMethod":"","httpStatus":"","class":"o.s.k.l.KafkaMessageListenerContainer","message":"Received: 0 records","stack_trace":""}
-2026-09-28 16:23:22.334 DEBUG [org.springframework.kafka.KafkaListenerEndpointContainer#1-0-C-1] o.s.c.l.LogAccessor: Commit list: {} 
-{"@timestamp":"2026-09-28T16:23:22.3346144+05:30","level":"DEBUG","service":"ProcessStatusService","traceId":"","userId":"","clientIp":"","apiPath":"","requestUrl":"","httpMethod":"","httpStatus":"","class":"o.s.k.l.KafkaMessageListenerContainer","message":"Commit list: {}","stack_trace":""}
-2026-09-28 16:23:22.410 DEBUG [org.springframework.kafka.KafkaListenerEndpointContainer#10-0-C-1] o.s.c.l.LogAccessor: Received: 0 records 
-{"@timestamp":"2026-09-28T16:23:22.4101454+05:30","level":"DEBUG","service":"ProcessStatusService","traceId":"","userId":"","clientIp":"","apiPath":"","requestUrl":"","httpMethod":"","httpStatus":"","class":"o.s.k.l.KafkaMessageListenerContainer","message":"Received: 0 records","stack_trace":""}
-2026-09-28 16:23:22.410 DEBUG [org.springframework.kafka.KafkaListenerEndpointContainer#10-0-C-1] o.s.c.l.LogAccessor: Commit list: {} 
-{"@timestamp":"2026-09-28T16:23:22.4101454+05:30","level":"DEBUG","service":"ProcessStatusService","traceId":"","userId":"","clientIp":"","apiPath":"","requestUrl":"","httpMethod":"","httpStatus":"","class":"o.s.k.l.KafkaMessageListenerContainer","message":"Commit list: {}","stack_trace":""}
-2026-09-28 16:23:25.815 DEBUG [org.springframework.kafka.KafkaListenerEndpointContainer#0-0-C-1] o.s.c.l.LogAccessor: Received: 0 records 
+package com.fincore.process_status_service.consumer;
+
+import com.fincore.process_status_service.dto.AirflowDagEvent;
+import com.fincore.process_status_service.dto.UnmappedCglEvent;
+import com.fincore.process_status_service.service.ProcessStatusService;
+import com.fincore.process_status_service.util.Constants;
+
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+
+import org.apache.kafka.clients.consumer.ConsumerRecord;
+import org.springframework.kafka.annotation.KafkaListener;
+import org.springframework.stereotype.Component;
+
+import tools.jackson.databind.JsonNode;
+import tools.jackson.databind.ObjectMapper;
+
+@Component
+@RequiredArgsConstructor
+@Slf4j
+public class AirflowEventConsumer {
+
+    private final ProcessStatusService processStatusService;
+
+    private final ObjectMapper objectMapper;
+
+    @KafkaListener(
+            topics = "airflow-events",
+            groupId = "Airflow_ETL_v1"
+    )
+    public void consume(ConsumerRecord<String, String> record) {
+
+        log.info("==============================================");
+        log.info("AIRFLOW EVENT CONSUMER CALLED");
+        log.info("Topic     : {}", record.topic());
+        log.info("Partition : {}", record.partition());
+        log.info("Offset    : {}", record.offset());
+        log.info("Key       : {}", record.key());
+        log.info("Payload   : {}", record.value());
+        log.info("==============================================");
+
+        try {
+
+            String payload = record.value();
+
+            JsonNode event = objectMapper.readTree(payload);
+
+            log.info("JSON successfully parsed: {}", event);
+
+            String key = record.key();
+
+            /*
+             * UNMAPPED CGL EVENT
+             */
+            if ("unmapped_cgl".equals(key)) {
+
+                log.info("UNMAPPED CGL EVENT RECEIVED");
+
+                UnmappedCglEvent unmappedCglEvent =
+                        objectMapper.treeToValue(
+                                event,
+                                UnmappedCglEvent.class
+                        );
+
+                log.info(
+                        "Unmapped CGL Event DTO: {}",
+                        unmappedCglEvent
+                );
+
+                processStatusService.handleUnmappedCglEvent(
+                        unmappedCglEvent
+                );
+
+                log.info(
+                        "UNMAPPED CGL EVENT PROCESSED SUCCESSFULLY"
+                );
+
+            }
+
+            /*
+             * EOD / AIRFLOW EVENT
+             */
+            else {
+
+                log.info("AIRFLOW / EOD EVENT RECEIVED");
+
+                AirflowDagEvent dagEvent =
+                        objectMapper.treeToValue(
+                                event,
+                                AirflowDagEvent.class
+                        );
+
+                log.info(
+                        "Airflow DAG Event: {}",
+                        dagEvent
+                );
+
+                log.info(
+                        "Event Type: {}",
+                        dagEvent.getEventType()
+                );
+
+                log.info(
+                        "Status: {}",
+                        dagEvent.getStatus()
+                );
+
+                if (String.valueOf(Constants.WAITING_FOR_APPROVAL)
+                        .equals(dagEvent.getStatus())) {
+
+                    log.info(
+                            "Calling handleAirflowEvent()"
+                    );
+
+                    processStatusService.handleAirflowEvent(
+                            dagEvent
+                    );
+
+                    log.info(
+                            "handleAirflowEvent() completed"
+                    );
+                }
+
+                log.info(
+                        "Calling sendProcessStatusUpdates()"
+                );
+
+                processStatusService.sendProcessStatusUpdates();
+
+                log.info(
+                        "sendProcessStatusUpdates() completed"
+                );
+            }
+
+        } catch (Exception e) {
+
+            log.error(
+                    "ERROR PROCESSING AIRFLOW EVENT - topic={}, partition={}, offset={}, key={}, payload={}",
+                    record.topic(),
+                    record.partition(),
+                    record.offset(),
+                    record.key(),
+                    record.value(),
+                    e
+            );
+
+            throw e;
+        }
+    }
+}
+spring.kafka.consumer.bootstrap-servers=10.0.17.242:9092
+spring.kafka.consumer.key-deserializer=org.apache.kafka.common.serialization.StringDeserializer
+spring.kafka.consumer.value-deserializer=org.apache.kafka.common.serialization.StringDeserializer
+
+
