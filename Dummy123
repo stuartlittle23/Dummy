@@ -28,3 +28,36 @@
 {"@timestamp":"2026-09-28T16:03:49.5702362+05:30","level":"DEBUG","service":"ProcessStatusService","traceId":"","userId":"","clientIp":"","apiPath":"","requestUrl":"","httpMethod":"","httpStatus":"","class":"o.s.k.l.KafkaMessageListenerContainer","message":"Received: 0 records","stack_trace":""}
 2026-09-28 16:03:49.570 DEBUG [org.springframework.kafka.KafkaListenerEndpointContainer#9-0-C-1] o.s.c.l.LogAccessor: Commit list: {} 
 {"@timestamp":"2026-09-28T16:03:49.5702362+05:30","level":"DEBUG","service":"ProcessStatusService","traceId":"","userId":"","clientIp":"","apiPath":"","requestUrl":"","httpMethod":"","httpStatus":"","class":"o.s.k.l.KafkaMessageListenerContainer","message":"Commit list: {}","stack_trace":""}
+
+
+
+
+spring.datasource.url=jdbc:oracle:thin:@10.177.103.192:1523/fincorepdb1
+# spring.datasource.url=jdbc:oracle:thin:@10.177.179.46:1523/fincorepdb1
+spring.datasource.username=fincore
+spring.datasource.password=Password#1234
+spring.datasource.driver-class-name=oracle.jdbc.OracleDriver
+spring.kafka.consumer.bootstrap-servers=localhost:29092
+spring.kafka.bootstrap-servers=10.0.17.242:9092
+spring.kafka.consumer.bootstrap-servers=10.0.17.242:9092
+spring.kafka.producer.bootstrap-servers=10.0.17.242:9092
+airflow.base-url=http://localhost:1234/airflow
+airflow.username= root
+airflow.pass=Password@1
+
+spring.data.redis.host=10.0.17.242
+spring.data.redis.port=6379
+
+# airflow.base-url=https://fincoreuat.sbi/airflow
+# airflow.base-url=https://fincorest.sbi/airflow
+# Time in milliseconds
+# 30 Seconds
+app.scheduling.fixedRate.in.ms=9000
+app.scheduling.initialDelay.in.ms=8000
+sftp.hostname=10.177.177.112
+sftp.username=root
+jwt.secret=bWV0aGlvbnlsdGhyZW9ueWx0aHJlb255bGdsdXRhbWlueWxhbGFueWw=
+sftp.password=root123
+sftp.port=22
+logging.level.org.springframework.kafka=DEBUG
+
