@@ -1,1 +1,11 @@
-
+{
+  "eventType": "EOD",
+  "dagId": "airflow_reconciliation",
+  "dagRunId": "manual__2026-09-28T11:00:00",
+  "logicalDate": "2026-09-28",
+  "status": "WAITING_FOR_APPROVAL",
+  "timestamp": "2026-09-28T11:00:00",
+  "processRunId": "process-20260928-001",
+  "etlDate": "2026-09-28",
+  "runId": "run-20260928-001"
+}
