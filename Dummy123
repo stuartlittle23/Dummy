@@ -1,262 +1,270 @@
-package com.fincore.ReportService.controller;
-
-import java.io.IOException;
-import java.util.List;
-import java.util.Map;
-
-import com.fincore.ReportService.dto.*;
-import com.fincore.commonutilities.jwt.JwtUtil;
-
-import jakarta.validation.Valid;
-import lombok.extern.slf4j.Slf4j;
-
-import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.*;
-import org.springframework.http.ContentDisposition;
-import org.springframework.http.HttpHeaders;
-import org.springframework.http.MediaType;
-import org.springframework.web.servlet.mvc.method.annotation.StreamingResponseBody;
-
-import com.fincore.ReportService.service.ReportService;
-
-@Slf4j
-@RestController
-@RequestMapping("/api/reports")
-public class ReportController {
-
-        private final ReportService reportService;
-        private final JwtUtil jwtUtil; // Declare an instance field
-
-        public ReportController(ReportService reportService, JwtUtil jwtUtil) {
-                this.reportService = reportService;
-                this.jwtUtil = jwtUtil;
-        }
-
-        @PostMapping("/types")
-        public List<ReportTypeDto> getReportTypes(@RequestHeader("Authorization") String token,
-                        @RequestBody ReportTypesRequest request) {
-                log.info("Received request to fetch all available report types for" +
-                                "module: {} for role: {}", request.getModuleType(),
-                                jwtUtil.getUserRoleFromToken(token));
-                return reportService.getReportTypes(jwtUtil.getUserRoleFromToken(token), request.getModuleType());
-        }
-
-        @GetMapping("/adhoc-types")
-        public List<ReportTypeDto> getAdhocReportTypes(@RequestHeader("Authorization") String token) {
-                log.info("Received request to fetch all available report types for" +
-                                "for role: {}", jwtUtil.getUserRoleFromToken(token));
-                return reportService.getAdhocReportTypes(jwtUtil.getUserRoleFromToken(token));
-        }
-
-
-
-        @PostMapping("/download")
-        public ResponseEntity<StreamingResponseBody> downloadReport(
-                @RequestHeader("Authorization") String token,
-                @Valid @RequestBody ReportDownloadRequest request) {
-
-        log.info(
-                "Received report download request: fileName={}, date={}, branchCode={}, format={}",
-                request.getFileName(),
-                request.getDate(),
-                request.getBranchCode(),
-                request.getFormat()
-        );
-
-        ReportStreamResponse response =
-                reportService.downloadReportStream(
-                        request.getFileName(),
-                        request.getDate(),
-                        jwtUtil.getUserRoleFromToken(token),
-                        jwtUtil.getUserIdFromToken(token),
-                        request.getBranchCode(),
-                        request.getFormat()
-                );
-
-        return ResponseEntity.ok()
-                .header(
-                        HttpHeaders.CONTENT_DISPOSITION,
-                        ContentDisposition
-                                .attachment()
-                                .filename(response.getDownloadFileName())
-                                .build()
-                                .toString()
-                )
-                .contentType(
-                        MediaType.parseMediaType(
-                                response.getContentType()
-                        )
-                )
-                .body(response.getStreamBody());
-        }
-
-        @PostMapping("/create-reports")
-        public Map<String, String> createReports(@RequestHeader("Authorization") String token,
-                        @RequestBody ReportCreationDto requestBody) throws IOException {
-                // EXTRACT USER ID FROM TOKEN
-                String userId = jwtUtil.getUserIdFromToken(token);
-                return reportService.createReports(requestBody, userId);
-        }
-
-        @PostMapping("/generate-reports")
-        public ReportGenerationResponseDTO generateReports(@RequestBody ReportGenerationDTO requestBody)
-                        throws IOException {
-
-                return reportService.generateReports(requestBody);
-        }
-
-        @PostMapping("/download-temp-reports")
-        public ResponseEntity<StreamingResponseBody> downloadTemporaryReports(
-                        @RequestHeader("Authorization") String token,
-                        @RequestBody ReportDownloadRequest request) throws IOException {
-
-                log.info("Received request to download temp report from HDFS for this criteria: {}", request);
-
-                ReportStreamResponse response = reportService.downloadTempReportStream(
-                                request.getFileName(),
-                                request.getDate(),
-                                jwtUtil.getUserRoleFromToken(token),
-                                jwtUtil.getUserIdFromToken(token),
-                                request.getRunId(), request.getFormat());
-
-                return ResponseEntity.ok()
-                                // This header tells the browser "This is a file download"
-                                .header(HttpHeaders.CONTENT_DISPOSITION,
-                                                "attachment; filename=\"" + response.getDownloadFileName() + "\"")
-                                .contentType(MediaType.APPLICATION_OCTET_STREAM)
-                                .body(response.getStreamBody());
-        }
-
-        @PostMapping("/generate/base64")
-        public ResponseEntity<ReportBase64ResponseDTO> generateReportBase64(
-                        @RequestBody ReportBase64RequestDTO request) throws IOException {
-
-                ReportBase64ResponseDTO response = reportService.generateReportBase64(request);
-
-                return ResponseEntity.ok(response);
-        }
-
-        @PostMapping("/attachment/download")
-        public ResponseEntity<ApiResponse<AttachmentDownloadResponse>> downloadAttachments(@RequestBody AttachmentDownloadRequest request){
-                              
-                               try{
-                                        log.info("inside report controller attachment endpoint");
-                                        AttachmentDownloadResponse response=reportService.downloadAttachments(request); 
-                                        return ResponseEntity.ok(ApiResponse.success(response,"Attachment downloaded successfully"));
-                               }
-                               catch(IOException e){
-                                        log.error("Attachment download failed",e); 
-                                        return ResponseEntity.ok(
-                                                ApiResponse.error(e.getMessage() == null ?"Attachment download failed.":e.getMessage())
-                                );
-                               }
-
-        }
-}
-
-
-
-        Maximum pool size: undefined/unknown 
-{"@timestamp":"2026-10-01T13:25:02.4592471+05:30","level":"INFO","service":"ReportService","traceId":"","userId":"","clientIp":"","apiPath":"","class":"org.hibernate.orm.connections.pooling","message":"HHH10001005: Database info:\n\tDatabase JDBC URL [jdbc:oracle:thin:@10.177.103.192:1523/fincorepdb1]\n\tDatabase driver: Oracle JDBC driver\n\tDatabase dialect: OracleDialect\n\tDatabase version: 19.32\n\tDefault catalog/schema: undefined/FINCORE\n\tAutocommit mode: undefined/unknown\n\tIsolation level: READ_COMMITTED [default READ_COMMITTED]\n\tJDBC fetch size: 10\n\tPool: DataSourceConnectionProvider\n\tMinimum pool size: undefined/unknown\n\tMaximum pool size: undefined/unknown","stack_trace":""}
-2026-10-01 13:25:03.254 INFO  [main] o.h.e.t.j.p.i.JtaPlatformInitiator: HHH000489: No JTA platform available (set 'hibernate.transaction.jta.platform' to enable JTA platform integration) 
-{"@timestamp":"2026-10-01T13:25:03.2541857+05:30","level":"INFO","service":"ReportService","traceId":"","userId":"","clientIp":"","apiPath":"","class":"org.hibernate.orm.core","message":"HHH000489: No JTA platform available (set 'hibernate.transaction.jta.platform' to enable JTA platform integration)","stack_trace":""}
-2026-10-01 13:25:03.262 INFO  [main] o.s.o.j.AbstractEntityManagerFactoryBean: Initialized JPA EntityManagerFactory for persistence unit 'default' 
-{"@timestamp":"2026-10-01T13:25:03.2621934+05:30","level":"INFO","service":"ReportService","traceId":"","userId":"","clientIp":"","apiPath":"","class":"o.s.o.j.LocalContainerEntityManagerFactoryBean","message":"Initialized JPA EntityManagerFactory for persistence unit 'default'","stack_trace":""}
-2026-10-01 13:25:03.320 INFO  [main] c.f.R.c.JasperTemplateRegistry: Loading intr_report 
-{"@timestamp":"2026-10-01T13:25:03.3207035+05:30","level":"INFO","service":"ReportService","traceId":"","userId":"","clientIp":"","apiPath":"","class":"c.f.R.config.JasperTemplateRegistry","message":"Loading intr_report","stack_trace":""}
-2026-10-01 13:25:03.948 INFO  [main] c.f.R.c.JasperTemplateRegistry: Loading profit_transfer_report 
-{"@timestamp":"2026-10-01T13:25:03.9480406+05:30","level":"INFO","service":"ReportService","traceId":"","userId":"","clientIp":"","apiPath":"","class":"c.f.R.config.JasperTemplateRegistry","message":"Loading profit_transfer_report","stack_trace":""}
-2026-10-01 13:25:03.982 INFO  [main] c.f.R.c.JasperTemplateRegistry: Loading balance_compare_report 
-{"@timestamp":"2026-10-01T13:25:03.9825735+05:30","level":"INFO","service":"ReportService","traceId":"","userId":"","clientIp":"","apiPath":"","class":"c.f.R.config.JasperTemplateRegistry","message":"Loading balance_compare_report","stack_trace":""}
-2026-10-01 13:25:04.014 INFO  [main] c.f.R.c.JasperTemplateRegistry: Loading cntr_report 
-{"@timestamp":"2026-10-01T13:25:04.0145762+05:30","level":"INFO","service":"ReportService","traceId":"","userId":"","clientIp":"","apiPath":"","class":"c.f.R.config.JasperTemplateRegistry","message":"Loading cntr_report","stack_trace":""}
-2026-10-01 13:25:04.046 INFO  [main] c.f.R.c.JasperTemplateRegistry: Loading profit_transactions 
-{"@timestamp":"2026-10-01T13:25:04.0461809+05:30","level":"INFO","service":"ReportService","traceId":"","userId":"","clientIp":"","apiPath":"","class":"c.f.R.config.JasperTemplateRegistry","message":"Loading profit_transactions","stack_trace":""}
-2026-10-01 13:25:04.213 INFO  [main] o.s.d.j.r.q.QueryEnhancerFactories: Hibernate is in classpath; If applicable, HQL parser will be used. 
-{"@timestamp":"2026-10-01T13:25:04.2138154+05:30","level":"INFO","service":"ReportService","traceId":"","userId":"","clientIp":"","apiPath":"","class":"o.s.d.j.r.query.QueryEnhancerFactories","message":"Hibernate is in classpath; If applicable, HQL parser will be used.","stack_trace":""}
-2026-10-01 13:25:04.327 INFO  [main] c.f.R.c.HadoopConfig: Initializing HDFS connection to: hdfs://10.177.103.199:8022 as user: root 
-{"@timestamp":"2026-10-01T13:25:04.3273394+05:30","level":"INFO","service":"ReportService","traceId":"","userId":"","clientIp":"","apiPath":"","class":"c.f.ReportService.config.HadoopConfig","message":"Initializing HDFS connection to: hdfs://10.177.103.199:8022 as user: root","stack_trace":""}
-2026-10-01 13:25:05.453 WARN  [main] o.s.c.s.AbstractApplicationContext: Exception encountered during context initialization - cancelling refresh attempt: org.springframework.beans.factory.UnsatisfiedDependencyException: Error creating bean with name 'reportController' defined in file [E:\Workspace\Fincore_main\Fincore Git\Backend\fincore_report_service\target\classes\com\fincore\ReportService\controller\ReportController.class]: Unsatisfied dependency expressed through constructor parameter 0: Error creating bean with name 'reportServiceImpl': Injection of autowired dependencies failed 
-{"@timestamp":"2026-10-01T13:25:05.4534013+05:30","level":"WARN","service":"ReportService","traceId":"","userId":"","clientIp":"","apiPath":"","class":"o.s.b.w.s.s.c.AnnotationConfigServletWebServerApplicationContext","message":"Exception encountered during context initialization - cancelling refresh attempt: org.springframework.beans.factory.UnsatisfiedDependencyException: Error creating bean with name 'reportController' defined in file [E:\\Workspace\\Fincore_main\\Fincore Git\\Backend\\fincore_report_service\\target\\classes\\com\\fincore\\ReportService\\controller\\ReportController.class]: Unsatisfied dependency expressed through constructor parameter 0: Error creating bean with name 'reportServiceImpl': Injection of autowired dependencies failed","stack_trace":""}
-2026-10-01 13:25:05.454 INFO  [main] o.s.o.j.AbstractEntityManagerFactoryBean: Closing JPA EntityManagerFactory for persistence unit 'default' 
-{"@timestamp":"2026-10-01T13:25:05.4543943+05:30","level":"INFO","service":"ReportService","traceId":"","userId":"","clientIp":"","apiPath":"","class":"o.s.o.j.LocalContainerEntityManagerFactoryBean","message":"Closing JPA EntityManagerFactory for persistence unit 'default'","stack_trace":""}
-2026-10-01 13:25:05.457 INFO  [main] c.z.h.HikariDataSource: HikariPool-1 - Shutdown initiated... 
-{"@timestamp":"2026-10-01T13:25:05.4574157+05:30","level":"INFO","service":"ReportService","traceId":"","userId":"","clientIp":"","apiPath":"","class":"com.zaxxer.hikari.HikariDataSource","message":"HikariPool-1 - Shutdown initiated...","stack_trace":""}
-2026-10-01 13:25:05.636 INFO  [main] c.z.h.HikariDataSource: HikariPool-1 - Shutdown completed. 
-{"@timestamp":"2026-10-01T13:25:05.6360491+05:30","level":"INFO","service":"ReportService","traceId":"","userId":"","clientIp":"","apiPath":"","class":"com.zaxxer.hikari.HikariDataSource","message":"HikariPool-1 - Shutdown completed.","stack_trace":""}
-2026-10-01 13:25:05.670 INFO  [main] o.a.j.l.DirectJDKLog: Stopping service [Tomcat] 
-{"@timestamp":"2026-10-01T13:25:05.6707246+05:30","level":"INFO","service":"ReportService","traceId":"","userId":"","clientIp":"","apiPath":"","class":"o.apache.catalina.core.StandardService","message":"Stopping service [Tomcat]","stack_trace":""}
-2026-10-01 13:25:05.695 INFO  [main] o.s.b.a.l.ConditionEvaluationReportLogger: 
-
-Error starting ApplicationContext. To display the condition evaluation report re-run your application with 'debug' enabled. 
-{"@timestamp":"2026-10-01T13:25:05.6955802+05:30","level":"INFO","service":"ReportService","traceId":"","userId":"","clientIp":"","apiPath":"","class":"o.s.b.a.l.ConditionEvaluationReportLogger","message":"\r\n\r\nError starting ApplicationContext. To display the condition evaluation report re-run your application with 'debug' enabled.","stack_trace":""}
-2026-10-01 13:25:05.715 ERROR [main] o.s.b.SpringApplication: Application run failed 
-org.springframework.beans.factory.UnsatisfiedDependencyException: Error creating bean with name 'reportController' defined in file [E:\Workspace\Fincore_main\Fincore Git\Backend\fincore_report_service\target\classes\com\fincore\ReportService\controller\ReportController.class]: Unsatisfied dependency expressed through constructor parameter 0: Error creating bean with name 'reportServiceImpl': Injection of autowired dependencies failed
-        at org.springframework.beans.factory.support.ConstructorResolver.createArgumentArray(ConstructorResolver.java:804)
-        at org.springframework.beans.factory.support.ConstructorResolver.autowireConstructor(ConstructorResolver.java:240)
-        at org.springframework.beans.factory.support.AbstractAutowireCapableBeanFactory.autowireConstructor(AbstractAutowireCapableBeanFactory.java:1380)
-        at org.springframework.beans.factory.support.AbstractAutowireCapableBeanFactory.createBeanInstance(AbstractAutowireCapableBeanFactory.java:1219)
-        at org.springframework.beans.factory.support.AbstractAutowireCapableBeanFactory.doCreateBean(AbstractAutowireCapableBeanFactory.java:565)
-        at org.springframework.beans.factory.support.AbstractAutowireCapableBeanFactory.createBean(AbstractAutowireCapableBeanFactory.java:525)
-        at org.springframework.beans.factory.support.AbstractBeanFactory.lambda$doGetBean$0(AbstractBeanFactory.java:333)
-        at org.springframework.beans.factory.support.DefaultSingletonBeanRegistry.getSingleton(DefaultSingletonBeanRegistry.java:371)
-        at org.springframework.beans.factory.support.AbstractBeanFactory.doGetBean(AbstractBeanFactory.java:331)
-        at org.springframework.beans.factory.support.AbstractBeanFactory.getBean(AbstractBeanFactory.java:196)
-        at org.springframework.beans.factory.support.DefaultListableBeanFactory.instantiateSingleton(DefaultListableBeanFactory.java:1225)
-        at org.springframework.beans.factory.support.DefaultListableBeanFactory.preInstantiateSingleton(DefaultListableBeanFactory.java:1191)
-        at org.springframework.beans.factory.support.DefaultListableBeanFactory.preInstantiateSingletons(DefaultListableBeanFactory.java:1121)
-        at org.springframework.context.support.AbstractApplicationContext.finishBeanFactoryInitialization(AbstractApplicationContext.java:994)
-        at org.springframework.context.support.AbstractApplicationContext.refresh(AbstractApplicationContext.java:621)
-        at org.springframework.boot.web.server.servlet.context.ServletWebServerApplicationContext.refresh(ServletWebServerApplicationContext.java:143)
-        at org.springframework.boot.SpringApplication.refresh(SpringApplication.java:756)
-        at org.springframework.boot.SpringApplication.refreshContext(SpringApplication.java:445)
-        at org.springframework.boot.SpringApplication.run(SpringApplication.java:321)
-        at org.springframework.boot.SpringApplication.run(SpringApplication.java:1365)
-        at org.springframework.boot.SpringApplication.run(SpringApplication.java:1354)
-        at com.fincore.ReportService.ReportServiceApplication.main(ReportServiceApplication.java:10)
-Caused by: org.springframework.beans.factory.BeanCreationException: Error creating bean with name 'reportServiceImpl': Injection of autowired dependencies failed
-        at org.springframework.beans.factory.annotation.AutowiredAnnotationBeanPostProcessor.postProcessProperties(AutowiredAnnotationBeanPostProcessor.java:499)
-        at org.springframework.beans.factory.support.AbstractAutowireCapableBeanFactory.populateBean(AbstractAutowireCapableBeanFactory.java:1444)
-        at org.springframework.beans.factory.support.AbstractAutowireCapableBeanFactory.doCreateBean(AbstractAutowireCapableBeanFactory.java:602)
-        at org.springframework.beans.factory.support.AbstractAutowireCapableBeanFactory.createBean(AbstractAutowireCapableBeanFactory.java:525)
-        at org.springframework.beans.factory.support.AbstractBeanFactory.lambda$doGetBean$0(AbstractBeanFactory.java:333)
-        at org.springframework.beans.factory.support.DefaultSingletonBeanRegistry.getSingleton(DefaultSingletonBeanRegistry.java:371)
-        at org.springframework.beans.factory.support.AbstractBeanFactory.doGetBean(AbstractBeanFactory.java:331)
-        at org.springframework.beans.factory.support.AbstractBeanFactory.getBean(AbstractBeanFactory.java:201)
-        at org.springframework.beans.factory.config.DependencyDescriptor.resolveCandidate(DependencyDescriptor.java:229)
-        at org.springframework.beans.factory.support.DefaultListableBeanFactory.doResolveDependency(DefaultListableBeanFactory.java:1769)
-        at org.springframework.beans.factory.support.DefaultListableBeanFactory.resolveDependency(DefaultListableBeanFactory.java:1658)
-        at org.springframework.beans.factory.support.ConstructorResolver.resolveAutowiredArgument(ConstructorResolver.java:912)
-        at org.springframework.beans.factory.support.ConstructorResolver.createArgumentArray(ConstructorResolver.java:791)
-        ... 21 common frames omitted
-Caused by: org.springframework.util.PlaceholderResolutionException: Could not resolve placeholder 'notification.progress.topic' in value "${notification.progress.topic}"
-        at org.springframework.util.PlaceholderResolutionException.withValue(PlaceholderResolutionException.java:81)
-        at org.springframework.util.PlaceholderParser$ParsedValue.resolve(PlaceholderParser.java:296)
-        at org.springframework.util.PlaceholderParser.replacePlaceholders(PlaceholderParser.java:129)
-        at org.springframework.util.PropertyPlaceholderHelper.replacePlaceholders(PropertyPlaceholderHelper.java:96)
-        at org.springframework.core.env.AbstractPropertyResolver.doResolvePlaceholders(AbstractPropertyResolver.java:286)
-        at org.springframework.core.env.AbstractPropertyResolver.resolveRequiredPlaceholders(AbstractPropertyResolver.java:257)
-        at org.springframework.context.support.PropertySourcesPlaceholderConfigurer.lambda$processProperties$0(PropertySourcesPlaceholderConfigurer.java:184)
-        at org.springframework.beans.factory.support.AbstractBeanFactory.resolveEmbeddedValue(AbstractBeanFactory.java:959)
-        at org.springframework.beans.factory.support.DefaultListableBeanFactory.doResolveDependency(DefaultListableBeanFactory.java:1679)
-        at org.springframework.beans.factory.support.DefaultListableBeanFactory.resolveDependency(DefaultListableBeanFactory.java:1658)
-        at org.springframework.beans.factory.annotation.AutowiredAnnotationBeanPostProcessor$AutowiredFieldElement.resolveFieldValue(AutowiredAnnotationBeanPostProcessor.java:764)
-        at org.springframework.beans.factory.annotation.AutowiredAnnotationBeanPostProcessor$AutowiredFieldElement.inject(AutowiredAnnotationBeanPostProcessor.java:748)
-        at org.springframework.beans.factory.annotation.InjectionMetadata.inject(InjectionMetadata.java:146)
-        at org.springframework.beans.factory.annotation.AutowiredAnnotationBeanPostProcessor.postProcessProperties(AutowiredAnnotationBeanPostProcessor.java:493)
-        ... 33 common frames omitted
-{"@timestamp":"2026-10-01T13:25:05.7151451+05:30","level":"ERROR","service":"ReportService","traceId":"","userId":"","clientIp":"","apiPath":"","class":"o.springframework.boot.SpringApplication","message":"Application run failed","stack_trace":"org.springframework.beans.factory.UnsatisfiedDependencyException: Error creating bean with name 'reportController' defined in file [E:\\Workspace\\Fincore_main\\Fincore Git\\Backend\\fincore_report_service\\target\\classes\\com\\fincore\\ReportService\\controller\\ReportController.class]: Unsatisfied dependency expressed through constructor parameter 0: Error creating bean with name 'reportServiceImpl': Injection of autowired dependencies failed\r\n\tat org.springframework.beans.factory.support.ConstructorResolver.createArgumentArray(ConstructorResolver.java:804)\r\n\tat org.springframework.beans.factory.support.ConstructorResolver.autowireConstructor(ConstructorResolver.java:240)\r\n\tat org.springframework.beans.factory.support.AbstractAutowireCapableBeanFactory.autowireConstructor(AbstractAutowireCapableBeanFactory.java:1380)\r\n\tat org.springframework.beans.factory.support.AbstractAutowireCapableBeanFactory.createBeanInstance(AbstractAutowireCapableBeanFactory.java:1219)\r\n\tat org.springframework.beans.factory.support.AbstractAutowireCapableBeanFactory.doCreateBean(AbstractAutowireCapableBeanFactory.java:565)\r\n\tat org.springframework.beans.factory.support.AbstractAutowireCapableBeanFactory.createBean(AbstractAutowireCapableBeanFactory.java:525)\r\n\tat org.springframework.beans.factory.support.AbstractBeanFactory.lambda$doGetBean$0(AbstractBeanFactory.java:333)\r\n\tat org.springframework.beans.factory.support.DefaultSingletonBeanRegistry.getSingleton(DefaultSingletonBeanRegistry.java:371)\r\n\tat org.springframework.beans.factory.support.AbstractBeanFactory.doGetBean(AbstractBeanFactory.java:331)\r\n\tat org.springframework.beans.factory.support.AbstractBeanFactory.getBean(AbstractBeanFactory.java:196)\r\nCaused by: org.springframework.beans.factory.BeanCreationException: Error creating bean with name 'reportServiceImpl': Injection of autowired dependencies failed\r\n\tat org.springframework.beans.factory.annotation.AutowiredAnnotationBeanPostProcessor.postProcessProperties(AutowiredAnnotationBeanPostProcessor.java:499)\r\n\tat org.springframework.beans.factory.support.AbstractAutowireCapableBeanFactory.populateBean(AbstractAutowireCapableBeanFactory.java:1444)\r\n\tat org.springframework.beans.factory.support.AbstractAutowireCapableBeanFactory.doCreateBean(AbstractAutowireCapableBeanFactory.java:602)\r\n\tat org.springframework.beans.factory.support.AbstractAutowireCapableBeanFactory.createBean(AbstractAutowireCapableBeanFactory.java:525)\r\n\tat org.springframework.beans.factory.support.AbstractBeanFactory.lambda$doGetBean$0(AbstractBeanFactory.java:333)\r\n\tat org.springframework.beans.factory.support.DefaultSingletonBeanRegistry.getSingleton(DefaultSingletonBeanRegistry.java:371)\r\n\tat org.springframework.beans.factory.support.AbstractBeanFactory.doGetBean(AbstractBeanFactory.java:331)\r\n\tat org.springframework.beans.factory.support.AbstractBeanFactory.getBean(AbstractBeanFactory.java:201)\r\n\tat org.springframework.beans.factory.config.DependencyDescriptor.resolveCandidate(DependencyDescriptor.java:229)\r\n\tat org.springframework.beans.factory.support.DefaultListableBeanFactory.doResolveDependency(DefaultListableBeanFactory.java:1769)\r\nCaused by: org.springframework.util.PlaceholderResolutionException: Could not resolve placeholder 'notification.progress.topic' in value \"${notification.progress.topic}\"\r\n\tat org.springframework.util.PlaceholderResolutionException.withValue(PlaceholderResolutionException.java:81)\r\n\tat org.springframework.util.PlaceholderParser$ParsedValue.resolve(PlaceholderParser.java:296)\r\n\tat org.springframework.util.PlaceholderParser.replacePlaceholders(PlaceholderParser.java:129)\r\n\tat org.springframework.util.PropertyPlaceholderHelper.replacePlaceholders(PropertyPlaceholderHelper.java:96)\r\n\tat org.springframework.core.env.AbstractPropertyResolver.doResolvePlaceholders(AbstractPropertyResolver.java:286)\r\n\tat org.springframework.core.env.AbstractPropertyResolver.resolveRequiredPlaceholders(AbstractPropertyResolver.java:257)\r\n\tat org.springframework.context.support.PropertySourcesPlaceholderConfigurer.lambda$processProperties$0(PropertySourcesPlaceholderConfigurer.java:184)\r\n\tat org.springframework.beans.factory.support.AbstractBeanFactory.resolveEmbeddedValue(AbstractBeanFactory.java:959)\r\n\tat org.springframework.beans.factory.support.DefaultListableBeanFactory.doResolveDependency(DefaultListableBeanFactory.java:1679)\r\n\tat org.springframework.beans.factory.support.DefaultListableBeanFactory.resolveDependency(DefaultListableBeanFactory.java:1658)\r\n"}
-[INFO] ------------------------------------------------------------------------
-[INFO] BUILD FAILURE
-[INFO] ------------------------------------------------------------------------
-[INFO] Total time:  21.834 s
-[INFO] Finished at: 2026-10-01T13:25:07+05:30
-[INFO] ------------------------------------------------------------------------
-[ERROR] Failed to execute goal org.springframework.boot:spring-boot-maven-plugin:4.1.0:run (default-cli) on project ReportService: Process terminated with exit code: 1 -> [Help 1]
-[ERROR] 
-[ERROR] To see the full stack trace of the errors, re-run Maven with the -e switch.
-[ERROR] Re-run Maven using the -X switch to enable full debug logging.
-[ERROR] 
-[ERROR] For more information about the errors and possible solutions, please read the following articles:
-[ERROR] [Help 1] http://cwiki.apache.org/confluence/display/MAVEN/MojoExecutionException
-
++-----------------+------------+---------------------------+--------------+---------------------------+--------------+-----------------+-------+
+| CVE             | SEVERITY   | DIRECT                    | DIRECT       | AFFECTED                  | AFFECTED     | FIXED           | TYPE  |
+|                 |            | PACKAGE                   | PACKAGE      | COMPONENT                 | COMPONENT    | VERSIONS        |       |
+|                 |            |                           | VERSION      | NAME                      | VERSION      |                 |       |
++-----------------+------------+---------------------------+--------------+---------------------------+--------------+-----------------+-------+
+| CVE-2026-86350  | 💀Critical | org.apache.tomcat.embed:t | 11.0.24      | org.apache.tomcat.embed:t | 11.0.24      | [10.1.60]       | Maven |
+|                 |            | omcat-embed-core          |              | omcat-embed-core          |              | [11.0.26]       |       |
+|                 |            |                           |              |                           |              | [9.0.122]       |       |
++-----------------+------------+---------------------------+--------------+---------------------------+--------------+-----------------+-------+
+| CVE-2026-86248  | 💀Critical | org.apache.tomcat.embed:t | 11.0.24      | org.apache.tomcat.embed:t | 11.0.24      | [10.1.60]       | Maven |
+|                 |            | omcat-embed-core          |              | omcat-embed-core          |              | [11.0.26]       |       |
+|                 |            |                           |              |                           |              | [9.0.122]       |       |
++-----------------+------------+---------------------------+--------------+---------------------------+--------------+-----------------+-------+
+| CVE-2026-76183  | 💀Critical | org.apache.tomcat.embed:t | 11.0.24      | org.apache.tomcat.embed:t | 11.0.24      | [10.1.60]       | Maven |
+|                 |            | omcat-embed-core          |              | omcat-embed-core          |              | [11.0.26]       |       |
+|                 |            |                           |              |                           |              | [7.0.43]        |       |
+|                 |            |                           |              |                           |              | [9.0.122]       |       |
++-----------------+------------+---------------------------+--------------+---------------------------+--------------+-----------------+-------+
+| CVE-2026-68525  | 💀Critical | org.apache.tomcat.embed:t | 11.0.24      | org.apache.tomcat.embed:t | 11.0.24      | [10.1.58]       | Maven |
+|                 |            | omcat-embed-core          |              | omcat-embed-core          |              | [11.0.25]       |       |
+|                 |            |                           |              |                           |              | [9.0.121]       |       |
++-----------------+------------+---------------------------+--------------+---------------------------+--------------+-----------------+-------+
+| CVE-2026-65905  | 💀Critical | org.apache.tomcat.embed:t | 11.0.24      | org.apache.tomcat.embed:t | 11.0.24      | [10.1.58]       | Maven |
+|                 |            | omcat-embed-core          |              | omcat-embed-core          |              | [11.0.25]       |       |
+|                 |            |                           |              |                           |              | [9.0.121]       |       |
++-----------------+------------+---------------------------+--------------+---------------------------+--------------+-----------------+-------+
+| CVE-2026-65182  | 💀Critical | org.apache.tomcat.embed:t | 11.0.24      | org.apache.tomcat.embed:t | 11.0.24      | [10.1.58]       | Maven |
+|                 |            | omcat-embed-core          |              | omcat-embed-core          |              | [11.0.25]       |       |
+|                 |            |                           |              |                           |              | [9.0.121]       |       |
++-----------------+------------+---------------------------+--------------+---------------------------+--------------+-----------------+-------+
+| CVE-2026-59650  | 💀Critical | org.bouncycastle:bcprov-j | 1.84         | org.bouncycastle:bcprov-j | 1.84         | [1.85]          | Maven |
+|                 |            | dk18on                    |              | dk18on                    |              |                 |       |
++-----------------+------------+---------------------------+--------------+---------------------------+--------------+-----------------+-------+
+| CVE-2026-8763   | 💀Critical | org.bouncycastle:bcprov-j | 1.84         | org.bouncycastle:bcprov-j | 1.84         | [1.85]          | Maven |
+|                 |            | dk18on                    |              | dk18on                    |              |                 |       |
++-----------------+------------+---------------------------+--------------+---------------------------+--------------+-----------------+-------+
+| CVE-2026-58062  | 💀Critical | org.bouncycastle:bcprov-j | 1.84         | org.bouncycastle:bcprov-j | 1.84         | [1.85]          | Maven |
+|                 |            | dk18on                    |              | dk18on                    |              |                 |       |
++-----------------+------------+---------------------------+--------------+---------------------------+--------------+-----------------+-------+
+| CVE-2026-59313  | 💀Critical | org.springframework:sprin | 7.0.8        | org.springframework:sprin | 7.0.8        | [7.0.9]         | Maven |
+|                 |            | g-webmvc                  |              | g-webmvc                  |              |                 |       |
++-----------------+------------+---------------------------+--------------+---------------------------+--------------+-----------------+-------+
+| CVE-2026-65637  | 💀Critical | org.apache.tomcat.embed:t | 11.0.24      | org.apache.tomcat.embed:t | 11.0.24      | [10.1.58]       | Maven |
+|                 |            | omcat-embed-core          |              | omcat-embed-core          |              | [11.0.25]       |       |
+|                 |            |                           |              |                           |              | [9.0.121]       |       |
++-----------------+------------+---------------------------+--------------+---------------------------+--------------+-----------------+-------+
+| CVE-2026-93558  | 🔥High     | io.netty:netty-codec-http | 4.2.17.Final | io.netty:netty-codec-http | 4.2.17.Final | [4.1.138.Final] | Maven |
+|                 |            |                           |              |                           |              | [4.2.18.Final]  |       |
++-----------------+------------+---------------------------+--------------+---------------------------+--------------+-----------------+-------+
+| CVE-2026-93494  | 🔥High     | io.netty:netty-codec-stom | 4.2.17.Final | io.netty:netty-codec-stom | 4.2.17.Final | [4.1.138.Final] | Maven |
+|                 |            | p                         |              | p                         |              | [4.2.18.Final]  |       |
++-----------------+------------+---------------------------+--------------+---------------------------+--------------+-----------------+-------+
+| CVE-2026-100656 | 🔥High     | io.netty:netty-codec-http | 4.2.17.Final | io.netty:netty-codec-http | 4.2.17.Final | [4.1.138.Final] | Maven |
+|                 |            | 3                         |              | 3                         |              | [4.2.18.Final]  |       |
++-----------------+------------+---------------------------+--------------+---------------------------+--------------+-----------------+-------+
+| CVE-2026-100655 | 🔥High     | io.netty:netty-codec-clas | 4.2.17.Final | io.netty:netty-codec-clas | 4.2.17.Final | [4.1.138.Final] | Maven |
+|                 |            | ses-quic                  |              | ses-quic                  |              | [4.2.18.Final]  |       |
++-----------------+------------+---------------------------+--------------+---------------------------+--------------+-----------------+-------+
+| CVE-2026-100665 | 🔥High     | io.netty:netty-codec-clas | 4.2.17.Final | io.netty:netty-codec-clas | 4.2.17.Final | [4.2.18.Final]  | Maven |
+|                 |            | ses-quic                  |              | ses-quic                  |              |                 |       |
++-----------------+------------+---------------------------+--------------+---------------------------+--------------+-----------------+-------+
+| CVE-2026-100664 | 🔥High     | io.netty:netty-codec-http | 4.2.17.Final | io.netty:netty-codec-http | 4.2.17.Final | [4.2.18.Final]  | Maven |
+|                 |            | 3                         |              | 3                         |              |                 |       |
++-----------------+------------+---------------------------+--------------+---------------------------+--------------+-----------------+-------+
+| CVE-2026-100663 | 🔥High     | io.netty:netty-codec-http | 4.2.17.Final | io.netty:netty-codec-http | 4.2.17.Final | [4.2.18.Final]  | Maven |
+|                 |            | 3                         |              | 3                         |              |                 |       |
++-----------------+------------+---------------------------+--------------+---------------------------+--------------+-----------------+-------+
+| CVE-2026-100662 | 🔥High     | io.netty:netty-codec-http | 4.2.17.Final | io.netty:netty-codec-http | 4.2.17.Final | [4.2.18.Final]  | Maven |
+|                 |            | 3                         |              | 3                         |              |                 |       |
++-----------------+------------+---------------------------+--------------+---------------------------+--------------+-----------------+-------+
+| CVE-2026-100661 | 🔥High     | io.netty:netty-codec-http | 4.2.17.Final | io.netty:netty-codec-http | 4.2.17.Final | [4.2.18.Final]  | Maven |
+|                 |            | 3                         |              | 3                         |              |                 |       |
++-----------------+------------+---------------------------+--------------+---------------------------+--------------+-----------------+-------+
+| CVE-2026-100660 | 🔥High     | io.netty:netty-codec-http | 4.2.17.Final | io.netty:netty-codec-http | 4.2.17.Final | [4.2.18.Final]  | Maven |
+|                 |            | 3                         |              | 3                         |              |                 |       |
++-----------------+------------+---------------------------+--------------+---------------------------+--------------+-----------------+-------+
+| CVE-2026-100657 | 🔥High     | io.netty:netty-codec-stom | 4.2.17.Final | io.netty:netty-codec-stom | 4.2.17.Final | [4.1.138.Final] | Maven |
+|                 |            | p                         |              | p                         |              | [4.2.18.Final]  |       |
++-----------------+------------+---------------------------+--------------+---------------------------+--------------+-----------------+-------+
+| CVE-2026-93488  | 🔥High     | io.netty:netty-codec-http | 4.2.17.Final | io.netty:netty-codec-http | 4.2.17.Final | [4.1.138.Final] | Maven |
+|                 |            |                           |              |                           |              | [4.2.18.Final]  |       |
++-----------------+------------+---------------------------+--------------+---------------------------+--------------+-----------------+-------+
+| CVE-2026-93491  | 🔥High     | io.netty:netty-codec-http | 4.2.17.Final | io.netty:netty-codec-http | 4.2.17.Final | [4.1.138.Final] | Maven |
+|                 |            |                           |              |                           |              | [4.2.18.Final]  |       |
++-----------------+------------+---------------------------+--------------+---------------------------+--------------+-----------------+-------+
+| CVE-2026-90852  | 🔥High     | com.github.luben:zstd-jni | 1.5.6-10     | com.github.luben:zstd-jni | 1.5.6-10     | [1.5.7-14]      | Maven |
++-----------------+------------+---------------------------+--------------+---------------------------+--------------+-----------------+-------+
+| CVE-2026-87824  | 🔥High     | com.github.luben:zstd-jni | 1.5.6-10     | com.github.luben:zstd-jni | 1.5.6-10     | [1.5.7-14]      | Maven |
++-----------------+------------+---------------------------+--------------+---------------------------+--------------+-----------------+-------+
+| CVE-2026-89407  | 🔥High     | tools.jackson.core:jackso | 3.1.4        | tools.jackson.core:jackso | 3.1.4        | [3.1.7]         | Maven |
+|                 |            | n-core                    |              | n-core                    |              | [3.2.2]         |       |
++-----------------+------------+---------------------------+--------------+---------------------------+--------------+-----------------+-------+
+| CVE-2026-89407  | 🔥High     | com.fasterxml.jackson.cor | 2.21.4       | com.fasterxml.jackson.cor | 2.21.4       | [2.21.7]        | Maven |
+|                 |            | e:jackson-core            |              | e:jackson-core            |              | [2.22.3]        |       |
++-----------------+------------+---------------------------+--------------+---------------------------+--------------+-----------------+-------+
+| CVE-2026-91776  | 🔥High     | tools.jackson.core:jackso | 3.1.4        | tools.jackson.core:jackso | 3.1.4        | [3.1.7]         | Maven |
+|                 |            | n-databind                |              | n-databind                |              | [3.2.3]         |       |
++-----------------+------------+---------------------------+--------------+---------------------------+--------------+-----------------+-------+
+| CVE-2026-91776  | 🔥High     | com.fasterxml.jackson.cor | 2.21.4       | com.fasterxml.jackson.cor | 2.21.4       | [2.18.11]       | Maven |
+|                 |            | e:jackson-databind        |              | e:jackson-databind        |              | [2.21.7]        |       |
+|                 |            |                           |              |                           |              | [2.22.3]        |       |
++-----------------+------------+---------------------------+--------------+---------------------------+--------------+-----------------+-------+
+| CVE-2026-91777  | 🔥High     | tools.jackson.core:jackso | 3.1.4        | tools.jackson.core:jackso | 3.1.4        | [3.1.7]         | Maven |
+|                 |            | n-databind                |              | n-databind                |              | [3.2.3]         |       |
++-----------------+------------+---------------------------+--------------+---------------------------+--------------+-----------------+-------+
+| CVE-2026-91777  | 🔥High     | com.fasterxml.jackson.cor | 2.21.4       | com.fasterxml.jackson.cor | 2.21.4       | [2.18.11]       | Maven |
+|                 |            | e:jackson-databind        |              | e:jackson-databind        |              | [2.21.7]        |       |
+|                 |            |                           |              |                           |              | [2.22.3]        |       |
++-----------------+------------+---------------------------+--------------+---------------------------+--------------+-----------------+-------+
+| CVE-2026-89425  | 🔥High     | tools.jackson.core:jackso | 3.1.4        | tools.jackson.core:jackso | 3.1.4        | [3.1.7]         | Maven |
+|                 |            | n-core                    |              | n-core                    |              | [3.2.3]         |       |
++-----------------+------------+---------------------------+--------------+---------------------------+--------------+-----------------+-------+
+| CVE-2026-89425  | 🔥High     | com.fasterxml.jackson.cor | 2.21.4       | com.fasterxml.jackson.cor | 2.21.4       | [2.18.11]       | Maven |
+|                 |            | e:jackson-core            |              | e:jackson-core            |              | [2.21.7]        |       |
+|                 |            |                           |              |                           |              | [2.22.3]        |       |
++-----------------+------------+---------------------------+--------------+---------------------------+--------------+-----------------+-------+
+| CVE-2026-19203  | 🔥High     | org.eclipse.jetty:jetty-h | 12.1.10      | org.eclipse.jetty:jetty-h | 12.1.10      | [10.0.32]       | Maven |
+|                 |            | ttp                       |              | ttp                       |              | [11.0.32]       |       |
+|                 |            |                           |              |                           |              | [12.0.38]       |       |
+|                 |            |                           |              |                           |              | [12.1.12]       |       |
+|                 |            |                           |              |                           |              | [9.4.64]        |       |
++-----------------+------------+---------------------------+--------------+---------------------------+--------------+-----------------+-------+
+| CVE-2026-90560  | 🔥High     | com.github.luben:zstd-jni | 1.5.6-10     | com.github.luben:zstd-jni | 1.5.6-10     | [1.5.7-14]      | Maven |
++-----------------+------------+---------------------------+--------------+---------------------------+--------------+-----------------+-------+
+| CVE-2026-68498  | 🔥High     | tools.jackson.core:jackso | 3.1.4        | tools.jackson.core:jackso | 3.1.4        | [3.1.6]         | Maven |
+|                 |            | n-core                    |              | n-core                    |              | [3.2.2]         |       |
++-----------------+------------+---------------------------+--------------+---------------------------+--------------+-----------------+-------+
+| CVE-2026-68498  | 🔥High     | com.fasterxml.jackson.cor | 2.21.4       | com.fasterxml.jackson.cor | 2.21.4       | [2.18.10]       | Maven |
+|                 |            | e:jackson-core            |              | e:jackson-core            |              | [2.21.6]        |       |
+|                 |            |                           |              |                           |              | [2.22.2]        |       |
++-----------------+------------+---------------------------+--------------+---------------------------+--------------+-----------------+-------+
+| CVE-2026-87825  | 🔥High     | com.github.luben:zstd-jni | 1.5.6-10     | com.github.luben:zstd-jni | 1.5.6-10     | [1.5.7-14]      | Maven |
++-----------------+------------+---------------------------+--------------+---------------------------+--------------+-----------------+-------+
+| CVE-2026-87795  | 🔥High     | com.github.luben:zstd-jni | 1.5.6-10     | com.github.luben:zstd-jni | 1.5.6-10     | [1.5.7-14]      | Maven |
++-----------------+------------+---------------------------+--------------+---------------------------+--------------+-----------------+-------+
+| CVE-2026-93561  | 🔥High     | io.netty:netty-codec-memc | 4.2.17.Final | io.netty:netty-codec-memc | 4.2.17.Final | [4.1.138.Final] | Maven |
+|                 |            | ache                      |              | ache                      |              | [4.2.18.Final]  |       |
++-----------------+------------+---------------------------+--------------+---------------------------+--------------+-----------------+-------+
+| CVE-2026-93568  | 🔥High     | io.netty:netty-codec-http | 4.2.17.Final | io.netty:netty-codec-http | 4.2.17.Final | [4.2.18.Final]  | Maven |
+|                 |            | 3                         |              | 3                         |              |                 |       |
++-----------------+------------+---------------------------+--------------+---------------------------+--------------+-----------------+-------+
+| CVE-2026-93568  | 🔥High     | io.netty:netty-codec-http | 4.2.17.Final | io.netty:netty-codec-http | 4.2.17.Final | [4.1.138.Final] | Maven |
+|                 |            | 2                         |              | 2                         |              | [4.2.18.Final]  |       |
++-----------------+------------+---------------------------+--------------+---------------------------+--------------+-----------------+-------+
+| CVE-2026-93572  | 🔥High     | io.netty:netty-codec-redi | 4.2.17.Final | io.netty:netty-codec-redi | 4.2.17.Final | [4.1.138.Final] | Maven |
+|                 |            | s                         |              | s                         |              | [4.2.18.Final]  |       |
++-----------------+------------+---------------------------+--------------+---------------------------+--------------+-----------------+-------+
+|                 | 🔥High     | io.netty:netty-codec-http | 4.2.17.Final | io.netty:netty-codec-http | 4.2.17.Final | [4.1.138.Final] | Maven |
+|                 |            |                           |              |                           |              | [4.2.18.Final]  |       |
++-----------------+------------+---------------------------+--------------+---------------------------+--------------+-----------------+-------+
+| CVE-2026-93563  | 🔥High     | io.netty:netty-codec-smtp | 4.2.17.Final | io.netty:netty-codec-smtp | 4.2.17.Final | [4.1.138.Final] | Maven |
+|                 |            |                           |              |                           |              | [4.2.18.Final]  |       |
++-----------------+------------+---------------------------+--------------+---------------------------+--------------+-----------------+-------+
+|                 | 🔥High     | io.netty:netty-codec-clas | 4.2.17.Final | io.netty:netty-codec-clas | 4.2.17.Final | [4.2.18.Final]  | Maven |
+|                 |            | ses-quic                  |              | ses-quic                  |              |                 |       |
++-----------------+------------+---------------------------+--------------+---------------------------+--------------+-----------------+-------+
+| CVE-2026-93575  | 🔥High     | io.netty:netty-codec-mqtt | 4.2.17.Final | io.netty:netty-codec-mqtt | 4.2.17.Final | [4.1.138.Final] | Maven |
+|                 |            |                           |              |                           |              | [4.2.18.Final]  |       |
++-----------------+------------+---------------------------+--------------+---------------------------+--------------+-----------------+-------+
+| CVE-2026-93578  | 🔥High     | io.netty:netty-handler-ss | 4.2.17.Final | io.netty:netty-handler-ss | 4.2.17.Final | [4.1.138.Final] | Maven |
+|                 |            | l-ocsp                    |              | l-ocsp                    |              | [4.2.18.Final]  |       |
++-----------------+------------+---------------------------+--------------+---------------------------+--------------+-----------------+-------+
+|                 | 🔥High     | io.netty:netty-codec-http | 4.2.17.Final | io.netty:netty-codec-http | 4.2.17.Final | [4.2.18.Final]  | Maven |
+|                 |            | 3                         |              | 3                         |              |                 |       |
++-----------------+------------+---------------------------+--------------+---------------------------+--------------+-----------------+-------+
+|                 | 🔥High     | io.netty:netty-codec-http | 4.2.17.Final | io.netty:netty-codec-http | 4.2.17.Final | [4.2.18.Final]  | Maven |
+|                 |            | 3                         |              | 3                         |              |                 |       |
++-----------------+------------+---------------------------+--------------+---------------------------+--------------+-----------------+-------+
+| CVE-2026-93569  | 🔥High     | io.netty:netty-codec-http | 4.2.17.Final | io.netty:netty-codec-http | 4.2.17.Final | [4.1.138.Final] | Maven |
+|                 |            | 2                         |              | 2                         |              | [4.2.18.Final]  |       |
++-----------------+------------+---------------------------+--------------+---------------------------+--------------+-----------------+-------+
+|                 | 🔥High     | io.netty:netty-codec-http | 4.2.17.Final | io.netty:netty-codec-http | 4.2.17.Final | [4.2.18.Final]  | Maven |
+|                 |            | 3                         |              | 3                         |              |                 |       |
++-----------------+------------+---------------------------+--------------+---------------------------+--------------+-----------------+-------+
+| CVE-2026-93567  | 🔥High     | io.netty:netty-codec-http | 4.2.17.Final | io.netty:netty-codec-http | 4.2.17.Final | [4.1.138.Final] | Maven |
+|                 |            | 2                         |              | 2                         |              | [4.2.18.Final]  |       |
++-----------------+------------+---------------------------+--------------+---------------------------+--------------+-----------------+-------+
+|                 | 🔥High     | org.jline:jline           | 4.3.1        | org.jline:jline-remote-te | 4.3.1        | [3.30.17]       | Maven |
+|                 |            |                           |              | lnet                      |              | [4.4.3]         |       |
++-----------------+------------+---------------------------+--------------+---------------------------+--------------+-----------------+-------+
+|                 | 🔥High     | org.jline:jline           | 4.3.1        | org.jline:jline-native    | 4.3.1        | [3.30.17]       | Maven |
+|                 |            |                           |              |                           |              | [4.4.3]         |       |
++-----------------+------------+---------------------------+--------------+---------------------------+--------------+-----------------+-------+
+| CVE-2026-68763  | 🔥High     | org.apache.tomcat.embed:t | 11.0.24      | org.apache.tomcat.embed:t | 11.0.24      | [10.1.58]       | Maven |
+|                 |            | omcat-embed-core          |              | omcat-embed-core          |              | [11.0.25]       |       |
+|                 |            |                           |              |                           |              | [9.0.121]       |       |
++-----------------+------------+---------------------------+--------------+---------------------------+--------------+-----------------+-------+
+| CVE-2026-68569  | 🔥High     | org.apache.tomcat.embed:t | 11.0.24      | org.apache.tomcat.embed:t | 11.0.24      | [10.1.58]       | Maven |
+|                 |            | omcat-embed-core          |              | omcat-embed-core          |              | [11.0.25]       |       |
+|                 |            |                           |              |                           |              | [9.0.121]       |       |
++-----------------+------------+---------------------------+--------------+---------------------------+--------------+-----------------+-------+
+| CVE-2026-66422  | 🔥High     | org.apache.tomcat.embed:t | 11.0.24      | org.apache.tomcat.embed:t | 11.0.24      | [10.1.58]       | Maven |
+|                 |            | omcat-embed-core          |              | omcat-embed-core          |              | [11.0.25]       |       |
+|                 |            |                           |              |                           |              | [9.0.121]       |       |
++-----------------+------------+---------------------------+--------------+---------------------------+--------------+-----------------+-------+
+| CVE-2026-65927  | 🔥High     | org.apache.tomcat.embed:t | 11.0.24      | org.apache.tomcat.embed:t | 11.0.24      | [10.1.58]       | Maven |
+|                 |            | omcat-embed-core          |              | omcat-embed-core          |              | [11.0.25]       |       |
+|                 |            |                           |              |                           |              | [9.0.121]       |       |
++-----------------+------------+---------------------------+--------------+---------------------------+--------------+-----------------+-------+
+| CVE-2026-65183  | 🔥High     | org.apache.tomcat.embed:t | 11.0.24      | org.apache.tomcat.embed:t | 11.0.24      | [10.1.58]       | Maven |
+|                 |            | omcat-embed-core          |              | omcat-embed-core          |              | [11.0.25]       |       |
+|                 |            |                           |              |                           |              | [9.0.121]       |       |
++-----------------+------------+---------------------------+--------------+---------------------------+--------------+-----------------+-------+
+| CVE-2026-68497  | 🔥High     | com.fasterxml.jackson.cor | 2.21.4       | com.fasterxml.jackson.cor | 2.21.4       | [2.18.10]       | Maven |
+|                 |            | e:jackson-databind        |              | e:jackson-databind        |              | [2.21.6]        |       |
+|                 |            |                           |              |                           |              | [2.22.2]        |       |
++-----------------+------------+---------------------------+--------------+---------------------------+--------------+-----------------+-------+
+| CVE-2026-68497  | 🔥High     | tools.jackson.core:jackso | 3.1.4        | tools.jackson.core:jackso | 3.1.4        | [3.1.6]         | Maven |
+|                 |            | n-databind                |              | n-databind                |              | [3.2.2]         |       |
++-----------------+------------+---------------------------+--------------+---------------------------+--------------+-----------------+-------+
+| CVE-2026-58061  | 🔥High     | org.bouncycastle:bcprov-j | 1.84         | org.bouncycastle:bcprov-j | 1.84         | [1.85]          | Maven |
+|                 |            | dk18on                    |              | dk18on                    |              |                 |       |
++-----------------+------------+---------------------------+--------------+---------------------------+--------------+-----------------+-------+
+| CVE-2026-13586  | 🔥High     | org.bouncycastle:bcprov-j | 1.84         | org.bouncycastle:bcprov-j | 1.84         | [1.85]          | Maven |
+|                 |            | dk18on                    |              | dk18on                    |              |                 |       |
++-----------------+------------+---------------------------+--------------+---------------------------+--------------+-----------------+-------+
+| CVE-2026-59644  | 🔥High     | org.bouncycastle:bcprov-j | 1.84         | org.bouncycastle:bcprov-j | 1.84         | [1.85]          | Maven |
+|                 |            | dk18on                    |              | dk18on                    |              |                 |       |
++-----------------+------------+---------------------------+--------------+---------------------------+--------------+-----------------+-------+
+| CVE-2026-59651  | 🔥High     | org.bouncycastle:bcprov-j | 1.84         | org.bouncycastle:bcprov-j | 1.84         | [1.85]          | Maven |
+|                 |            | dk18on                    |              | dk18on                    |              |                 |       |
++-----------------+------------+---------------------------+--------------+---------------------------+--------------+-----------------+-------+
+| CVE-2026-58059  | 🔥High     | org.bouncycastle:bcprov-j | 1.84         | org.bouncycastle:bcprov-j | 1.84         | [1.85]          | Maven |
+|                 |            | dk18on                    |              | dk18on                    |              |                 |       |
++-----------------+------------+---------------------------+--------------+---------------------------+--------------+-----------------+-------+
+| CVE-2026-12185  | 🔥High     | org.bouncycastle:bcprov-j | 1.84         | org.bouncycastle:bcprov-j | 1.84         | [1.85]          | Maven |
+|                 |            | dk18on                    |              | dk18on                    |              |                 |       |
++-----------------+------------+---------------------------+--------------+---------------------------+--------------+-----------------+-------+
+| CVE-2026-13506  | 🔥High     | org.bouncycastle:bcprov-j | 1.84         | org.bouncycastle:bcprov-j | 1.84         | [1.85]          | Maven |
+|                 |            | dk18on                    |              | dk18on                    |              |                 |       |
++-----------------+------------+---------------------------+--------------+---------------------------+--------------+-----------------+-------+
+| CVE-2026-59646  | 🔥High     | org.bouncycastle:bcprov-j | 1.84         | org.bouncycastle:bcprov-j | 1.84         | [1.85]          | Maven |
+|                 |            | dk18on                    |              | dk18on                    |              |                 |       |
++-----------------+------------+---------------------------+--------------+---------------------------+--------------+-----------------+-------+
+| CVE-2026-14682  | 🔥High     | org.bouncycastle:bcprov-j | 1.84         | org.bouncycastle:bcprov-j | 1.84         | [1.85]          | Maven |
+|                 |            | dk18on                    |              | dk18on                    |              |                 |       |
++-----------------+------------+---------------------------+--------------+---------------------------+--------------+-----------------+-------+
+| CVE-2026-59639  | 🔥High     | org.bouncycastle:bcprov-j | 1.84         | org.bouncycastle:bcprov-j | 1.84         | [1.85]          | Maven |
+|                 |            | dk18on                    |              | dk18on                    |              |                 |       |
++-----------------+------------+---------------------------+--------------+---------------------------+--------------+-----------------+-------+
+| CVE-2026-12852  | 🔥High     | org.bouncycastle:bcprov-j | 1.84         | org.bouncycastle:bcprov-j | 1.84         | [1.85]          | Maven |
+|                 |            | dk18on                    |              | dk18on                    |              |                 |       |
++-----------------+------------+---------------------------+--------------+---------------------------+--------------+-----------------+-------+
+| CVE-2026-59645  | 🔥High     | org.bouncycastle:bcprov-j | 1.84         | org.bouncycastle:bcprov-j | 1.84         | [1.85]          | Maven |
+|                 |            | dk18on                    |              | dk18on                    |              |                 |       |
++-----------------+------------+---------------------------+--------------+---------------------------+--------------+-----------------+-------+
+| CVE-2026-12803  | 🔥High     | org.bouncycastle:bcprov-j | 1.84         | org.bouncycastle:bcprov-j | 1.84         | [1.85]          | Maven |
+|                 |            | dk18on                    |              | dk18on                    |              |                 |       |
++-----------------+------------+---------------------------+--------------+---------------------------+--------------+-----------------+-------+
+| CVE-2026-59643  | 🔥High     | org.bouncycastle:bcprov-j | 1.84         | org.bouncycastle:bcprov-j | 1.84         | [1.85]          | Maven |
+|                 |            | dk18on                    |              | dk18on                    |              |                 |       |
++-----------------+------------+---------------------------+--------------+---------------------------+--------------+-----------------+-------+
+| CVE-2026-12817  | 🔥High     | org.bouncycastle:bcprov-j | 1.84         | org.bouncycastle:bcprov-j | 1.84         | [1.85]          | Maven |
+|                 |            | dk18on                    |              | dk18on                    |              |                 |       |
++-----------------+------------+---------------------------+--------------+---------------------------+--------------+-----------------+-------+
+| CVE-2026-12802  | 🔥High     | org.bouncycastle:bcprov-j | 1.84         | org.bouncycastle:bcprov-j | 1.84         | [1.85]          | Maven |
+|                 |            | dk18on                    |              | dk18on                    |              |                 |       |
++-----------------+------------+---------------------------+--------------+---------------------------+--------------+-----------------+-------+
+| CVE-2026-12816  | 🔥High     | org.bouncycastle:bcprov-j | 1.84         | org.bouncycastle:bcprov-j | 1.84         | [1.85]          | Maven |
+|                 |            | dk18on                    |              | dk18on                    |              |                 |       |
++-----------------+------------+---------------------------+--------------+---------------------------+--------------+-----------------+-------+
+| CVE-2026-58060  | 🔥High     | org.bouncycastle:bcprov-j | 1.84         | org.bouncycastle:bcprov-j | 1.84         | [1.85]          | Maven |
+|                 |            | dk18on                    |              | dk18on                    |              |                 |       |
++-----------------+------------+---------------------------+--------------+---------------------------+--------------+-----------------+-------+
+| CVE-2026-59642  | 🔥High     | org.bouncycastle:bcprov-j | 1.84         | org.bouncycastle:bcprov-j | 1.84         | [1.85]          | Maven |
+|                 |            | dk18on                    |              | dk18on                    |              |                 |       |
++-----------------+------------+---------------------------+--------------+---------------------------+--------------+-----------------+-------+
+| CVE-2026-59649  | 🔥High     | org.bouncycastle:bcprov-j | 1.84         | org.bouncycastle:bcprov-j | 1.84         | [1.85]          | Maven |
+|                 |            | dk18on                    |              | dk18on                    |              |                 |       |
++-----------------+------------+---------------------------+-
