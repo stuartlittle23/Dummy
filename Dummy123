@@ -1,110 +1,591 @@
-import React from "react";
-import {
-  Dialog,
-  DialogContent,
-  DialogContentText,
-  DialogTitle,
-  IconButton,
-  Typography,
-  Box,
-  Fade,
-} from "@mui/material";
-import CloseSharpIcon from "@mui/icons-material/CloseSharp";
-import ErrorOutlineIcon from "@mui/icons-material/ErrorOutline";
+import React, { useEffect, useRef, useState, useCallback } from "react";
+import axios from "axios";
+import api from "../../../config/axiosConfig";
+import { useDispatch, useSelector } from "react-redux";
+import { useNavigate } from "react-router-dom";
+import { Box, InputAdornment, IconButton } from "@mui/material";
+import PersonIcon from "@mui/icons-material/Person";
 import LockIcon from "@mui/icons-material/Lock";
-import BlockIcon from "@mui/icons-material/Block";
-import SecurityIcon from "@mui/icons-material/Security";
-import AccessTimeIcon from "@mui/icons-material/AccessTime";
-import WarningAmberIcon from "@mui/icons-material/WarningAmber";
-import DoNotDisturbIcon from "@mui/icons-material/DoNotDisturb";
+import Visibility from "@mui/icons-material/Visibility";
+import VisibilityOff from "@mui/icons-material/VisibilityOff";
+import JSEncrypt from "jsencrypt";
+import LogoImg from "../../../assets/Logos/Fincore_transperent.svg";
+import LoginErrorDialog from "./LoginErrorDialog";
+import LoginWithOTP from "./LoginWithOTP";
+import fTitle from "../../../assets/Logos/Fincore_title.png";
+import UpdatePassword from "./UpdatePassword";
+import {
+  Root,
+  ContainerInner,
+  Content,
+  LeftCol,
+  RightCol,
+  LogoWrap,
+  BrandSub,
+  BigHeading,
+  SubText,
+  FeatureList,
+  FeatureItem,
+  Bullet,
+  GlassCard,
+  FormTitle,
+  StyledTextField,
+  PrimaryButton,
+  SubHeadingText,
+} from "./LoginStyles";
+import { resolveConfig } from "../../../config/EnvironmentConfig";
+import Copyright from "../../../components/Copyright";
+import { parseJwt } from "../../../utils/EncryptionUtilities";
+import { loginSuccess } from "../../../store/slices/authSlice";
+import { setMenus, setSelectedMenuItem } from "../../../store/slices/menuSlice";
+import { setTabId } from "../../../store/slices/tabSlice";
 
-// Normalized keys to match standard camelCase convention
-const iconMap = {
-  invalid: { icon: <SecurityIcon />, color: "error.main" },
-  error: { icon: <ErrorOutlineIcon />, color: "error.main" },
-  locked: { icon: <LockIcon />, color: "error.main" },
-  restricted: { icon: <BlockIcon />, color: "warning.main" },
-  rateLimit: { icon: <AccessTimeIcon />, color: "warning.main" },
-  denied: { icon: <DoNotDisturbIcon />, color: "error.main" },
-  warning: { icon: <WarningAmberIcon />, color: "warning.main" },
-};
+export default function LoginPort() {
+  const [content, setContent] = useState(null);
+  const { publicKey } = useSelector((state) => state.appConfig);
 
-// Added smooth fade transition
-const Transition = React.forwardRef(function Transition(props, ref) {
-  return <Fade ref={ref} {...props} />;
-});
+  const dispatch = useDispatch();
+  const navigate = useNavigate();
+  const menus = useSelector((state) => state.menus.menus);
 
-const LoginErrorDialog = ({
-  showErrorDialog,
-  onDialogClose,
-  title,
-  content,
-  type = "error",
-}) => {
-  // Safety fallback if an unknown type is passed
-  const { icon, color } = iconMap[type] || iconMap.error;
+  const [userId, setUserId] = useState("");
+  const [password, setPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
+
+  const [error, setError] = useState("");
+  const [passwordError, setPasswordError] = useState("");
+
+  const [page, setPage] = useState("HOME"); // HOME | UPDATE | OTP
+  const [dialogConfig, setDialogConfig] = useState({
+    show: false,
+    heading: "",
+    content: "",
+    type: "error", // invalid | error | locked | restricted | rateLimit | denied | warning
+  });
+  const [loading, setLoading] = useState(false);
+  const [userIdDisabled, setUserIdDisabled] = useState(false);
+  const [otpData, setOtpData] = useState(null);
+
+  const userIdInputRef = useRef(null);
+  const passwordInputRef = useRef(null);
+
+  // Load static content JSON
+  useEffect(() => {
+    const loadContent = async () => {
+      try {
+        const res = await axios.get("/loginContent.json");
+        setContent(res.data);
+      } catch (err) {
+        console.error("Failed to load content JSON:", err);
+      }
+    };
+    loadContent();
+  }, []);
+
+  // Focus User ID initially
+  useEffect(() => {
+    let timer;
+    if (page === "HOME" && userIdInputRef.current && !loading) {
+      timer = setTimeout(() => {
+        userIdInputRef.current.focus();
+      }, 100);
+    }
+    return () => clearTimeout(timer);
+  }, [page, loading]);
+
+  // Post-authentication navigation handler
+  useEffect(() => {
+    if (menus?.length > 0 && menus[0]?.route) {
+      const targetRoute = menus[0].hasChildren
+        ? `/choose-option${menus[0].route}`
+        : menus[0].route;
+      navigate(targetRoute, { replace: true });
+    }
+  }, [menus, navigate]);
+
+  const handleDialogClose = useCallback(() => {
+    setDialogConfig({ show: false, heading: "", content: "", type: "error" });
+  }, []);
+
+  const openLoginErrorDialog = useCallback(
+    (heading, content, type = "error") => {
+      setDialogConfig({ show: true, heading, content, type });
+    },
+    [],
+  );
+
+  const validateId = (id) => {
+    if (!id) return false;
+    const regex = /^(?:\d{7}|v\d{7}|tcs\d{7}|tcsv\d{7})$/;
+    return regex.test(id.trim().toLowerCase());
+  };
+
+  const handleUserIdChange = (raw) => {
+    if (userIdDisabled) return;
+    const val = (raw || "").replace(/\s+/g, "");
+    const m = val.match(/^([A-Za-z]*)(.*)$/);
+    let prefixCandidate = (m?.[1] || "").toLowerCase();
+    const rest = m?.[2] || "";
+
+    const allowedPrefixList = ["", "t", "tc", "tcs", "tcsv", "v"];
+    if (!allowedPrefixList.some((p) => prefixCandidate.startsWith(p))) {
+      prefixCandidate = "";
+    }
+
+    let digitsPart = rest.replace(/\D/g, "");
+    if (digitsPart.length > 7) digitsPart = digitsPart.slice(0, 7);
+
+    const newVal = prefixCandidate + digitsPart;
+    if (digitsPart.length <= 7) {
+      setUserId(newVal);
+    }
+    if (error) setError("");
+  };
+
+  const handleUserIdPaste = (e) => {
+    e.preventDefault();
+    const paste = (e.clipboardData || window.clipboardData).getData("text");
+    handleUserIdChange(paste);
+  };
+
+  // Unified Login & Validation Execution
+  const handleLogin = async (e) => {
+    if (e) e.preventDefault();
+    if (loading) return; // Prevent double-clicks
+
+    setError("");
+    setPasswordError("");
+
+    if (!validateId(userId)) {
+      setError("Invalid User ID");
+      userIdInputRef.current?.focus();
+      return;
+    }
+
+    if (!password || password.trim().length < 8) {
+      setPasswordError("Password must be at least 8 characters.");
+      passwordInputRef.current?.focus();
+      return;
+    }
+
+    if (!publicKey) {
+      openLoginErrorDialog(
+        "Initialization Error",
+        "Encryption key failed to fetch. Please refresh the page and try again.",
+        "warning",
+      );
+      return;
+    }
+
+    try {
+      setLoading(true);
+      const payloadUserId = userId.trim();
+
+      // Encrypt the password using the fetched key
+      const encryptor = new JSEncrypt();
+      encryptor.setPublicKey(publicKey);
+      const encryptedPassword = encryptor.encrypt(password);
+
+      if (!encryptedPassword) throw new Error("Encryption failed.");
+
+      const res = await api.post(`${resolveConfig("/LS")}/auth/login`, {
+        userId: payloadUserId,
+        password: encryptedPassword,
+      });
+
+      const result = res?.data?.data || {};
+
+      // Clear password from memory right after successful encryption & dispatch
+      setPassword("");
+
+      if (!result.payloadEncryptionKey) {
+        result.payloadEncryptionKey = res.headers["x-payload-key"];
+      }
+
+      if (res.status === 202 && res?.data?.success) {
+        setOtpData(result);
+        setPage("OTP");
+      } else if (res.status === 200 && res?.data?.success) {
+        handleDirectSessionEstablish(result);
+      } else {
+        openLoginErrorDialog(
+          "Login Failed",
+          result.message ||
+            res?.data?.message ||
+            "Something went wrong, please try again.",
+          "error",
+        );
+      }
+    } catch (err) {
+      console.error("Login error:", err);
+
+      // Handle Network / CORS Errors
+      if (!err.response) {
+        openLoginErrorDialog(
+          "Network Error",
+          "Unable to reach the server. Please check your internet connection.",
+          "error",
+        );
+        return;
+      }
+
+      // Handle specific HTTP Status codes
+      const status = err.response.status;
+      const errResult = err.response.data?.data || {};
+      const msg =
+        err.response.data?.message || "Something went wrong, please try again.";
+
+      if (status === 429) {
+        const retryTime =
+          err.response.headers["retry-after"] || "a few minutes";
+        openLoginErrorDialog(
+          "Too Many Requests",
+          `Maximum login attempts exceeded. Please try after ${retryTime} seconds.`,
+          "rateLimit",
+        );
+        return;
+      }
+
+      if (status === 401) {
+        openLoginErrorDialog("Invalid Credentials", msg, "invalid");
+        return;
+      }
+
+      if (status === 428) {
+        setPage("UPDATE");
+        setUserIdDisabled(true);
+        return;
+      }
+
+      // Handle API-specific business logic errors
+      if (errResult?.userStatus === "RESTRICTED") {
+        openLoginErrorDialog(
+          "Access Restricted",
+          "This system is restricted to use FinCore. Please contact the administrator.",
+          "restricted",
+        );
+        return;
+      }
+
+      if (errResult?.passwordLoginStatus === "INACTIVE") {
+        openLoginErrorDialog(
+          "Account Locked",
+          "This account is locked and cannot sign in to FinCore. Please contact the administrator.",
+          "locked",
+        );
+        return;
+      }
+
+      // Default fallback error
+      openLoginErrorDialog("Login Failed", msg, "error");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleKeyDown = (e) => {
+    if (e.key === "Enter" && !loading) {
+      e.preventDefault();
+      handleLogin();
+    }
+  };
+
+  const handlePasswordUpdateSuccess = () => {
+    setPage("HOME");
+    setUserIdDisabled(false);
+    setPassword("");
+  };
+
+  const enableEditingBackToHome = () => {
+    setPage("HOME");
+    setUserIdDisabled(false);
+    setError("");
+    setPasswordError("");
+    setPassword("");
+    setOtpData(null);
+  };
+
+  // Shared token payload & redux session hydration
+  const handleDirectSessionEstablish = (result) => {
+    if (!result?.roleData?.root_menus?.length) {
+      openLoginErrorDialog(
+        "Access Denied",
+        "You don't have enough permissions to access this application.",
+        "denied",
+      );
+      return;
+    }
+
+    const user = parseJwt(result.accessToken);
+    const tabId = crypto.randomUUID();
+
+    dispatch(loginSuccess({ token: result.accessToken, user }));
+    localStorage.setItem("payloadEncryptionKey", result.payloadEncryptionKey);
+
+    dispatch(setTabId(tabId));
+    dispatch(setMenus(result.roleData.root_menus));
+    dispatch(setSelectedMenuItem(result.roleData.root_menus[0]));
+
+    const bc = new BroadcastChannel("auth");
+    setTimeout(() => {
+      bc.postMessage({ type: "USER_LOGGED_IN", tabId, userId: user.userId });
+      bc.close(); // Memory cleanup
+    }, 1000);
+  };
+
+  if (!content) return null;
 
   return (
-    <Dialog
-      open={showErrorDialog}
-      fullWidth
-      maxWidth="sm"
-      onClose={onDialogClose}
-      TransitionComponent={Transition}
-      aria-labelledby="login-error-dialog-title"
-      aria-describedby="login-error-dialog-description"
-      sx={{
-        backdropFilter: "blur(4px)",
-        "& .MuiDialog-paper": { borderRadius: 2 },
-      }}
-    >
-      <DialogTitle
-        id="login-error-dialog-title"
+    <Root sx={{ justifyContent: "space-between", padding: 0 }}>
+      {/* ... Your Existing Layout Containers (Box, ContainerInner, Content, LeftCol) remain unchanged ... */}
+      <Box
         sx={{
-          backgroundColor: color,
-          color: "white",
+          flexGrow: 1,
           display: "flex",
           alignItems: "center",
-          justifyContent: "space-between",
-          padding: 2,
+          width: "100%",
+          py: { xs: 4, md: 6 },
+          px: { xs: 2.5, sm: 4, md: 6 },
         }}
       >
-        <Box display="flex" alignItems="center">
-          {React.cloneElement(icon, {
-            sx: { mr: 1.5, fontSize: "1.75rem" },
-            "aria-hidden": true,
-          })}
-          <Typography
-            variant="h6"
-            component="span"
-            sx={{ fontWeight: 600, fontSize: "1.1rem" }}
+        <ContainerInner>
+          <Content
+            sx={{
+              display: "flex",
+              flexDirection: { xs: "column", md: "row" },
+              gap: { xs: 5, md: 4 },
+            }}
           >
-            {title || "Error"}
-          </Typography>
-        </Box>
-        <IconButton
-          onClick={onDialogClose}
-          sx={{ color: "white" }}
-          aria-label="close dialog"
-        >
-          <CloseSharpIcon />
-        </IconButton>
-      </DialogTitle>
+            <LeftCol>
+              <LogoWrap>
+                <Box
+                  component="img"
+                  src={LogoImg}
+                  alt="Logo Icon"
+                  sx={{ width: { xs: 100, sm: 130, md: 150 }, height: "auto" }}
+                />
+                <Box sx={{ textAlign: { xs: "center", md: "left" } }}>
+                  <Box
+                    component="img"
+                    src={fTitle}
+                    alt="FinCore"
+                    sx={{
+                      height: { xs: 28, md: 35 },
+                      width: "auto",
+                      mx: { xs: "auto", md: 0 },
+                      mt: { xs: 2, md: 5 },
+                      mb: 1,
+                    }}
+                  />
+                  <BrandSub>{content?.brand?.subtitle}</BrandSub>
+                </Box>
+              </LogoWrap>
 
-      <DialogContent sx={{ padding: 3, pt: "24px !important" }}>
-        <DialogContentText
-          id="login-error-dialog-description"
-          sx={{ color: "text.primary" }}
-        >
-          <Typography variant="body1">{content}</Typography>
-        </DialogContentText>
-      </DialogContent>
-    </Dialog>
+              <Box
+                sx={{
+                  display: { xs: "none", md: "block" },
+                  mt: 2,
+                  mb: 1,
+                  textAlign: { xs: "center", md: "left" },
+                }}
+              >
+                <BigHeading>
+                  {(content?.hero?.welcomeTitle || "").split(" - ")[0]}
+                </BigHeading>
+                {content?.hero?.welcomeTitle?.includes(" - ") && (
+                  <SubHeadingText>
+                    {content?.hero?.welcomeTitle.split(" - ")[1]}
+                  </SubHeadingText>
+                )}
+              </Box>
+
+              <SubText
+                sx={{
+                  display: { xs: "none", md: "block" },
+                  textAlign: { xs: "center", md: "left" },
+                }}
+              >
+                {content?.hero?.subText}
+              </SubText>
+
+              <Box sx={{ display: { xs: "none", md: "block" }, mt: 3 }}>
+                <BigHeading>{content?.legal?.title}</BigHeading>
+                <FeatureList sx={{ mt: 2 }}>
+                  {content?.legal?.items.map((item, idx) => (
+                    <FeatureItem key={idx}>
+                      <Bullet /> {item}
+                    </FeatureItem>
+                  ))}
+                </FeatureList>
+              </Box>
+            </LeftCol>
+
+            <RightCol
+              sx={{
+                display: "flex",
+                flexDirection: "column",
+                alignItems: "center",
+                width: "100%",
+              }}
+            >
+              <GlassCard elevation={3} sx={{ width: "100%" }}>
+                <FormTitle align="center">
+                  {page === "OTP"
+                    ? "Two-Factor Verification"
+                    : content?.form?.signIn}
+                </FormTitle>
+
+                {page === "HOME" && (
+                  <form onSubmit={handleLogin}>
+                    <StyledTextField
+                      fullWidth
+                      required
+                      inputRef={userIdInputRef}
+                      label="User ID"
+                      placeholder={content?.form?.userIdPlaceholder}
+                      margin="dense"
+                      value={userId}
+                      onChange={(e) => handleUserIdChange(e.target.value)}
+                      onPaste={handleUserIdPaste}
+                      onKeyDown={handleKeyDown}
+                      error={Boolean(error)}
+                      helperText={error || " "}
+                      disabled={userIdDisabled || loading}
+                      autoComplete="username"
+                      InputProps={{
+                        startAdornment: (
+                          <InputAdornment position="start">
+                            <PersonIcon />
+                          </InputAdornment>
+                        ),
+                      }}
+                    />
+
+                    <StyledTextField
+                      fullWidth
+                      required
+                      inputRef={passwordInputRef}
+                      label="Password"
+                      placeholder="Enter your Password"
+                      type={showPassword ? "text" : "password"}
+                      margin="dense"
+                      value={password}
+                      onChange={(e) => {
+                        setPassword(e.target.value);
+                        if (passwordError) setPasswordError("");
+                      }}
+                      onKeyDown={handleKeyDown}
+                      error={Boolean(passwordError)}
+                      helperText={passwordError || " "}
+                      disabled={loading}
+                      autoComplete="current-password"
+                      InputProps={{
+                        startAdornment: (
+                          <InputAdornment position="start">
+                            <LockIcon />
+                          </InputAdornment>
+                        ),
+                        endAdornment: password.trim() && (
+                          <InputAdornment position="end">
+                            <IconButton
+                              onClick={() => setShowPassword(!showPassword)}
+                              edge="end"
+                              disabled={loading}
+                              type="button"
+                              aria-label={
+                                showPassword ? "Hide password" : "Show password"
+                              }
+                            >
+                              {showPassword ? (
+                                <Visibility />
+                              ) : (
+                                <VisibilityOff />
+                              )}
+                            </IconButton>
+                          </InputAdornment>
+                        ),
+                      }}
+                    />
+
+                    <PrimaryButton
+                      type="submit"
+                      variant="contained"
+                      disabled={
+                        loading || !userId || password.trim().length < 8
+                      }
+                    >
+                      {loading
+                        ? content?.form?.checking || "Verifying..."
+                        : content?.form?.signInButton}
+                    </PrimaryButton>
+                  </form>
+                )}
+
+                {page === "OTP" && (
+                  <LoginWithOTP
+                    userId={userId}
+                    otpData={otpData}
+                    openLoginErrorDialog={openLoginErrorDialog}
+                    onBackToHome={enableEditingBackToHome}
+                    onSessionEstablished={handleDirectSessionEstablish}
+                  />
+                )}
+
+                {page === "UPDATE" && (
+                  <UpdatePassword
+                    userId={userId}
+                    publicKey={publicKey}
+                    openLoginErrorDialog={openLoginErrorDialog}
+                    onUpdateSuccess={handlePasswordUpdateSuccess}
+                  />
+                )}
+              </GlassCard>
+
+              {/* Mobile Legal Box */}
+              <Box
+                sx={{
+                  display: { xs: "block", md: "none" },
+                  mt: 5,
+                  width: "100%",
+                }}
+              >
+                <BigHeading
+                  sx={{
+                    fontSize: { xs: "1.2rem", md: "1.5rem" },
+                    textAlign: "center",
+                    mb: 2,
+                  }}
+                >
+                  {content?.legal?.title}
+                </BigHeading>
+                <FeatureList>
+                  {content?.legal?.items.map((item, idx) => (
+                    <FeatureItem
+                      key={idx}
+                      sx={{ fontSize: { xs: "0.875rem", sm: "1rem" } }}
+                    >
+                      <Bullet /> <span style={{ flex: 1 }}>{item}</span>
+                    </FeatureItem>
+                  ))}
+                </FeatureList>
+              </Box>
+            </RightCol>
+          </Content>
+        </ContainerInner>
+      </Box>
+
+      <Box sx={{ width: "100%", zIndex: 2 }}>
+        <Copyright />
+      </Box>
+
+      {/* Passed type dynamically here */}
+      <LoginErrorDialog
+        showErrorDialog={dialogConfig.show}
+        title={dialogConfig.heading}
+        content={dialogConfig.content}
+        type={dialogConfig.type}
+        onDialogClose={handleDialogClose}
+      />
+    </Root>
   );
-};
-
-export default LoginErrorDialog;
-
-
-
-
+}
