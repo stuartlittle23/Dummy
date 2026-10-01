@@ -1,591 +1,276 @@
-import React, { useEffect, useRef, useState, useCallback } from "react";
 import axios from "axios";
-import api from "../../../config/axiosConfig";
-import { useDispatch, useSelector } from "react-redux";
-import { useNavigate } from "react-router-dom";
-import { Box, InputAdornment, IconButton } from "@mui/material";
-import PersonIcon from "@mui/icons-material/Person";
-import LockIcon from "@mui/icons-material/Lock";
-import Visibility from "@mui/icons-material/Visibility";
-import VisibilityOff from "@mui/icons-material/VisibilityOff";
-import JSEncrypt from "jsencrypt";
-import LogoImg from "../../../assets/Logos/Fincore_transperent.svg";
-import LoginErrorDialog from "./LoginErrorDialog";
-import LoginWithOTP from "./LoginWithOTP";
-import fTitle from "../../../assets/Logos/Fincore_title.png";
-import UpdatePassword from "./UpdatePassword";
-import {
-  Root,
-  ContainerInner,
-  Content,
-  LeftCol,
-  RightCol,
-  LogoWrap,
-  BrandSub,
-  BigHeading,
-  SubText,
-  FeatureList,
-  FeatureItem,
-  Bullet,
-  GlassCard,
-  FormTitle,
-  StyledTextField,
-  PrimaryButton,
-  SubHeadingText,
-} from "./LoginStyles";
-import { resolveConfig } from "../../../config/EnvironmentConfig";
-import Copyright from "../../../components/Copyright";
-import { parseJwt } from "../../../utils/EncryptionUtilities";
-import { loginSuccess } from "../../../store/slices/authSlice";
-import { setMenus, setSelectedMenuItem } from "../../../store/slices/menuSlice";
-import { setTabId } from "../../../store/slices/tabSlice";
+import { resolveConfig } from "../config/EnvironmentConfig"; // Ensure this path is correct
+import { tokenRefreshed, logoutSuccess } from "../store/slices/authSlice";
+import { parseJwt } from "../utils/EncryptionUtilities";
+import { encryptPayload, decryptPayload } from "../utils/cryptoUtil";
 
-export default function LoginPort() {
-  const [content, setContent] = useState(null);
-  const { publicKey } = useSelector((state) => state.appConfig);
+let store; // Will hold the Redux store reference
 
-  const dispatch = useDispatch();
-  const navigate = useNavigate();
-  const menus = useSelector((state) => state.menus.menus);
+// Inject store from App.js or index.js to avoid circular dependency
+export const injectStore = (_store) => {
+  store = _store;
+};
 
-  const [userId, setUserId] = useState("");
-  const [password, setPassword] = useState("");
-  const [showPassword, setShowPassword] = useState(false);
+// Create a Singleton Axios Instance
+const api = axios.create({
+  baseURL: "", // Base URL
+  withCredentials: true, // IMPORTANT: Allows sending/receiving HttpOnly Cookies
+  headers: {
+    "Content-Type": "application/json",
+  },
+});
 
-  const [error, setError] = useState("");
-  const [passwordError, setPasswordError] = useState("");
+// Create a Singleton Axios Instance
+const authClient = axios.create({
+  baseURL: "", // Base URL
+  withCredentials: true, // IMPORTANT: Allows sending/receiving HttpOnly Cookies
+  headers: {
+    "Content-Type": "application/json",
+  },
+});
 
-  const [page, setPage] = useState("HOME"); // HOME | UPDATE | OTP
-  const [dialogConfig, setDialogConfig] = useState({
-    show: false,
-    heading: "",
-    content: "",
-    type: "error", // invalid | error | locked | restricted | rateLimit | denied | warning
+// --- Request Interceptor ---
+api.interceptors.request.use(
+  async (config) => {
+    // 1. Get Token from Redux Store
+    const state = store?.getState();
+    const token = state?.auth?.token;
+
+    // 2. Attach Authorization Header
+    const isRefreshRequest = config.url?.includes("/auth/refresh-token");
+    if (!isRefreshRequest && token) {
+      config.headers.Authorization = `Bearer ${token}`;
+    }
+
+    // 3. Attach Context Header (X-Request-Type) if passed in config
+    // The hook will pass this in, or defaults to '*'
+    if (!config.headers["X-Request-Type"]) {
+      config.headers["X-Request-Type"] = "*";
+    }
+
+    // 4. Encrypt POST/PUT/PATCH request payloads
+
+    const excludedUrls = [
+      "/auth/refresh-token",
+      "/auth/start-prod",
+      "/auth/login",
+      "/auth/check-user",
+      "/admin-support/admin-execute",
+      "/admin-support/upload-script",
+      "/report-builder",
+      "/template-config",
+      "/reports/types",
+      "/reports/download",
+    ];
+
+    const shouldSkipEncryption = excludedUrls.some((url) =>
+      config.url?.includes(url),
+    );
+
+    if (
+      !shouldSkipEncryption &&
+      ["post", "put", "patch"].includes(config.method?.toLowerCase()) &&
+      config.data &&
+      !(config.data instanceof FormData)
+    ) {
+      const state = store?.getState();
+
+      const sessionKey =
+        state?.auth?.payloadEncryptionKey ||
+        localStorage.getItem("payloadEncryptionKey");
+
+      if (sessionKey) {
+        const encryptedString = await encryptPayload(config.data, sessionKey);
+
+        config.data = encryptedString;
+
+        config.headers["X-Encrypted-Payload"] = "true";
+
+        config.headers["Content-Type"] = "application/json";
+      }
+    }
+    return config;
+  },
+  (error) => Promise.reject(error),
+);
+
+// --- Response Interceptor ---
+let isRefreshing = false;
+let failedQueue = [];
+
+const processQueue = (error, token = null) => {
+  failedQueue.forEach((prom) => {
+    if (error) {
+      prom.reject(error);
+    } else {
+      prom.resolve(token);
+    }
   });
-  const [loading, setLoading] = useState(false);
-  const [userIdDisabled, setUserIdDisabled] = useState(false);
-  const [otpData, setOtpData] = useState(null);
+  failedQueue = [];
+};
 
-  const userIdInputRef = useRef(null);
-  const passwordInputRef = useRef(null);
+api.interceptors.response.use(
+  async (response) => {
+    const isEncrypted = response.headers["x-encrypted-response"] === "true";
 
-  // Load static content JSON
-  useEffect(() => {
-    const loadContent = async () => {
+    if (isEncrypted && response.data) {
+      const state = store?.getState();
+
+      const sessionKey =
+        state?.auth?.payloadEncryptionKey ||
+        localStorage.getItem("payloadEncryptionKey");
+
+      if (sessionKey) {
+        try {
+          const decryptedJsonString = await decryptPayload(
+            response.data.encryptedResponse,
+            sessionKey,
+          );
+
+          response.data = JSON.parse(decryptedJsonString);
+          console.log("decrypted reponse:", response.data);
+        } catch (error) {
+          console.error("Failed to decrypt response", error);
+
+          return Promise.reject(error);
+        }
+      }
+    }
+
+    return response;
+  },
+
+  async (error) => {
+    const originalRequest = error.config;
+
+    // Safety check to prevent infinite loops
+    if (!originalRequest || originalRequest._retryCount > 2) {
+      return Promise.reject(error);
+    }
+
+    // Extract Error Details
+    const status = error.response?.status;
+    const errorCode = error.response?.data?.error || error.response?.data?.code;
+
+    // ---------------------------------------------------------
+    // SCENARIO 1: Concurrent Login / Session Invalidated
+    // ---------------------------------------------------------
+    if (
+      status === 401 &&
+      (errorCode === "CONCURRENT_LOGIN" ||
+        errorCode === "SESSION_EXPIRED" ||
+        errorCode === "INVALID_TOKEN")
+    ) {
+      // Do NOT attempt refresh. The session is dead.
+      // We dispatch a custom event that AuthContext listens to for the Dialog
+      window.dispatchEvent(
+        new CustomEvent("auth:session-expired", {
+          detail: { reason: errorCode },
+        }),
+      );
+
+      // Clear local state immediately
+      store.dispatch(logoutSuccess());
+      return Promise.reject(error);
+    }
+
+    // ---------------------------------------------------------
+    // SCENARIO 2: Access Token Expired (Try Refresh)
+    // ---------------------------------------------------------
+    if (
+      status === 401 &&
+      errorCode === "TOKEN_EXPIRED" &&
+      !originalRequest._retry
+    ) {
+      if (isRefreshing) {
+        // If already refreshing, queue this request
+        return new Promise(function (resolve, reject) {
+          failedQueue.push({
+            resolve: (token) => {
+              originalRequest.headers["Authorization"] = "Bearer " + token;
+              resolve(api(originalRequest));
+            },
+            reject: (err) => {
+              reject(err);
+            },
+          });
+        });
+      }
+
+      originalRequest._retry = true;
+      isRefreshing = true;
+
       try {
-        const res = await axios.get("/loginContent.json");
-        setContent(res.data);
-      } catch (err) {
-        console.error("Failed to load content JSON:", err);
+        // Call Backend Refresh Endpoint
+        // Note: We don't send the refresh token in body; backend reads the Cookie
+        const response = await authClient.post(
+          `${resolveConfig("/LS") || ""}/auth/refresh-token`,
+          {},
+        );
+
+        // const { accessToken } = response?.data?.data || "";
+        const { accessToken, payloadEncryptionKey } =
+          response?.data?.data || {};
+
+        if (payloadEncryptionKey) {
+          localStorage.setItem("payloadEncryptionKey", payloadEncryptionKey);
+        }
+
+        if (accessToken) {
+          // 1. Update Redux
+          const user = parseJwt(accessToken);
+          store.dispatch(tokenRefreshed({ token: accessToken, user }));
+          api.defaults.headers.common.Authorization = `Bearer ${accessToken}`;
+
+          // 2. Process Queue
+          processQueue(null, accessToken);
+
+          // 3. Retry Original Request
+          originalRequest.headers["Authorization"] = "Bearer " + accessToken;
+          return api(originalRequest);
+        } else {
+          throw new Error("No access token returned");
+        }
+      } catch (refreshError) {
+        processQueue(refreshError, null);
+        store.dispatch(logoutSuccess());
+        window.dispatchEvent(
+          new CustomEvent("auth:session-expired", {
+            detail: { reason: "SESSION_EXPIRED" },
+          }),
+        );
+        return Promise.reject(refreshError);
+      } finally {
+        isRefreshing = false;
       }
-    };
-    loadContent();
-  }, []);
-
-  // Focus User ID initially
-  useEffect(() => {
-    let timer;
-    if (page === "HOME" && userIdInputRef.current && !loading) {
-      timer = setTimeout(() => {
-        userIdInputRef.current.focus();
-      }, 100);
-    }
-    return () => clearTimeout(timer);
-  }, [page, loading]);
-
-  // Post-authentication navigation handler
-  useEffect(() => {
-    if (menus?.length > 0 && menus[0]?.route) {
-      const targetRoute = menus[0].hasChildren
-        ? `/choose-option${menus[0].route}`
-        : menus[0].route;
-      navigate(targetRoute, { replace: true });
-    }
-  }, [menus, navigate]);
-
-  const handleDialogClose = useCallback(() => {
-    setDialogConfig({ show: false, heading: "", content: "", type: "error" });
-  }, []);
-
-  const openLoginErrorDialog = useCallback(
-    (heading, content, type = "error") => {
-      setDialogConfig({ show: true, heading, content, type });
-    },
-    [],
-  );
-
-  const validateId = (id) => {
-    if (!id) return false;
-    const regex = /^(?:\d{7}|v\d{7}|tcs\d{7}|tcsv\d{7})$/;
-    return regex.test(id.trim().toLowerCase());
-  };
-
-  const handleUserIdChange = (raw) => {
-    if (userIdDisabled) return;
-    const val = (raw || "").replace(/\s+/g, "");
-    const m = val.match(/^([A-Za-z]*)(.*)$/);
-    let prefixCandidate = (m?.[1] || "").toLowerCase();
-    const rest = m?.[2] || "";
-
-    const allowedPrefixList = ["", "t", "tc", "tcs", "tcsv", "v"];
-    if (!allowedPrefixList.some((p) => prefixCandidate.startsWith(p))) {
-      prefixCandidate = "";
     }
 
-    let digitsPart = rest.replace(/\D/g, "");
-    if (digitsPart.length > 7) digitsPart = digitsPart.slice(0, 7);
+    // ---------------------------------------------------------
+    // SCENARIO 3: Rate Limiting / Too Many Requests (429)
+    // ---------------------------------------------------------
+    if (status === 429) {
+      // Axios lowercases header keys automatically
+      const retryTime =
+        error.response.headers["retry-after"] ||
+        error.response.headers["x-retry-time"];
 
-    const newVal = prefixCandidate + digitsPart;
-    if (digitsPart.length <= 7) {
-      setUserId(newVal);
-    }
-    if (error) setError("");
-  };
+      const rateLimitMsg =
+        retryTime && !isNaN(Number(retryTime))
+          ? `Too many requests. Please retry after ${retryTime} seconds.`
+          : "Too many requests. Please try again after sometime.";
 
-  const handleUserIdPaste = (e) => {
-    e.preventDefault();
-    const paste = (e.clipboardData || window.clipboardData).getData("text");
-    handleUserIdChange(paste);
-  };
-
-  // Unified Login & Validation Execution
-  const handleLogin = async (e) => {
-    if (e) e.preventDefault();
-    if (loading) return; // Prevent double-clicks
-
-    setError("");
-    setPasswordError("");
-
-    if (!validateId(userId)) {
-      setError("Invalid User ID");
-      userIdInputRef.current?.focus();
-      return;
-    }
-
-    if (!password || password.trim().length < 8) {
-      setPasswordError("Password must be at least 8 characters.");
-      passwordInputRef.current?.focus();
-      return;
-    }
-
-    if (!publicKey) {
-      openLoginErrorDialog(
-        "Initialization Error",
-        "Encryption key failed to fetch. Please refresh the page and try again.",
-        "warning",
+      // Dispatch the event that AuthContext is listening for
+      window.dispatchEvent(
+        new CustomEvent("api:rate-limit", {
+          detail: { message: rateLimitMsg },
+        }),
       );
-      return;
+
+      return Promise.reject(error);
     }
 
-    try {
-      setLoading(true);
-      const payloadUserId = userId.trim();
+    return Promise.reject(error);
+  },
+);
 
-      // Encrypt the password using the fetched key
-      const encryptor = new JSEncrypt();
-      encryptor.setPublicKey(publicKey);
-      const encryptedPassword = encryptor.encrypt(password);
-
-      if (!encryptedPassword) throw new Error("Encryption failed.");
-
-      const res = await api.post(`${resolveConfig("/LS")}/auth/login`, {
-        userId: payloadUserId,
-        password: encryptedPassword,
-      });
-
-      const result = res?.data?.data || {};
-
-      // Clear password from memory right after successful encryption & dispatch
-      setPassword("");
-
-      if (!result.payloadEncryptionKey) {
-        result.payloadEncryptionKey = res.headers["x-payload-key"];
-      }
-
-      if (res.status === 202 && res?.data?.success) {
-        setOtpData(result);
-        setPage("OTP");
-      } else if (res.status === 200 && res?.data?.success) {
-        handleDirectSessionEstablish(result);
-      } else {
-        openLoginErrorDialog(
-          "Login Failed",
-          result.message ||
-            res?.data?.message ||
-            "Something went wrong, please try again.",
-          "error",
-        );
-      }
-    } catch (err) {
-      console.error("Login error:", err);
-
-      // Handle Network / CORS Errors
-      if (!err.response) {
-        openLoginErrorDialog(
-          "Network Error",
-          "Unable to reach the server. Please check your internet connection.",
-          "error",
-        );
-        return;
-      }
-
-      // Handle specific HTTP Status codes
-      const status = err.response.status;
-      const errResult = err.response.data?.data || {};
-      const msg =
-        err.response.data?.message || "Something went wrong, please try again.";
-
-      if (status === 429) {
-        const retryTime =
-          err.response.headers["retry-after"] || "a few minutes";
-        openLoginErrorDialog(
-          "Too Many Requests",
-          `Maximum login attempts exceeded. Please try after ${retryTime} seconds.`,
-          "rateLimit",
-        );
-        return;
-      }
-
-      if (status === 401) {
-        openLoginErrorDialog("Invalid Credentials", msg, "invalid");
-        return;
-      }
-
-      if (status === 428) {
-        setPage("UPDATE");
-        setUserIdDisabled(true);
-        return;
-      }
-
-      // Handle API-specific business logic errors
-      if (errResult?.userStatus === "RESTRICTED") {
-        openLoginErrorDialog(
-          "Access Restricted",
-          "This system is restricted to use FinCore. Please contact the administrator.",
-          "restricted",
-        );
-        return;
-      }
-
-      if (errResult?.passwordLoginStatus === "INACTIVE") {
-        openLoginErrorDialog(
-          "Account Locked",
-          "This account is locked and cannot sign in to FinCore. Please contact the administrator.",
-          "locked",
-        );
-        return;
-      }
-
-      // Default fallback error
-      openLoginErrorDialog("Login Failed", msg, "error");
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleKeyDown = (e) => {
-    if (e.key === "Enter" && !loading) {
-      e.preventDefault();
-      handleLogin();
-    }
-  };
-
-  const handlePasswordUpdateSuccess = () => {
-    setPage("HOME");
-    setUserIdDisabled(false);
-    setPassword("");
-  };
-
-  const enableEditingBackToHome = () => {
-    setPage("HOME");
-    setUserIdDisabled(false);
-    setError("");
-    setPasswordError("");
-    setPassword("");
-    setOtpData(null);
-  };
-
-  // Shared token payload & redux session hydration
-  const handleDirectSessionEstablish = (result) => {
-    if (!result?.roleData?.root_menus?.length) {
-      openLoginErrorDialog(
-        "Access Denied",
-        "You don't have enough permissions to access this application.",
-        "denied",
-      );
-      return;
-    }
-
-    const user = parseJwt(result.accessToken);
-    const tabId = crypto.randomUUID();
-
-    dispatch(loginSuccess({ token: result.accessToken, user }));
-    localStorage.setItem("payloadEncryptionKey", result.payloadEncryptionKey);
-
-    dispatch(setTabId(tabId));
-    dispatch(setMenus(result.roleData.root_menus));
-    dispatch(setSelectedMenuItem(result.roleData.root_menus[0]));
-
-    const bc = new BroadcastChannel("auth");
-    setTimeout(() => {
-      bc.postMessage({ type: "USER_LOGGED_IN", tabId, userId: user.userId });
-      bc.close(); // Memory cleanup
-    }, 1000);
-  };
-
-  if (!content) return null;
-
-  return (
-    <Root sx={{ justifyContent: "space-between", padding: 0 }}>
-      {/* ... Your Existing Layout Containers (Box, ContainerInner, Content, LeftCol) remain unchanged ... */}
-      <Box
-        sx={{
-          flexGrow: 1,
-          display: "flex",
-          alignItems: "center",
-          width: "100%",
-          py: { xs: 4, md: 6 },
-          px: { xs: 2.5, sm: 4, md: 6 },
-        }}
-      >
-        <ContainerInner>
-          <Content
-            sx={{
-              display: "flex",
-              flexDirection: { xs: "column", md: "row" },
-              gap: { xs: 5, md: 4 },
-            }}
-          >
-            <LeftCol>
-              <LogoWrap>
-                <Box
-                  component="img"
-                  src={LogoImg}
-                  alt="Logo Icon"
-                  sx={{ width: { xs: 100, sm: 130, md: 150 }, height: "auto" }}
-                />
-                <Box sx={{ textAlign: { xs: "center", md: "left" } }}>
-                  <Box
-                    component="img"
-                    src={fTitle}
-                    alt="FinCore"
-                    sx={{
-                      height: { xs: 28, md: 35 },
-                      width: "auto",
-                      mx: { xs: "auto", md: 0 },
-                      mt: { xs: 2, md: 5 },
-                      mb: 1,
-                    }}
-                  />
-                  <BrandSub>{content?.brand?.subtitle}</BrandSub>
-                </Box>
-              </LogoWrap>
-
-              <Box
-                sx={{
-                  display: { xs: "none", md: "block" },
-                  mt: 2,
-                  mb: 1,
-                  textAlign: { xs: "center", md: "left" },
-                }}
-              >
-                <BigHeading>
-                  {(content?.hero?.welcomeTitle || "").split(" - ")[0]}
-                </BigHeading>
-                {content?.hero?.welcomeTitle?.includes(" - ") && (
-                  <SubHeadingText>
-                    {content?.hero?.welcomeTitle.split(" - ")[1]}
-                  </SubHeadingText>
-                )}
-              </Box>
-
-              <SubText
-                sx={{
-                  display: { xs: "none", md: "block" },
-                  textAlign: { xs: "center", md: "left" },
-                }}
-              >
-                {content?.hero?.subText}
-              </SubText>
-
-              <Box sx={{ display: { xs: "none", md: "block" }, mt: 3 }}>
-                <BigHeading>{content?.legal?.title}</BigHeading>
-                <FeatureList sx={{ mt: 2 }}>
-                  {content?.legal?.items.map((item, idx) => (
-                    <FeatureItem key={idx}>
-                      <Bullet /> {item}
-                    </FeatureItem>
-                  ))}
-                </FeatureList>
-              </Box>
-            </LeftCol>
-
-            <RightCol
-              sx={{
-                display: "flex",
-                flexDirection: "column",
-                alignItems: "center",
-                width: "100%",
-              }}
-            >
-              <GlassCard elevation={3} sx={{ width: "100%" }}>
-                <FormTitle align="center">
-                  {page === "OTP"
-                    ? "Two-Factor Verification"
-                    : content?.form?.signIn}
-                </FormTitle>
-
-                {page === "HOME" && (
-                  <form onSubmit={handleLogin}>
-                    <StyledTextField
-                      fullWidth
-                      required
-                      inputRef={userIdInputRef}
-                      label="User ID"
-                      placeholder={content?.form?.userIdPlaceholder}
-                      margin="dense"
-                      value={userId}
-                      onChange={(e) => handleUserIdChange(e.target.value)}
-                      onPaste={handleUserIdPaste}
-                      onKeyDown={handleKeyDown}
-                      error={Boolean(error)}
-                      helperText={error || " "}
-                      disabled={userIdDisabled || loading}
-                      autoComplete="username"
-                      InputProps={{
-                        startAdornment: (
-                          <InputAdornment position="start">
-                            <PersonIcon />
-                          </InputAdornment>
-                        ),
-                      }}
-                    />
-
-                    <StyledTextField
-                      fullWidth
-                      required
-                      inputRef={passwordInputRef}
-                      label="Password"
-                      placeholder="Enter your Password"
-                      type={showPassword ? "text" : "password"}
-                      margin="dense"
-                      value={password}
-                      onChange={(e) => {
-                        setPassword(e.target.value);
-                        if (passwordError) setPasswordError("");
-                      }}
-                      onKeyDown={handleKeyDown}
-                      error={Boolean(passwordError)}
-                      helperText={passwordError || " "}
-                      disabled={loading}
-                      autoComplete="current-password"
-                      InputProps={{
-                        startAdornment: (
-                          <InputAdornment position="start">
-                            <LockIcon />
-                          </InputAdornment>
-                        ),
-                        endAdornment: password.trim() && (
-                          <InputAdornment position="end">
-                            <IconButton
-                              onClick={() => setShowPassword(!showPassword)}
-                              edge="end"
-                              disabled={loading}
-                              type="button"
-                              aria-label={
-                                showPassword ? "Hide password" : "Show password"
-                              }
-                            >
-                              {showPassword ? (
-                                <Visibility />
-                              ) : (
-                                <VisibilityOff />
-                              )}
-                            </IconButton>
-                          </InputAdornment>
-                        ),
-                      }}
-                    />
-
-                    <PrimaryButton
-                      type="submit"
-                      variant="contained"
-                      disabled={
-                        loading || !userId || password.trim().length < 8
-                      }
-                    >
-                      {loading
-                        ? content?.form?.checking || "Verifying..."
-                        : content?.form?.signInButton}
-                    </PrimaryButton>
-                  </form>
-                )}
-
-                {page === "OTP" && (
-                  <LoginWithOTP
-                    userId={userId}
-                    otpData={otpData}
-                    openLoginErrorDialog={openLoginErrorDialog}
-                    onBackToHome={enableEditingBackToHome}
-                    onSessionEstablished={handleDirectSessionEstablish}
-                  />
-                )}
-
-                {page === "UPDATE" && (
-                  <UpdatePassword
-                    userId={userId}
-                    publicKey={publicKey}
-                    openLoginErrorDialog={openLoginErrorDialog}
-                    onUpdateSuccess={handlePasswordUpdateSuccess}
-                  />
-                )}
-              </GlassCard>
-
-              {/* Mobile Legal Box */}
-              <Box
-                sx={{
-                  display: { xs: "block", md: "none" },
-                  mt: 5,
-                  width: "100%",
-                }}
-              >
-                <BigHeading
-                  sx={{
-                    fontSize: { xs: "1.2rem", md: "1.5rem" },
-                    textAlign: "center",
-                    mb: 2,
-                  }}
-                >
-                  {content?.legal?.title}
-                </BigHeading>
-                <FeatureList>
-                  {content?.legal?.items.map((item, idx) => (
-                    <FeatureItem
-                      key={idx}
-                      sx={{ fontSize: { xs: "0.875rem", sm: "1rem" } }}
-                    >
-                      <Bullet /> <span style={{ flex: 1 }}>{item}</span>
-                    </FeatureItem>
-                  ))}
-                </FeatureList>
-              </Box>
-            </RightCol>
-          </Content>
-        </ContainerInner>
-      </Box>
-
-      <Box sx={{ width: "100%", zIndex: 2 }}>
-        <Copyright />
-      </Box>
-
-      {/* Passed type dynamically here */}
-      <LoginErrorDialog
-        showErrorDialog={dialogConfig.show}
-        title={dialogConfig.heading}
-        content={dialogConfig.content}
-        type={dialogConfig.type}
-        onDialogClose={handleDialogClose}
-      />
-    </Root>
-  );
-}
+export default api;
