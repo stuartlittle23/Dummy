@@ -156,5 +156,107 @@ public class ReportController {
 
 
 
+        Maximum pool size: undefined/unknown 
+{"@timestamp":"2026-10-01T13:25:02.4592471+05:30","level":"INFO","service":"ReportService","traceId":"","userId":"","clientIp":"","apiPath":"","class":"org.hibernate.orm.connections.pooling","message":"HHH10001005: Database info:\n\tDatabase JDBC URL [jdbc:oracle:thin:@10.177.103.192:1523/fincorepdb1]\n\tDatabase driver: Oracle JDBC driver\n\tDatabase dialect: OracleDialect\n\tDatabase version: 19.32\n\tDefault catalog/schema: undefined/FINCORE\n\tAutocommit mode: undefined/unknown\n\tIsolation level: READ_COMMITTED [default READ_COMMITTED]\n\tJDBC fetch size: 10\n\tPool: DataSourceConnectionProvider\n\tMinimum pool size: undefined/unknown\n\tMaximum pool size: undefined/unknown","stack_trace":""}
+2026-10-01 13:25:03.254 INFO  [main] o.h.e.t.j.p.i.JtaPlatformInitiator: HHH000489: No JTA platform available (set 'hibernate.transaction.jta.platform' to enable JTA platform integration) 
+{"@timestamp":"2026-10-01T13:25:03.2541857+05:30","level":"INFO","service":"ReportService","traceId":"","userId":"","clientIp":"","apiPath":"","class":"org.hibernate.orm.core","message":"HHH000489: No JTA platform available (set 'hibernate.transaction.jta.platform' to enable JTA platform integration)","stack_trace":""}
+2026-10-01 13:25:03.262 INFO  [main] o.s.o.j.AbstractEntityManagerFactoryBean: Initialized JPA EntityManagerFactory for persistence unit 'default' 
+{"@timestamp":"2026-10-01T13:25:03.2621934+05:30","level":"INFO","service":"ReportService","traceId":"","userId":"","clientIp":"","apiPath":"","class":"o.s.o.j.LocalContainerEntityManagerFactoryBean","message":"Initialized JPA EntityManagerFactory for persistence unit 'default'","stack_trace":""}
+2026-10-01 13:25:03.320 INFO  [main] c.f.R.c.JasperTemplateRegistry: Loading intr_report 
+{"@timestamp":"2026-10-01T13:25:03.3207035+05:30","level":"INFO","service":"ReportService","traceId":"","userId":"","clientIp":"","apiPath":"","class":"c.f.R.config.JasperTemplateRegistry","message":"Loading intr_report","stack_trace":""}
+2026-10-01 13:25:03.948 INFO  [main] c.f.R.c.JasperTemplateRegistry: Loading profit_transfer_report 
+{"@timestamp":"2026-10-01T13:25:03.9480406+05:30","level":"INFO","service":"ReportService","traceId":"","userId":"","clientIp":"","apiPath":"","class":"c.f.R.config.JasperTemplateRegistry","message":"Loading profit_transfer_report","stack_trace":""}
+2026-10-01 13:25:03.982 INFO  [main] c.f.R.c.JasperTemplateRegistry: Loading balance_compare_report 
+{"@timestamp":"2026-10-01T13:25:03.9825735+05:30","level":"INFO","service":"ReportService","traceId":"","userId":"","clientIp":"","apiPath":"","class":"c.f.R.config.JasperTemplateRegistry","message":"Loading balance_compare_report","stack_trace":""}
+2026-10-01 13:25:04.014 INFO  [main] c.f.R.c.JasperTemplateRegistry: Loading cntr_report 
+{"@timestamp":"2026-10-01T13:25:04.0145762+05:30","level":"INFO","service":"ReportService","traceId":"","userId":"","clientIp":"","apiPath":"","class":"c.f.R.config.JasperTemplateRegistry","message":"Loading cntr_report","stack_trace":""}
+2026-10-01 13:25:04.046 INFO  [main] c.f.R.c.JasperTemplateRegistry: Loading profit_transactions 
+{"@timestamp":"2026-10-01T13:25:04.0461809+05:30","level":"INFO","service":"ReportService","traceId":"","userId":"","clientIp":"","apiPath":"","class":"c.f.R.config.JasperTemplateRegistry","message":"Loading profit_transactions","stack_trace":""}
+2026-10-01 13:25:04.213 INFO  [main] o.s.d.j.r.q.QueryEnhancerFactories: Hibernate is in classpath; If applicable, HQL parser will be used. 
+{"@timestamp":"2026-10-01T13:25:04.2138154+05:30","level":"INFO","service":"ReportService","traceId":"","userId":"","clientIp":"","apiPath":"","class":"o.s.d.j.r.query.QueryEnhancerFactories","message":"Hibernate is in classpath; If applicable, HQL parser will be used.","stack_trace":""}
+2026-10-01 13:25:04.327 INFO  [main] c.f.R.c.HadoopConfig: Initializing HDFS connection to: hdfs://10.177.103.199:8022 as user: root 
+{"@timestamp":"2026-10-01T13:25:04.3273394+05:30","level":"INFO","service":"ReportService","traceId":"","userId":"","clientIp":"","apiPath":"","class":"c.f.ReportService.config.HadoopConfig","message":"Initializing HDFS connection to: hdfs://10.177.103.199:8022 as user: root","stack_trace":""}
+2026-10-01 13:25:05.453 WARN  [main] o.s.c.s.AbstractApplicationContext: Exception encountered during context initialization - cancelling refresh attempt: org.springframework.beans.factory.UnsatisfiedDependencyException: Error creating bean with name 'reportController' defined in file [E:\Workspace\Fincore_main\Fincore Git\Backend\fincore_report_service\target\classes\com\fincore\ReportService\controller\ReportController.class]: Unsatisfied dependency expressed through constructor parameter 0: Error creating bean with name 'reportServiceImpl': Injection of autowired dependencies failed 
+{"@timestamp":"2026-10-01T13:25:05.4534013+05:30","level":"WARN","service":"ReportService","traceId":"","userId":"","clientIp":"","apiPath":"","class":"o.s.b.w.s.s.c.AnnotationConfigServletWebServerApplicationContext","message":"Exception encountered during context initialization - cancelling refresh attempt: org.springframework.beans.factory.UnsatisfiedDependencyException: Error creating bean with name 'reportController' defined in file [E:\\Workspace\\Fincore_main\\Fincore Git\\Backend\\fincore_report_service\\target\\classes\\com\\fincore\\ReportService\\controller\\ReportController.class]: Unsatisfied dependency expressed through constructor parameter 0: Error creating bean with name 'reportServiceImpl': Injection of autowired dependencies failed","stack_trace":""}
+2026-10-01 13:25:05.454 INFO  [main] o.s.o.j.AbstractEntityManagerFactoryBean: Closing JPA EntityManagerFactory for persistence unit 'default' 
+{"@timestamp":"2026-10-01T13:25:05.4543943+05:30","level":"INFO","service":"ReportService","traceId":"","userId":"","clientIp":"","apiPath":"","class":"o.s.o.j.LocalContainerEntityManagerFactoryBean","message":"Closing JPA EntityManagerFactory for persistence unit 'default'","stack_trace":""}
+2026-10-01 13:25:05.457 INFO  [main] c.z.h.HikariDataSource: HikariPool-1 - Shutdown initiated... 
+{"@timestamp":"2026-10-01T13:25:05.4574157+05:30","level":"INFO","service":"ReportService","traceId":"","userId":"","clientIp":"","apiPath":"","class":"com.zaxxer.hikari.HikariDataSource","message":"HikariPool-1 - Shutdown initiated...","stack_trace":""}
+2026-10-01 13:25:05.636 INFO  [main] c.z.h.HikariDataSource: HikariPool-1 - Shutdown completed. 
+{"@timestamp":"2026-10-01T13:25:05.6360491+05:30","level":"INFO","service":"ReportService","traceId":"","userId":"","clientIp":"","apiPath":"","class":"com.zaxxer.hikari.HikariDataSource","message":"HikariPool-1 - Shutdown completed.","stack_trace":""}
+2026-10-01 13:25:05.670 INFO  [main] o.a.j.l.DirectJDKLog: Stopping service [Tomcat] 
+{"@timestamp":"2026-10-01T13:25:05.6707246+05:30","level":"INFO","service":"ReportService","traceId":"","userId":"","clientIp":"","apiPath":"","class":"o.apache.catalina.core.StandardService","message":"Stopping service [Tomcat]","stack_trace":""}
+2026-10-01 13:25:05.695 INFO  [main] o.s.b.a.l.ConditionEvaluationReportLogger: 
 
+Error starting ApplicationContext. To display the condition evaluation report re-run your application with 'debug' enabled. 
+{"@timestamp":"2026-10-01T13:25:05.6955802+05:30","level":"INFO","service":"ReportService","traceId":"","userId":"","clientIp":"","apiPath":"","class":"o.s.b.a.l.ConditionEvaluationReportLogger","message":"\r\n\r\nError starting ApplicationContext. To display the condition evaluation report re-run your application with 'debug' enabled.","stack_trace":""}
+2026-10-01 13:25:05.715 ERROR [main] o.s.b.SpringApplication: Application run failed 
+org.springframework.beans.factory.UnsatisfiedDependencyException: Error creating bean with name 'reportController' defined in file [E:\Workspace\Fincore_main\Fincore Git\Backend\fincore_report_service\target\classes\com\fincore\ReportService\controller\ReportController.class]: Unsatisfied dependency expressed through constructor parameter 0: Error creating bean with name 'reportServiceImpl': Injection of autowired dependencies failed
+        at org.springframework.beans.factory.support.ConstructorResolver.createArgumentArray(ConstructorResolver.java:804)
+        at org.springframework.beans.factory.support.ConstructorResolver.autowireConstructor(ConstructorResolver.java:240)
+        at org.springframework.beans.factory.support.AbstractAutowireCapableBeanFactory.autowireConstructor(AbstractAutowireCapableBeanFactory.java:1380)
+        at org.springframework.beans.factory.support.AbstractAutowireCapableBeanFactory.createBeanInstance(AbstractAutowireCapableBeanFactory.java:1219)
+        at org.springframework.beans.factory.support.AbstractAutowireCapableBeanFactory.doCreateBean(AbstractAutowireCapableBeanFactory.java:565)
+        at org.springframework.beans.factory.support.AbstractAutowireCapableBeanFactory.createBean(AbstractAutowireCapableBeanFactory.java:525)
+        at org.springframework.beans.factory.support.AbstractBeanFactory.lambda$doGetBean$0(AbstractBeanFactory.java:333)
+        at org.springframework.beans.factory.support.DefaultSingletonBeanRegistry.getSingleton(DefaultSingletonBeanRegistry.java:371)
+        at org.springframework.beans.factory.support.AbstractBeanFactory.doGetBean(AbstractBeanFactory.java:331)
+        at org.springframework.beans.factory.support.AbstractBeanFactory.getBean(AbstractBeanFactory.java:196)
+        at org.springframework.beans.factory.support.DefaultListableBeanFactory.instantiateSingleton(DefaultListableBeanFactory.java:1225)
+        at org.springframework.beans.factory.support.DefaultListableBeanFactory.preInstantiateSingleton(DefaultListableBeanFactory.java:1191)
+        at org.springframework.beans.factory.support.DefaultListableBeanFactory.preInstantiateSingletons(DefaultListableBeanFactory.java:1121)
+        at org.springframework.context.support.AbstractApplicationContext.finishBeanFactoryInitialization(AbstractApplicationContext.java:994)
+        at org.springframework.context.support.AbstractApplicationContext.refresh(AbstractApplicationContext.java:621)
+        at org.springframework.boot.web.server.servlet.context.ServletWebServerApplicationContext.refresh(ServletWebServerApplicationContext.java:143)
+        at org.springframework.boot.SpringApplication.refresh(SpringApplication.java:756)
+        at org.springframework.boot.SpringApplication.refreshContext(SpringApplication.java:445)
+        at org.springframework.boot.SpringApplication.run(SpringApplication.java:321)
+        at org.springframework.boot.SpringApplication.run(SpringApplication.java:1365)
+        at org.springframework.boot.SpringApplication.run(SpringApplication.java:1354)
+        at com.fincore.ReportService.ReportServiceApplication.main(ReportServiceApplication.java:10)
+Caused by: org.springframework.beans.factory.BeanCreationException: Error creating bean with name 'reportServiceImpl': Injection of autowired dependencies failed
+        at org.springframework.beans.factory.annotation.AutowiredAnnotationBeanPostProcessor.postProcessProperties(AutowiredAnnotationBeanPostProcessor.java:499)
+        at org.springframework.beans.factory.support.AbstractAutowireCapableBeanFactory.populateBean(AbstractAutowireCapableBeanFactory.java:1444)
+        at org.springframework.beans.factory.support.AbstractAutowireCapableBeanFactory.doCreateBean(AbstractAutowireCapableBeanFactory.java:602)
+        at org.springframework.beans.factory.support.AbstractAutowireCapableBeanFactory.createBean(AbstractAutowireCapableBeanFactory.java:525)
+        at org.springframework.beans.factory.support.AbstractBeanFactory.lambda$doGetBean$0(AbstractBeanFactory.java:333)
+        at org.springframework.beans.factory.support.DefaultSingletonBeanRegistry.getSingleton(DefaultSingletonBeanRegistry.java:371)
+        at org.springframework.beans.factory.support.AbstractBeanFactory.doGetBean(AbstractBeanFactory.java:331)
+        at org.springframework.beans.factory.support.AbstractBeanFactory.getBean(AbstractBeanFactory.java:201)
+        at org.springframework.beans.factory.config.DependencyDescriptor.resolveCandidate(DependencyDescriptor.java:229)
+        at org.springframework.beans.factory.support.DefaultListableBeanFactory.doResolveDependency(DefaultListableBeanFactory.java:1769)
+        at org.springframework.beans.factory.support.DefaultListableBeanFactory.resolveDependency(DefaultListableBeanFactory.java:1658)
+        at org.springframework.beans.factory.support.ConstructorResolver.resolveAutowiredArgument(ConstructorResolver.java:912)
+        at org.springframework.beans.factory.support.ConstructorResolver.createArgumentArray(ConstructorResolver.java:791)
+        ... 21 common frames omitted
+Caused by: org.springframework.util.PlaceholderResolutionException: Could not resolve placeholder 'notification.progress.topic' in value "${notification.progress.topic}"
+        at org.springframework.util.PlaceholderResolutionException.withValue(PlaceholderResolutionException.java:81)
+        at org.springframework.util.PlaceholderParser$ParsedValue.resolve(PlaceholderParser.java:296)
+        at org.springframework.util.PlaceholderParser.replacePlaceholders(PlaceholderParser.java:129)
+        at org.springframework.util.PropertyPlaceholderHelper.replacePlaceholders(PropertyPlaceholderHelper.java:96)
+        at org.springframework.core.env.AbstractPropertyResolver.doResolvePlaceholders(AbstractPropertyResolver.java:286)
+        at org.springframework.core.env.AbstractPropertyResolver.resolveRequiredPlaceholders(AbstractPropertyResolver.java:257)
+        at org.springframework.context.support.PropertySourcesPlaceholderConfigurer.lambda$processProperties$0(PropertySourcesPlaceholderConfigurer.java:184)
+        at org.springframework.beans.factory.support.AbstractBeanFactory.resolveEmbeddedValue(AbstractBeanFactory.java:959)
+        at org.springframework.beans.factory.support.DefaultListableBeanFactory.doResolveDependency(DefaultListableBeanFactory.java:1679)
+        at org.springframework.beans.factory.support.DefaultListableBeanFactory.resolveDependency(DefaultListableBeanFactory.java:1658)
+        at org.springframework.beans.factory.annotation.AutowiredAnnotationBeanPostProcessor$AutowiredFieldElement.resolveFieldValue(AutowiredAnnotationBeanPostProcessor.java:764)
+        at org.springframework.beans.factory.annotation.AutowiredAnnotationBeanPostProcessor$AutowiredFieldElement.inject(AutowiredAnnotationBeanPostProcessor.java:748)
+        at org.springframework.beans.factory.annotation.InjectionMetadata.inject(InjectionMetadata.java:146)
+        at org.springframework.beans.factory.annotation.AutowiredAnnotationBeanPostProcessor.postProcessProperties(AutowiredAnnotationBeanPostProcessor.java:493)
+        ... 33 common frames omitted
+{"@timestamp":"2026-10-01T13:25:05.7151451+05:30","level":"ERROR","service":"ReportService","traceId":"","userId":"","clientIp":"","apiPath":"","class":"o.springframework.boot.SpringApplication","message":"Application run failed","stack_trace":"org.springframework.beans.factory.UnsatisfiedDependencyException: Error creating bean with name 'reportController' defined in file [E:\\Workspace\\Fincore_main\\Fincore Git\\Backend\\fincore_report_service\\target\\classes\\com\\fincore\\ReportService\\controller\\ReportController.class]: Unsatisfied dependency expressed through constructor parameter 0: Error creating bean with name 'reportServiceImpl': Injection of autowired dependencies failed\r\n\tat org.springframework.beans.factory.support.ConstructorResolver.createArgumentArray(ConstructorResolver.java:804)\r\n\tat org.springframework.beans.factory.support.ConstructorResolver.autowireConstructor(ConstructorResolver.java:240)\r\n\tat org.springframework.beans.factory.support.AbstractAutowireCapableBeanFactory.autowireConstructor(AbstractAutowireCapableBeanFactory.java:1380)\r\n\tat org.springframework.beans.factory.support.AbstractAutowireCapableBeanFactory.createBeanInstance(AbstractAutowireCapableBeanFactory.java:1219)\r\n\tat org.springframework.beans.factory.support.AbstractAutowireCapableBeanFactory.doCreateBean(AbstractAutowireCapableBeanFactory.java:565)\r\n\tat org.springframework.beans.factory.support.AbstractAutowireCapableBeanFactory.createBean(AbstractAutowireCapableBeanFactory.java:525)\r\n\tat org.springframework.beans.factory.support.AbstractBeanFactory.lambda$doGetBean$0(AbstractBeanFactory.java:333)\r\n\tat org.springframework.beans.factory.support.DefaultSingletonBeanRegistry.getSingleton(DefaultSingletonBeanRegistry.java:371)\r\n\tat org.springframework.beans.factory.support.AbstractBeanFactory.doGetBean(AbstractBeanFactory.java:331)\r\n\tat org.springframework.beans.factory.support.AbstractBeanFactory.getBean(AbstractBeanFactory.java:196)\r\nCaused by: org.springframework.beans.factory.BeanCreationException: Error creating bean with name 'reportServiceImpl': Injection of autowired dependencies failed\r\n\tat org.springframework.beans.factory.annotation.AutowiredAnnotationBeanPostProcessor.postProcessProperties(AutowiredAnnotationBeanPostProcessor.java:499)\r\n\tat org.springframework.beans.factory.support.AbstractAutowireCapableBeanFactory.populateBean(AbstractAutowireCapableBeanFactory.java:1444)\r\n\tat org.springframework.beans.factory.support.AbstractAutowireCapableBeanFactory.doCreateBean(AbstractAutowireCapableBeanFactory.java:602)\r\n\tat org.springframework.beans.factory.support.AbstractAutowireCapableBeanFactory.createBean(AbstractAutowireCapableBeanFactory.java:525)\r\n\tat org.springframework.beans.factory.support.AbstractBeanFactory.lambda$doGetBean$0(AbstractBeanFactory.java:333)\r\n\tat org.springframework.beans.factory.support.DefaultSingletonBeanRegistry.getSingleton(DefaultSingletonBeanRegistry.java:371)\r\n\tat org.springframework.beans.factory.support.AbstractBeanFactory.doGetBean(AbstractBeanFactory.java:331)\r\n\tat org.springframework.beans.factory.support.AbstractBeanFactory.getBean(AbstractBeanFactory.java:201)\r\n\tat org.springframework.beans.factory.config.DependencyDescriptor.resolveCandidate(DependencyDescriptor.java:229)\r\n\tat org.springframework.beans.factory.support.DefaultListableBeanFactory.doResolveDependency(DefaultListableBeanFactory.java:1769)\r\nCaused by: org.springframework.util.PlaceholderResolutionException: Could not resolve placeholder 'notification.progress.topic' in value \"${notification.progress.topic}\"\r\n\tat org.springframework.util.PlaceholderResolutionException.withValue(PlaceholderResolutionException.java:81)\r\n\tat org.springframework.util.PlaceholderParser$ParsedValue.resolve(PlaceholderParser.java:296)\r\n\tat org.springframework.util.PlaceholderParser.replacePlaceholders(PlaceholderParser.java:129)\r\n\tat org.springframework.util.PropertyPlaceholderHelper.replacePlaceholders(PropertyPlaceholderHelper.java:96)\r\n\tat org.springframework.core.env.AbstractPropertyResolver.doResolvePlaceholders(AbstractPropertyResolver.java:286)\r\n\tat org.springframework.core.env.AbstractPropertyResolver.resolveRequiredPlaceholders(AbstractPropertyResolver.java:257)\r\n\tat org.springframework.context.support.PropertySourcesPlaceholderConfigurer.lambda$processProperties$0(PropertySourcesPlaceholderConfigurer.java:184)\r\n\tat org.springframework.beans.factory.support.AbstractBeanFactory.resolveEmbeddedValue(AbstractBeanFactory.java:959)\r\n\tat org.springframework.beans.factory.support.DefaultListableBeanFactory.doResolveDependency(DefaultListableBeanFactory.java:1679)\r\n\tat org.springframework.beans.factory.support.DefaultListableBeanFactory.resolveDependency(DefaultListableBeanFactory.java:1658)\r\n"}
+[INFO] ------------------------------------------------------------------------
+[INFO] BUILD FAILURE
+[INFO] ------------------------------------------------------------------------
+[INFO] Total time:  21.834 s
+[INFO] Finished at: 2026-10-01T13:25:07+05:30
+[INFO] ------------------------------------------------------------------------
+[ERROR] Failed to execute goal org.springframework.boot:spring-boot-maven-plugin:4.1.0:run (default-cli) on project ReportService: Process terminated with exit code: 1 -> [Help 1]
+[ERROR] 
+[ERROR] To see the full stack trace of the errors, re-run Maven with the -e switch.
+[ERROR] Re-run Maven using the -X switch to enable full debug logging.
+[ERROR] 
+[ERROR] For more information about the errors and possible solutions, please read the following articles:
+[ERROR] [Help 1] http://cwiki.apache.org/confluence/display/MAVEN/MojoExecutionException
 
