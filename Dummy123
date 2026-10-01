@@ -1,144 +1,160 @@
-package com.fincore.ReportService.config;
+package com.fincore.ReportService.controller;
 
-import com.fincore.commonutilities.buisnessobject.ControlDateService;
-import com.fincore.commonutilities.config.CommonSecurityConfig;
-import com.fincore.commonutilities.config.RedisConfig;
-import com.fincore.commonutilities.config.ResilienceConfig;
+import java.io.IOException;
+import java.util.List;
+import java.util.Map;
+
+import com.fincore.ReportService.dto.*;
 import com.fincore.commonutilities.jwt.JwtUtil;
-import com.fincore.commonutilities.logging.MdcLoggingFilter;
-import com.fincore.commonutilities.security.ContextRbacFilter;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.web.servlet.FilterRegistrationBean;
-import org.springframework.context.annotation.Bean;
-import org.springframework.context.annotation.Configuration;
-import org.springframework.context.annotation.Import;
-import org.springframework.data.redis.core.StringRedisTemplate;
-import org.springframework.security.config.annotation.web.builders.HttpSecurity;
-import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
-import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
-import org.springframework.security.config.http.SessionCreationPolicy;
-import org.springframework.security.core.userdetails.UserDetailsService;
-import org.springframework.security.core.userdetails.UsernameNotFoundException;
-import org.springframework.security.web.SecurityFilterChain;
-import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
-import jakarta.servlet.DispatcherType; // Import this is CRITICAL
-// import com.fincore.commonutilities.security.DecryptRequestBodyAdvice;
-// import com.fincore.commonutilities.util.AesEncryptionUtil;
+
+import jakarta.validation.Valid;
+import lombok.extern.slf4j.Slf4j;
+
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.*;
+import org.springframework.http.ContentDisposition;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.MediaType;
+import org.springframework.web.servlet.mvc.method.annotation.StreamingResponseBody;
+
+import com.fincore.ReportService.service.ReportService;
+
+@Slf4j
+@RestController
+@RequestMapping("/api/reports")
+public class ReportController {
+
+        private final ReportService reportService;
+        private final JwtUtil jwtUtil; // Declare an instance field
+
+        public ReportController(ReportService reportService, JwtUtil jwtUtil) {
+                this.reportService = reportService;
+                this.jwtUtil = jwtUtil;
+        }
+
+        @PostMapping("/types")
+        public List<ReportTypeDto> getReportTypes(@RequestHeader("Authorization") String token,
+                        @RequestBody ReportTypesRequest request) {
+                log.info("Received request to fetch all available report types for" +
+                                "module: {} for role: {}", request.getModuleType(),
+                                jwtUtil.getUserRoleFromToken(token));
+                return reportService.getReportTypes(jwtUtil.getUserRoleFromToken(token), request.getModuleType());
+        }
+
+        @GetMapping("/adhoc-types")
+        public List<ReportTypeDto> getAdhocReportTypes(@RequestHeader("Authorization") String token) {
+                log.info("Received request to fetch all available report types for" +
+                                "for role: {}", jwtUtil.getUserRoleFromToken(token));
+                return reportService.getAdhocReportTypes(jwtUtil.getUserRoleFromToken(token));
+        }
 
 
-/**
- * Common Security Configuration.
- * * Aligned with the "Distributed Gateway" architecture.
- * It uses the ContextRbacFilter from Common Utilities to enforce:
- * 1. Token Validity
- * 2. Single Session (Redis check)
- * 3. RBAC Permissions
- * Enforces Centralised Mdc Logging Filter, RESILIENCE4J Retry and Circuit
- * Breaker
- */
-@Configuration
-@EnableWebSecurity
-@Import({
-        RedisConfig.class,
-        JwtUtil.class,
-        CommonSecurityConfig.class,
-        ResilienceConfig.class, ControlDateService.class,
-        // AesEncryptionUtil.class,
-        // DecryptRequestBodyAdvice.class
-})
-public class SecurityConfig {
 
-    @Autowired
-    private StringRedisTemplate redisTemplate;
+        @PostMapping("/download")
+        public ResponseEntity<StreamingResponseBody> downloadReport(
+                @RequestHeader("Authorization") String token,
+                @Valid @RequestBody ReportDownloadRequest request) {
 
-    @Autowired
-    private JwtUtil jwtUtil;
+        log.info(
+                "Received report download request: fileName={}, date={}, branchCode={}, format={}",
+                request.getFileName(),
+                request.getDate(),
+                request.getBranchCode(),
+                request.getFormat()
+        );
 
-    @Autowired
-    private CommonSecurityConfig commonSecurityConfig;
+        ReportStreamResponse response =
+                reportService.downloadReportStream(
+                        request.getFileName(),
+                        request.getDate(),
+                        jwtUtil.getUserRoleFromToken(token),
+                        jwtUtil.getUserIdFromToken(token),
+                        request.getBranchCode(),
+                        request.getFormat()
+                );
 
-    // --- 1. Define Filters as Beans (Explicitly) ---
-    @Bean
-    public MdcLoggingFilter mdcLoggingFilter() {
-        return new MdcLoggingFilter(jwtUtil);
-    }
-
-    @Bean
-    public ContextRbacFilter contextRbacFilter() {
-        return new ContextRbacFilter(redisTemplate, jwtUtil);
-    }
-
-    // --- 2. Prevent Global Registration ---
-    // This stops "The Filter class ... does not have a registered order" error
-
-    @Bean
-    public FilterRegistrationBean<MdcLoggingFilter> mdcFilterRegistration(MdcLoggingFilter filter) {
-        FilterRegistrationBean<MdcLoggingFilter> registration = new FilterRegistrationBean<>(filter);
-        registration.setEnabled(false); // Disable global chain
-        return registration;
-    }
-
-    @Bean
-    public FilterRegistrationBean<ContextRbacFilter> rbacFilterRegistration(ContextRbacFilter filter) {
-        FilterRegistrationBean<ContextRbacFilter> registration = new FilterRegistrationBean<>(filter);
-        registration.setEnabled(false); // Disable global chain
-        return registration;
-    }
-
-//    @Bean
-//    public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
-//        http
-//                .csrf(csrf -> csrf.disable())
-//                .cors(cors -> cors.configurationSource(commonSecurityConfig.corsConfigurationSource()))
-//                .sessionManagement(s -> s.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
-//                .authorizeHttpRequests(authz -> authz
-//                        // Allow Async Dispatches (StreamingResponseBody) to proceed without re-auth
-//                        // checks
-//                        .dispatcherTypeMatchers(DispatcherType.ASYNC).permitAll()
-//                        .requestMatchers("/actuator/**", "/api/auth/**", "/error").permitAll()
-//                        .anyRequest().authenticated())
-//                // Add Filters using the BEAN references (methods above)
-//                .addFilterBefore(mdcLoggingFilter(), UsernamePasswordAuthenticationFilter.class)
-//                .addFilterAfter(contextRbacFilter(), MdcLoggingFilter.class);
-//
-//        return http.build();
-//    }
-
-
-    @Bean
-    public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
-        http
-                .csrf(AbstractHttpConfigurer::disable)
-                .cors(cors -> cors.configurationSource(commonSecurityConfig.corsConfigurationSource()))
-
-                // --- SECURITY FIX: Content Security Policy (CSP) ---
-                // Configured to protect against XSS/Clickjacking while preserving Swagger UI functionality
-                .headers(headers -> headers
-                        .contentSecurityPolicy(csp -> csp
-                                .policyDirectives("default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self' data:; object-src 'none'; frame-ancestors 'none';")
+        return ResponseEntity.ok()
+                .header(
+                        HttpHeaders.CONTENT_DISPOSITION,
+                        ContentDisposition
+                                .attachment()
+                                .filename(response.getDownloadFileName())
+                                .build()
+                                .toString()
+                )
+                .contentType(
+                        MediaType.parseMediaType(
+                                response.getContentType()
                         )
                 )
+                .body(response.getStreamBody());
+        }
 
-                .sessionManagement(s -> s.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
-                .authorizeHttpRequests(authz -> authz
-                        .requestMatchers("/actuator/**", "/api/auth/**", "/error", "/swagger-ui.html", "/v3/api-docs/**").permitAll()
-                        .anyRequest().authenticated()
-                )
-                // Add Filters using the BEAN references (methods above)
-                .addFilterBefore(mdcLoggingFilter(), UsernamePasswordAuthenticationFilter.class)
-                .addFilterAfter(contextRbacFilter(), MdcLoggingFilter.class);
+        @PostMapping("/create-reports")
+        public Map<String, String> createReports(@RequestHeader("Authorization") String token,
+                        @RequestBody ReportCreationDto requestBody) throws IOException {
+                // EXTRACT USER ID FROM TOKEN
+                String userId = jwtUtil.getUserIdFromToken(token);
+                return reportService.createReports(requestBody, userId);
+        }
 
-        return http.build();
-    }
+        @PostMapping("/generate-reports")
+        public ReportGenerationResponseDTO generateReports(@RequestBody ReportGenerationDTO requestBody)
+                        throws IOException {
 
-    /**
-     * Explicitly indicate that local user lookup is not supported
-     * Authentication is handled via JWT in ContextRbacFilter
-     */
-    @Bean
-    public UserDetailsService userDetailsService() {
-        return username -> {
-            throw new UsernameNotFoundException("UserDetailsService is disabled. Use JWT authentication.");
-        };
-    }
+                return reportService.generateReports(requestBody);
+        }
+
+        @PostMapping("/download-temp-reports")
+        public ResponseEntity<StreamingResponseBody> downloadTemporaryReports(
+                        @RequestHeader("Authorization") String token,
+                        @RequestBody ReportDownloadRequest request) throws IOException {
+
+                log.info("Received request to download temp report from HDFS for this criteria: {}", request);
+
+                ReportStreamResponse response = reportService.downloadTempReportStream(
+                                request.getFileName(),
+                                request.getDate(),
+                                jwtUtil.getUserRoleFromToken(token),
+                                jwtUtil.getUserIdFromToken(token),
+                                request.getRunId(), request.getFormat());
+
+                return ResponseEntity.ok()
+                                // This header tells the browser "This is a file download"
+                                .header(HttpHeaders.CONTENT_DISPOSITION,
+                                                "attachment; filename=\"" + response.getDownloadFileName() + "\"")
+                                .contentType(MediaType.APPLICATION_OCTET_STREAM)
+                                .body(response.getStreamBody());
+        }
+
+        @PostMapping("/generate/base64")
+        public ResponseEntity<ReportBase64ResponseDTO> generateReportBase64(
+                        @RequestBody ReportBase64RequestDTO request) throws IOException {
+
+                ReportBase64ResponseDTO response = reportService.generateReportBase64(request);
+
+                return ResponseEntity.ok(response);
+        }
+
+        @PostMapping("/attachment/download")
+        public ResponseEntity<ApiResponse<AttachmentDownloadResponse>> downloadAttachments(@RequestBody AttachmentDownloadRequest request){
+                              
+                               try{
+                                        log.info("inside report controller attachment endpoint");
+                                        AttachmentDownloadResponse response=reportService.downloadAttachments(request); 
+                                        return ResponseEntity.ok(ApiResponse.success(response,"Attachment downloaded successfully"));
+                               }
+                               catch(IOException e){
+                                        log.error("Attachment download failed",e); 
+                                        return ResponseEntity.ok(
+                                                ApiResponse.error(e.getMessage() == null ?"Attachment download failed.":e.getMessage())
+                                );
+                               }
+
+        }
 }
+
+
+
+
+
