@@ -1,1 +1,12 @@
+/* Fetches Technical Suspense GLIF details for the selected Date and Branch */
+@PostMapping("/get-technical-suspense-glif-details")
+public ResponseEntity<ApiResponse<List<Map<String, Object>>>> getTechnicalSuspenseGlifDetails(
+        @Valid @RequestBody TechnicalSuspenseGlifRequest request) {
 
+    return ResponseEntity.ok(
+            ApiResponse.success(
+                    branchPositionService.getTechnicalSuspenseGlifDetails(request),
+                    "Technical Suspense GLIF details fetched successfully!"
+            )
+    );
+}
