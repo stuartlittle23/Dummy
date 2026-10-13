@@ -1,12 +1,472 @@
-/* Fetches Technical Suspense GLIF details for the selected Date and Branch */
-@PostMapping("/get-technical-suspense-glif-details")
-public ResponseEntity<ApiResponse<List<Map<String, Object>>>> getTechnicalSuspenseGlifDetails(
-        @Valid @RequestBody TechnicalSuspenseGlifRequest request) {
+package com.fincore.enquiry_service.service;
+import com.fincore.enquiry_service.client.DruidRestClient;
+import com.fincore.enquiry_service.dto.*;
+import com.fincore.enquiry_service.enums.DifferenceType;
+import com.fincore.enquiry_service.repository.DifferenceRepository;
+import com.fincore.enquiry_service.repository.SuspenseTrackerRepo;
+import com.fincore.enquiry_service.service.utils.DruidQueryBuilder;
+import lombok.RequiredArgsConstructor;
+import org.apache.poi.ss.usermodel.*;
+import org.apache.poi.xssf.streaming.SXSSFSheet;
+import org.apache.poi.xssf.streaming.SXSSFWorkbook;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.jdbc.core.PreparedStatementCreator;
+import org.springframework.jdbc.core.RowCallbackHandler;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.servlet.mvc.method.annotation.StreamingResponseBody;
+import tools.jackson.core.type.TypeReference;
 
-    return ResponseEntity.ok(
-            ApiResponse.success(
-                    branchPositionService.getTechnicalSuspenseGlifDetails(request),
-                    "Technical Suspense GLIF details fetched successfully!"
-            )
-    );
+import java.io.IOException;
+import java.sql.*;
+import java.time.LocalDate;
+import java.util.*;
+import java.util.concurrent.atomic.AtomicInteger;
+import java.util.function.Consumer;
+import java.util.stream.IntStream;
+
+@RequiredArgsConstructor
+@Service
+public class BranchPositionService {
+    private final JdbcTemplate jdbcTemplate;
+    private final DifferenceRepository diffRepo;
+    private final DruidRestClient druidRestClient;
+    private final SuspenseTrackerRepo suspenseDiffRepo;
+    private final static String suspenseCgl = "1111111111";
+    private final static String suspenseTechnical = "1260505001";
+//    private final int batchSize = 100;
+
+    public String getUserDate() {
+        String query = "select users_date from fincore_date order by last_updated_date desc fetch first rows only";
+        return jdbcTemplate.queryForObject(query, String.class);
+    }
+
+    public Map<String, Page<?>> getDifference(BranchPosDifferenceReqDTO dto) {
+        Map<String, Page<?>> result = new HashMap<>();
+        String userDate = dto.getDate();
+        String branchCode = dto.getBranch();
+        DifferenceType requestedType = dto.getDifferenceType();
+        Map<String, Integer> pageModel = Optional.ofNullable(dto.getPaginationModel()).orElse(Map.of("page", 0, "pageSize", 100));
+        PageRequest pageRequest = PageRequest.of(pageModel.get("page"), pageModel.get("pageSize"));
+        if (requestedType == null) {
+            result.put("BCD", diffRepo.fetchDifferenceDatewise(branchCode, userDate, pageRequest));
+            result.put("CSD", suspenseDiffRepo.fetchDifferenceDatewise(userDate, branchCode, "1111111111", pageRequest));
+            result.put("TSD", suspenseDiffRepo.fetchDifferenceDatewise(userDate, branchCode, "1260505001", pageRequest));
+        } else {
+            result.put(requestedType.toString(), switch (requestedType) {
+                case BCD -> {
+                    yield diffRepo.fetchDifferenceDatewise(branchCode, userDate, pageRequest);
+                }
+                case CSD -> {
+                    yield suspenseDiffRepo.fetchDifferenceDatewise(userDate, branchCode, "1111111111", pageRequest);
+                }
+                case TSD -> {
+                    yield suspenseDiffRepo.fetchDifferenceDatewise(userDate, branchCode, "1260505001", pageRequest);
+                }
+            });
+        }
+        return result;
+    }
+
+    public List<?> getDetailedDifference(DetailedDifferenceReqDTO dto) {
+        LocalDate startDate = dto.getStartDate();
+        LocalDate endDate = dto.getEndDate();
+        DifferenceType type = dto.getDifferenceType();
+        String branch = dto.getBranch();
+        String currency = dto.getCurrency();
+        String cgl = dto.getCgl();
+        return switch (type) {
+            case BCD -> {
+                yield diffRepo.fetchDetailedDifference(branch, endDate, startDate, cgl, currency);
+            }
+            case CSD -> {
+                yield suspenseDiffRepo.fetchDetailedDifference(endDate, startDate, branch, "1111111111", currency);
+            }
+            case TSD -> {
+                yield suspenseDiffRepo.fetchDetailedDifference(endDate, startDate, branch, "1260505001", currency);
+            }
+        };
+    }
+
+    @Transactional(readOnly = true)
+    public StreamingResponseBody exportDifferenceData(BranchPosDifferenceReqDTO req) {
+        String branchCode = req.getBranch();
+        String userDate = req.getDate();
+        DifferenceType differenceType = req.getDifferenceType();
+        final SXSSFWorkbook workbook = new SXSSFWorkbook(100);
+
+        SXSSFSheet sheet = workbook.createSheet(req.getDifferenceType().toString());
+        sheet.trackAllColumnsForAutoSizing();
+        Map<String, CellStyle> styles = getCellStyles(workbook);
+        CellStyle numberStyle = styles.get("numeric");
+
+        final AtomicInteger rowNum = new AtomicInteger(0);
+
+        String queryBalCom = """
+                SELECT TO_CHAR(recon_run_date, 'DD-MM-YYYY') as report_date,TO_CHAR(first_error_date, 'DD-MM-YYYY') as first_error_date,branch_code,currency,cgl,cbs_balance,gl_balance,difference_amount,diff_bw_yesterday,type,head
+                FROM difference WHERE branch_code =?
+                AND recon_run_date = to_date(?, 'YYYY-MM-DD')
+                and difference_amount <> 0
+                """;
+
+        String querySuspense = """
+                SELECT TO_CHAR(balance_date, 'DD-MM-YYYY') as report_date,TO_CHAR(first_error_date, 'DD-MM-YYYY') as first_error_date,branch_code,currency,cgl,balance,inr_balance,type
+                FROM SUSPENSE_TRACKER
+                WHERE branch_code = ?
+                AND balance_date = to_date( ?, 'YYYY-MM-DD')
+                AND cgl = ?
+                AND balance <> 0
+                """;
+
+        int columnCount = 0;
+        Map<String, Object> queryMeta = new HashMap<>();
+        List<Object> parameters = new ArrayList<>();
+        parameters.add(branchCode);
+        parameters.add(userDate);
+        switch ((DifferenceType) differenceType) {
+            case BCD -> {
+                columnCount = 11;
+                queryMeta.put("query", queryBalCom);
+            }
+            case CSD -> {
+                columnCount = 8;
+                queryMeta.put("query", querySuspense);
+                parameters.add(suspenseCgl);
+            }
+            case TSD -> {
+                columnCount = 8;
+                queryMeta.put("query", queryBalCom);
+                parameters.add(suspenseTechnical);
+            }
+        }
+        queryMeta.put("parameters", parameters);
+
+        RowCallbackHandler handler = getHandler(sheet, rowNum, columnCount, numberStyle);
+        executeQuery(queryMeta, handler);
+
+        return outputStream -> {
+            autoSizeSheetAndUntrack(sheet);
+            workbook.write(outputStream);
+            workbook.close(); // Deletes temp files
+        };
+    }
+
+    @Transactional(readOnly = true)
+    public StreamingResponseBody exportDetailedDiff(DetailedDifferenceReqDTO dto) {
+        String branchCode = dto.getBranch();
+        LocalDate startDate = dto.getStartDate();
+        LocalDate endDate = dto.getEndDate();
+        String cgl = dto.getCgl();
+        String currency = dto.getCurrency();
+        DifferenceType differenceType = dto.getDifferenceType();
+
+        final SXSSFWorkbook workbook = new SXSSFWorkbook(100);
+        Map<String, CellStyle> styles = getCellStyles(workbook);
+        CellStyle numberStyle = styles.get("numeric");
+        SXSSFSheet sheet = workbook.createSheet(dto.getDifferenceType().toString());
+        sheet.trackAllColumnsForAutoSizing();
+
+        final AtomicInteger rowNum = new AtomicInteger(0);
+
+        String queryBalCom = """
+                SELECT TO_CHAR(recon_run_date, 'DD-MM-YYYY') as report_date,TO_CHAR(first_error_date, 'DD-MM-YYYY') as first_error_date,branch_code,currency,cgl,cbs_balance,gl_balance,difference_amount,diff_bw_yesterday,type,head
+                FROM difference WHERE branch_code =?
+                AND cgl= ?
+                AND currency= ?
+                AND recon_run_date between ? and ?
+                and difference_amount <> 0
+                order by recon_run_date
+                """;
+
+        String querySuspense = """
+                SELECT TO_CHAR(balance_date, 'DD-MM-YYYY') as report_date,TO_CHAR(first_error_date, 'DD-MM-YYYY') as first_error_date,branch_code,currency,cgl,balance,inr_balance,type
+                FROM SUSPENSE_TRACKER
+                WHERE branch_code = ?
+                AND cgl = ?
+                AND currency = ?
+                AND balance_date between ? and ?
+                AND balance <> 0
+                order by date
+                """;
+        int columnCount = 0;
+        Map<String, Object> queryMeta = new HashMap<>();
+        switch ((DifferenceType) differenceType) {
+            case BCD -> {
+                columnCount = 11;
+                queryMeta.put("query", queryBalCom);
+            }
+            case CSD -> {
+                columnCount = 8;
+                queryMeta.put("query", querySuspense);
+            }
+            case TSD -> {
+                columnCount = 8;
+                queryMeta.put("query", queryBalCom);
+            }
+        }
+        List<Object> parameters = new ArrayList<>();
+        parameters.add(branchCode);
+        parameters.add(cgl);
+        parameters.add(currency);
+        parameters.add(startDate);
+        parameters.add(endDate);
+        queryMeta.put("parameters", parameters);
+
+        RowCallbackHandler handler = getHandler(sheet, rowNum, columnCount, numberStyle);
+        executeQuery(queryMeta, handler);
+
+        return outputStream -> {
+            autoSizeSheetAndUntrack(sheet);
+            workbook.write(outputStream);
+            workbook.close(); // Deletes temp files
+        };
+    }
+
+    public List<Map<String, Object>> fetchGlifData(BranchPosGlifExtractReqDTO dto) {
+        return druidRestClient.executeQuery(DruidQueryBuilder.buildQuery(dto.getFilters(), Map.of()));
+    }
+
+    public StreamingResponseBody exportGlifData(BranchPosGlifExtractReqDTO dto) throws IOException {
+        LocalDate trans_date=dto.getDate();
+        String branch_code=dto.getBranch();
+        final SXSSFWorkbook workbook = new SXSSFWorkbook(100);
+        Map<String, CellStyle> styles = getCellStyles(workbook);
+        CellStyle numberStyle = styles.get("numeric");
+        SXSSFSheet sheet = workbook.createSheet("data");
+        sheet.trackAllColumnsForAutoSizing();
+        final AtomicInteger rowNum = new AtomicInteger(0);
+
+        try {
+
+            Consumer<List<List<Object>>> consumer = list -> {
+                if (rowNum.get() == 0) {
+                    Row row = sheet.createRow(rowNum.getAndIncrement());
+                    List<Object> headers = list.removeFirst();
+                    IntStream.range(0, headers.size()).forEach((int i) -> {
+                        row.createCell(i).setCellValue(headers.get(i).toString().replaceAll("_", " "));
+                    });
+                }
+                writeRows(sheet, list, rowNum, numberStyle);
+            };
+            Map<String, Object> resultFormat = Map.of(
+                    "resultFormat", "arrayLines", "header", true
+            );
+            druidRestClient.executeStreamedQuery(DruidQueryBuilder.buildQuery(dto.getFilters(), resultFormat), consumer, new TypeReference<List<Object>>() {
+            });
+        } catch (Exception e) {
+            workbook.dispose();
+            throw new RuntimeException();
+        }
+        autoSizeSheetAndUntrack(sheet);
+        return outputStream -> {
+            workbook.write(outputStream);
+            workbook.dispose();
+        };
+    }
+
+    private void writeRows(Sheet sheet, List<List<Object>> list, AtomicInteger rowNum, CellStyle numberStyle) {
+        list.forEach((List<Object> data) -> {
+            Row row = sheet.createRow(rowNum.getAndIncrement());
+            IntStream.range(0, data.size()).forEach((int i) -> {
+                Cell cell = row.createCell(i);
+                Object value = data.get(i);
+                if (value instanceof Number) {
+                    cell.setCellValue(((Number) value).doubleValue());
+                    cell.setCellStyle(numberStyle);
+                } else {
+                    cell.setCellValue(value.toString());
+                }
+            });
+        });
+    }
+
+    //
+    private void writeHeader(Sheet sheet, ResultSetMetaData metaData) throws SQLException {
+        Row headerRow = sheet.createRow(0);
+        for (int i = 1; i <= metaData.getColumnCount(); i++) {
+            Cell cell = headerRow.createCell(i - 1);
+            String columnName = metaData.getColumnLabel(i);
+            if (columnName == null || columnName.isEmpty()) {
+                columnName = metaData.getColumnName(i);
+            }
+            cell.setCellValue(columnName.replaceAll("_", " "));
+        }
+    }
+
+    private void autoSizeSheetAndUntrack(SXSSFSheet sheet) {
+        if (sheet.getPhysicalNumberOfRows() > 0) {
+            Row headerRow = sheet.getRow(0);
+            if (headerRow != null) {
+                for (int i = headerRow.getFirstCellNum(); i < headerRow.getLastCellNum(); i++) {
+                    sheet.autoSizeColumn(i);
+                }
+            }
+        }
+        sheet.untrackAllColumnsForAutoSizing();
+    }
+
+    private Map<String, CellStyle> getCellStyles(SXSSFWorkbook workbook) {
+        Map<String, CellStyle> styles = new HashMap<>();
+        DataFormat format = workbook.createDataFormat();
+        CellStyle numberStyle = workbook.createCellStyle();
+        numberStyle.setDataFormat(format.getFormat("#,##0.0000"));
+        numberStyle.setAlignment(HorizontalAlignment.RIGHT);
+        styles.put("numeric", numberStyle);
+        return styles;
+    }
+
+    private RowCallbackHandler getHandler(Sheet sheet, AtomicInteger rowNum, int columnCount, CellStyle numberStyle) {
+        return rs -> {
+            try {
+                if (rowNum.get() == 0) {
+                    ResultSetMetaData metaData = rs.getMetaData();
+                    writeHeader(sheet, metaData);
+                    rowNum.getAndIncrement();
+                }
+                Row row = sheet.createRow(rowNum.getAndIncrement());
+                for (int i = 1; i <= columnCount; i++) {
+                    Cell cell = row.createCell(i - 1);
+                    Object value = rs.getObject(i);
+                    if (value == null) {
+                        cell.setCellValue("");
+                    } else {
+                        if (value instanceof Number) {
+                            cell.setCellValue(((Number) value).doubleValue());
+                            cell.setCellStyle(numberStyle);
+                        } else {
+                            cell.setCellValue(value.toString());
+                        }
+                    }
+                }
+            } catch (SQLException e) {
+                throw new RuntimeException("Error processing row", e);
+            }
+        };
+    }
+
+    private void executeQuery(Map<String, Object> params, RowCallbackHandler handler) {
+        jdbcTemplate.query(new PreparedStatementCreator() {
+            @Override
+            public PreparedStatement createPreparedStatement(Connection con) throws SQLException {
+                PreparedStatement ps = con.prepareStatement(
+                        (String) params.get("query"),
+                        ResultSet.TYPE_FORWARD_ONLY,
+                        ResultSet.CONCUR_READ_ONLY
+                );
+                ps.setFetchSize(1000);
+                if (params.get("parameters") instanceof List<?> parameters) {
+                    for (int i = 1; i <= parameters.size(); i++) {
+                        ps.setObject(i, parameters.get(i - 1));
+                    }
+                }
+                return ps;
+            }
+        }, handler);
+    }
+
+//     public List<Map<String, Object>> fetchHighValueTransactions(BranchPosGlifExtractReqDTO dto) {
+//     List<Map<String, Object>> transactions =
+//             druidRestClient.executeQuery(
+//                     DruidQueryBuilder.buildQuery(dto.getFilters(), Map.of())
+//             );
+
+//     return transactions.stream()
+//             .filter(this::isHighValueTransaction)
+//             .toList();
+// }
+
+//     private boolean isHighValueTransaction(Map<String, Object> transaction) {
+//         Object amountObject = transaction.get("AMOUNT");
+
+//         if (amountObject == null) {
+//             return false;
+//         }
+
+//         String amount = amountObject.toString().trim();
+//         String amountDigits = amount.startsWith("-")
+//                 ? amount.substring(1)
+//                 : amount;
+
+//         if (amountDigits.contains(".")) {
+//             amountDigits = amountDigits.substring(0, amountDigits.indexOf("."));
+//         }
+
+//         int digitCount = amountDigits.length();
+
+//         String cgl = String.valueOf(transaction.getOrDefault("CGL", ""));
+//         String branchCode = String.valueOf(
+//                 transaction.getOrDefault("BRANCH_CODE", "")
+//         );
+
+//         if (digitCount >= 14) {
+//             return true;
+//         }
+
+//         if (!cgl.startsWith("7") && !cgl.startsWith("8")) {
+//             return false;
+//         }
+
+//         if (digitCount == 11) {
+//             return isValid11DigitChecksum(amountDigits);
+//         }
+
+//         if (digitCount == 12 || digitCount == 13) {
+//             return true;
+//         }
+
+//         if (isDebit(amountObject) && digitCount >= 8 && digitCount <= 10) {
+//             return !branchCode.equals("01111")
+//                     && !branchCode.equals("04343");
+//         }
+
+//         return false;
+//     }
+
+//     private boolean isDebit(Object amount) {
+//         return new java.math.BigDecimal(amount.toString())
+//                 .compareTo(java.math.BigDecimal.ZERO) < 0;
+//     }
+
+//     private boolean isValid11DigitChecksum(String amount) {
+//         if (amount.length() != 11) {
+//             return false;
+//         }
+
+//         int[] digit10 = {1, 2, 3, 4, 5, 6, 7, 8, 9, 0};
+//         int[] digit9 = {2, 4, 6, 8, 10, 1, 3, 5, 7, 0};
+//         int[] digit8 = {4, 8, 1, 5, 9, 2, 6, 10, 3, 0};
+//         int[] digit7 = {8, 5, 2, 10, 7, 4, 1, 9, 6, 0};
+//         int[] digit6 = {5, 10, 4, 9, 3, 8, 2, 7, 1, 0};
+//         int[] digit5 = {10, 9, 8, 7, 6, 5, 4, 3, 2, 0};
+//         int[] digit4 = {9, 7, 5, 3, 1, 10, 8, 6, 4, 0};
+//         int[] digit3 = {7, 3, 10, 6, 2, 9, 5, 1, 8, 0};
+//         int[] digit2 = {3, 6, 9, 1, 4, 7, 10, 2, 5, 0};
+//         int[] digit1 = {6, 1, 7, 2, 8, 3, 9, 4, 10, 0};
+
+//         int sum = 0;
+
+//         sum += getChecksumValue(amount.charAt(9), digit10);
+//         sum += getChecksumValue(amount.charAt(8), digit9);
+//         sum += getChecksumValue(amount.charAt(7), digit8);
+//         sum += getChecksumValue(amount.charAt(6), digit7);
+//         sum += getChecksumValue(amount.charAt(5), digit6);
+//         sum += getChecksumValue(amount.charAt(4), digit5);
+//         sum += getChecksumValue(amount.charAt(3), digit4);
+//         sum += getChecksumValue(amount.charAt(2), digit3);
+//         sum += getChecksumValue(amount.charAt(1), digit2);
+//         sum += getChecksumValue(amount.charAt(0), digit1);
+
+//         int calculatedChecksum = sum % 10;
+//         int lastDigit = Character.digit(amount.charAt(10), 10);
+
+//         return calculatedChecksum == lastDigit;
+//     }
+
+//     private int getChecksumValue(char digit, int[] values) {
+//         int index = Character.digit(digit, 10);
+//         return index >= 0 ? values[index] : 0;
+//     }
+
 }
