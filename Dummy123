@@ -1,17 +1,32 @@
-public List<Map<String, Object>> getTechnicalSuspenseGlifDetails(
-        TechnicalSuspenseGlifRequest request) {
+@PostMapping("/get-technical-suspense-glif-details")
+public ResponseEntity<ApiResponse<List<Map<String, Object>>>> getTechnicalSuspenseGlifDetails(
+        @Valid @RequestBody TechnicalSuspenseGlifRequest request) {
 
-    return technicalSuspenseGlifRepository.findTechnicalSuspenseGlifDetails(
-            request.getDate().toString(),
-            request.getBranch()
+    return ResponseEntity.ok(
+            ApiResponse.success(
+                    branchPositionService.getTechnicalSuspenseGlifDetails(request),
+                    "Technical Suspense GLIF details fetched successfully!"
+            )
     );
 }
 
 
 
 
-import com.fincore.enquiry_service.repository.TechnicalSuspenseGlifRepository;
 
+@PostMapping("/export-technical-suspense-glif-details")
+public ResponseEntity<StreamingResponseBody> exportTechnicalSuspenseGlifDetails(
+        @Valid @RequestBody TechnicalSuspenseGlifRequest request) {
 
-
-private final TechnicalSuspenseGlifRepository technicalSuspenseGlifRepository;
+    return ResponseEntity.ok()
+            .header(
+                    HttpHeaders.CONTENT_DISPOSITION,
+                    "attachment; filename=TechnicalSuspenseGlifDetails.xlsx"
+            )
+            .contentType(MediaType.parseMediaType(
+                    "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+            ))
+            .body(
+                    branchPositionService.exportTechnicalSuspenseGlifDetails(request)
+            );
+}
