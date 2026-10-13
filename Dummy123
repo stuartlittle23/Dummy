@@ -1,47 +1,71 @@
-package com.fincore.enquiry_service.controller;
+package com.fincore.enquiry_service.repository;
 
-import com.fincore.enquiry_service.dto.TechnicalSuspenseGlifRequest;
-import com.fincore.enquiry_service.repository.TechnicalSuspenseGlifRepository;
+import com.fincore.enquiry_service.client.DruidRestClient;
 import lombok.RequiredArgsConstructor;
-import org.springframework.web.bind.annotation.*;
+import org.springframework.stereotype.Repository;
 
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
-@RestController
-@RequestMapping("/ES/branch-position")
+@Repository
 @RequiredArgsConstructor
-public class TechnicalSuspenseGlifController {
+public class TechnicalSuspenseGlifRepository {
 
-    private final TechnicalSuspenseGlifRepository repository;
+    private final DruidRestClient druidRestClient;
 
-    @PostMapping("/technical-suspense-glif-details")
-    public List<Map<String, Object>> getTechnicalSuspenseGlifDetails(
-            @RequestBody TechnicalSuspenseGlifRequest request) {
+    private static final String TECHNICAL_SUSPENSE_GLIF_QUERY = """
+        WITH FILTERED_GLIF AS (
+            SELECT *
+            FROM GLIF
+            WHERE "__time" LIKE ?
+              AND CGL = '1260505001'
+              AND BRANCH_CODE = ?
+        ),
+        NON_ZERO_BATCHES AS (
+            SELECT BRANCH_CODE, CURRENCY, BATCH_ID
+            FROM FILTERED_GLIF
+            WHERE BATCH_ID != ''
+            GROUP BY BRANCH_CODE, CURRENCY, BATCH_ID
+            HAVING SUM(AMOUNT) <> 0
+        ),
+        NON_ZERO_JOURNALS AS (
+            SELECT BRANCH_CODE, CURRENCY, JOURNAL_NUMBER
+            FROM FILTERED_GLIF
+            WHERE BATCH_ID = ''
+            GROUP BY BRANCH_CODE, CURRENCY, JOURNAL_NUMBER
+            HAVING SUM(AMOUNT) <> 0
+        )
+        SELECT G.*, 'BATCH' AS SUSPENSE_TYPE
+        FROM FILTERED_GLIF G
+        JOIN NON_ZERO_BATCHES B
+          ON G.BRANCH_CODE = B.BRANCH_CODE
+         AND G.CURRENCY = B.CURRENCY
+         AND G.BATCH_ID = B.BATCH_ID
+        WHERE G.BATCH_ID != ''
 
-        return repository.findTechnicalSuspenseGlifDetails(
-                request.getDate(),
-                request.getBranch()
-        );
+        UNION ALL
+
+        SELECT G.*, 'JOURNAL' AS SUSPENSE_TYPE
+        FROM FILTERED_GLIF G
+        JOIN NON_ZERO_JOURNALS J
+          ON G.BRANCH_CODE = J.BRANCH_CODE
+         AND G.CURRENCY = J.CURRENCY
+         AND G.JOURNAL_NUMBER = J.JOURNAL_NUMBER
+        WHERE G.BATCH_ID = ''
+        """;
+
+    public List<Map<String, Object>> findTechnicalSuspenseGlifDetails(
+            String date, String branch) {
+
+        Map<String, Object> payload = new LinkedHashMap<>();
+        payload.put("query", TECHNICAL_SUSPENSE_GLIF_QUERY);
+        payload.put("resultFormat", "object");
+        payload.put("parameters", List.of(
+                Map.of("type", "VARCHAR", "value", date + "%"),
+                Map.of("type", "VARCHAR", "value", branch)
+        ));
+
+        return druidRestClient.executeQuery(payload);
     }
 }
-
-
-
-
-
-
-
-
-package com.fincore.enquiry_service.dto;
-
-import lombok.Data;
-
-@Data
-public class TechnicalSuspenseGlifRequest {
-
-    private String date;
-    private String branch;
-}
-
-
