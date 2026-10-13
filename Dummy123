@@ -1,71 +1,111 @@
-package com.fincore.enquiry_service.repository;
+package com.fincore.enquiry_service.controller;
 
-import com.fincore.enquiry_service.client.DruidRestClient;
+import com.fincore.enquiry_service.dto.*;
+import com.fincore.enquiry_service.enums.DifferenceType;
+import com.fincore.enquiry_service.service.BranchPositionService;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
-import org.springframework.stereotype.Repository;
+import org.springframework.data.domain.Page;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.MediaType;
+import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.security.core.userdetails.UserDetails;
+import org.springframework.web.bind.annotation.*;
+import org.springframework.web.servlet.mvc.method.annotation.StreamingResponseBody;
 
-import java.util.LinkedHashMap;
+import java.io.*;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.security.Principal;
+import java.time.LocalDate;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
-
-@Repository
+import java.util.stream.Stream;
+/*
+ * V1021256
+ * Controller for bank-branch specific states
+ */
+@RestController
+@RequestMapping("/api/branch-position")
 @RequiredArgsConstructor
-public class TechnicalSuspenseGlifRepository {
+public class BranchPositionController {
+    private final BranchPositionService branchPositionService;
 
-    private final DruidRestClient druidRestClient;
-
-    private static final String TECHNICAL_SUSPENSE_GLIF_QUERY = """
-        WITH FILTERED_GLIF AS (
-            SELECT *
-            FROM GLIF
-            WHERE "__time" LIKE ?
-              AND CGL = '1260505001'
-              AND BRANCH_CODE = ?
-        ),
-        NON_ZERO_BATCHES AS (
-            SELECT BRANCH_CODE, CURRENCY, BATCH_ID
-            FROM FILTERED_GLIF
-            WHERE BATCH_ID != ''
-            GROUP BY BRANCH_CODE, CURRENCY, BATCH_ID
-            HAVING SUM(AMOUNT) <> 0
-        ),
-        NON_ZERO_JOURNALS AS (
-            SELECT BRANCH_CODE, CURRENCY, JOURNAL_NUMBER
-            FROM FILTERED_GLIF
-            WHERE BATCH_ID = ''
-            GROUP BY BRANCH_CODE, CURRENCY, JOURNAL_NUMBER
-            HAVING SUM(AMOUNT) <> 0
-        )
-        SELECT G.*, 'BATCH' AS SUSPENSE_TYPE
-        FROM FILTERED_GLIF G
-        JOIN NON_ZERO_BATCHES B
-          ON G.BRANCH_CODE = B.BRANCH_CODE
-         AND G.CURRENCY = B.CURRENCY
-         AND G.BATCH_ID = B.BATCH_ID
-        WHERE G.BATCH_ID != ''
-
-        UNION ALL
-
-        SELECT G.*, 'JOURNAL' AS SUSPENSE_TYPE
-        FROM FILTERED_GLIF G
-        JOIN NON_ZERO_JOURNALS J
-          ON G.BRANCH_CODE = J.BRANCH_CODE
-         AND G.CURRENCY = J.CURRENCY
-         AND G.JOURNAL_NUMBER = J.JOURNAL_NUMBER
-        WHERE G.BATCH_ID = ''
-        """;
-
-    public List<Map<String, Object>> findTechnicalSuspenseGlifDetails(
-            String date, String branch) {
-
-        Map<String, Object> payload = new LinkedHashMap<>();
-        payload.put("query", TECHNICAL_SUSPENSE_GLIF_QUERY);
-        payload.put("resultFormat", "object");
-        payload.put("parameters", List.of(
-                Map.of("type", "VARCHAR", "value", date + "%"),
-                Map.of("type", "VARCHAR", "value", branch)
-        ));
-
-        return druidRestClient.executeQuery(payload);
+    /* Fetches the latest ETL completion date*/
+    @GetMapping("/user-date")
+    public ResponseEntity<ApiResponse<String>> getUserDate(){
+        String date=branchPositionService.getUserDate();
+        return ResponseEntity.ok(ApiResponse.success(date, "User date fetched Successfully!"));
     }
+
+    /* Fetches the bank difference data for the Date and Branch */
+    @PostMapping("/get-difference")
+    public ResponseEntity<ApiResponse<Map<String, Page<?>>>> getDifference(@Valid @RequestBody BranchPosDifferenceReqDTO diffReq){
+        return ResponseEntity.ok(ApiResponse.success(branchPositionService.getDifference(diffReq),"Difference data fetched successfully!"));
+    }
+
+    /* Exports the Difference data for the Date and Branch in EXCEL format */
+    @PostMapping("/export-difference")
+    public ResponseEntity<StreamingResponseBody> exportDifferenceDate(
+            @RequestBody BranchPosDifferenceReqDTO req
+    ){
+        return ResponseEntity.ok()
+                .header(
+                        HttpHeaders.CONTENT_DISPOSITION,
+                        "attachment; filename=DifferenceData.xlsx")
+                .contentType(
+                        MediaType.APPLICATION_OCTET_STREAM)
+                .body(branchPositionService.exportDifferenceData(req));
+    }
+
+    /* Fetches the breakup of the difference observed for the Date and Branch */
+    @PostMapping("/get-detailed-difference")
+    public ResponseEntity<ApiResponse<List<?>>> getDetailedData(@Valid @RequestBody DetailedDifferenceReqDTO diffReq){
+        return ResponseEntity.ok(ApiResponse.success(branchPositionService.getDetailedDifference(diffReq),"Difference data fetched successfully!"));
+    }
+
+    /* Exports the breakup of the difference observed for the Date and Branch */
+    @PostMapping("/export-detailed-difference")
+    public ResponseEntity<StreamingResponseBody> exportDetailedDiff(@RequestBody DetailedDifferenceReqDTO dto){
+        return ResponseEntity.ok()
+                .header(
+                        HttpHeaders.CONTENT_DISPOSITION,
+                        "attachment; filename=DifferenceData.xlsx")
+                .contentType(
+                        MediaType.APPLICATION_OCTET_STREAM)
+                .body(branchPositionService.exportDetailedDiff(dto));
+    }
+
+    /* Fetches the GLIF data for the Date and Branch*/
+    @PostMapping("/get-glif-data")
+    public ResponseEntity<List<Map<String,Object>>> getGlifData(@RequestBody BranchPosGlifExtractReqDTO dto) throws IOException {
+        return ResponseEntity.ok().body(branchPositionService.fetchGlifData(dto));
+    }
+
+    /* Exports the GLIF data for the Date and Branch in EXCEL format */
+    @PostMapping("/export-glif-data")
+    public ResponseEntity<StreamingResponseBody> exportGlifData(@RequestBody BranchPosGlifExtractReqDTO dto) throws IOException {
+        return ResponseEntity.ok()
+                .header(
+                        HttpHeaders.CONTENT_DISPOSITION,
+                        "attachment; filename=GlifData.xlsx")
+                .contentType(
+                        MediaType.APPLICATION_OCTET_STREAM)
+                .body( branchPositionService.exportGlifData(dto));
+    }
+
+    @PostMapping("/get-high-value-transactions")
+        public ResponseEntity<ApiResponse<List<Map<String, Object>>>> getHighValueTransactions(
+                @RequestBody BranchPosGlifExtractReqDTO dto) {
+
+        return ResponseEntity.ok(
+                ApiResponse.success(
+                        branchPositionService.fetchHighValueTransactions(dto),
+                        "High value transaction data fetched successfully!"
+                )
+        );
+        }
 }
