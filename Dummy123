@@ -1,38 +1,159 @@
-WITH FILTERED_GLIF AS (
-    SELECT *
-    FROM GLIF
-    WHERE "__time" LIKE '2026-03-31%'
-      AND CGL = '1260505001'
-      AND BRANCH_CODE = '00002'
-),
-NON_ZERO_BATCHES AS (
-    SELECT BRANCH_CODE, CURRENCY, BATCH_ID
-    FROM FILTERED_GLIF
-    WHERE BATCH_ID != ''
-    GROUP BY BRANCH_CODE, CURRENCY, BATCH_ID
-    HAVING SUM(AMOUNT) <> 0
-),
-NON_ZERO_JOURNALS AS (
-    SELECT BRANCH_CODE, CURRENCY, JOURNAL_NUMBER
-    FROM FILTERED_GLIF
-    WHERE BATCH_ID = ''
-    GROUP BY BRANCH_CODE, CURRENCY, JOURNAL_NUMBER
-    HAVING SUM(AMOUNT) <> 0
-)
-SELECT G.*, 'BATCH' AS SUSPENSE_TYPE
-FROM FILTERED_GLIF G
-JOIN NON_ZERO_BATCHES B
-  ON G.BRANCH_CODE = B.BRANCH_CODE
- AND G.CURRENCY = B.CURRENCY
- AND G.BATCH_ID = B.BATCH_ID
-WHERE G.BATCH_ID != ''
+package com.fincore.enquiry_service.client;
 
-UNION ALL
 
-SELECT G.*, 'JOURNAL' AS SUSPENSE_TYPE
-FROM FILTERED_GLIF G
-JOIN NON_ZERO_JOURNALS J
-  ON G.BRANCH_CODE = J.BRANCH_CODE
- AND G.CURRENCY = J.CURRENCY
- AND G.JOURNAL_NUMBER = J.JOURNAL_NUMBER
-WHERE G.BATCH_ID = ''; 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.core.ParameterizedTypeReference;
+import org.springframework.http.MediaType;
+import org.springframework.http.client.JdkClientHttpRequestFactory;
+import org.springframework.stereotype.Component;
+import org.springframework.web.client.RestClient;
+import tools.jackson.core.JsonParser;
+import tools.jackson.core.JsonToken;
+import tools.jackson.core.type.TypeReference;
+import tools.jackson.databind.json.JsonMapper;
+
+import javax.net.ssl.SSLContext;
+import javax.net.ssl.TrustManager;
+import javax.net.ssl.X509TrustManager;
+import java.io.IOException;
+import java.io.InputStream;
+import java.net.http.HttpClient;
+import java.security.KeyManagementException;
+import java.security.NoSuchAlgorithmException;
+import java.security.SecureRandom;
+import java.security.cert.X509Certificate;
+import java.util.*;
+import java.util.function.Consumer;
+
+/**
+ * Apache Druid Rest Client upgraded with SSL capabilities.
+ * Configured using Java 21 Native HTTP client to gracefully handle
+ * secure HTTPS and self-signed certificates on internal developer subnets.
+ */
+@Component
+public class DruidRestClient {
+
+    private static final Logger log = LoggerFactory.getLogger(DruidRestClient.class);
+    private final RestClient restClient;
+    private final JsonMapper objectMapper;
+    private static int BATCH_SIZE = 100;
+
+    private static final TypeReference<Map<String, Object>> MAP_TYPE_REF =
+            new TypeReference<Map<String, Object>>() {
+            };
+
+
+    public DruidRestClient(
+            RestClient.Builder restClientBuilder,
+            @Value("${druid.router.url:https://10.177.103.194:8282}") String druidUrl, JsonMapper objectMapper) {
+
+        log.info("Initializing Druid REST Client targeting secure endpoint: [{}]", druidUrl);
+
+        // Build a secure Java 21 request factory that accepts internal corporate self-signed SSL certificates
+        JdkClientHttpRequestFactory requestFactory = new JdkClientHttpRequestFactory(createSslConfiguredHttpClient());
+
+        this.restClient = restClientBuilder
+                .requestFactory(requestFactory)
+                .baseUrl(druidUrl)
+                .defaultHeader("Content-Type", MediaType.APPLICATION_JSON_VALUE)
+                .defaultHeader("Accept", MediaType.APPLICATION_JSON_VALUE)
+                .build();
+        this.objectMapper = objectMapper;
+    }
+
+    /**
+     * Executes the compiled SQL payload securely against Druid via HTTPS.
+     */
+    public List<Map<String, Object>> executeQuery(Map<String, Object> druidSqlPayload) {
+        log.debug("Executing SSL Druid Query: {}", druidSqlPayload);
+
+        return restClient.post()
+                .uri("/druid/v2/sql")
+                .body(druidSqlPayload)
+                .retrieve()
+                .body(new ParameterizedTypeReference<List<Map<String, Object>>>() {
+                });
+    }
+
+    /**
+     * Executes the compiled SQL payload securely against Druid via HTTPS.
+     */
+    public<T> void executeStreamedQuery(Map<String, Object> druidSqlPayload, Consumer<List<T>> consumer, TypeReference<T> typeReference) throws IOException {
+        log.debug("Executing SSL Druid Query: {}", druidSqlPayload);
+        restClient.post()
+                .uri("/druid/v2/sql")
+                .header("Content-Type", "application/json")
+                // 2. Explicitly accept the text/plain or ndjson format returned by objectLines
+                .header("Accept", "application/json, text/plain, application/x-ndjson")
+                .body(druidSqlPayload)
+                .exchange((request, response) -> {
+                    if (!response.getStatusCode().is2xxSuccessful()) {
+                        throw new RuntimeException("Failed: " + response.getStatusCode());
+                    }
+                    processStream(response.getBody(), consumer,typeReference);
+                    return null;
+                });
+    }
+
+
+    public<T> void processStream(InputStream inputStream, Consumer<List<T>> consumer,TypeReference<T> typeRef) throws IOException {
+        List<T> batch = new ArrayList<T>(BATCH_SIZE);
+
+        try (JsonParser parser = objectMapper.createParser(inputStream)) {
+            JsonToken token;
+
+            while ((token = parser.nextToken()) != null) {
+                if (token == JsonToken.START_ARRAY || token==JsonToken.START_OBJECT) {
+                    // DIRECTLY parse into your Object (No JsonNode intermediate step)
+                    T obj = parser.readValueAs(typeRef);
+                    batch.add(obj);
+
+                    if (batch.size() >= BATCH_SIZE) {
+                        consumer.accept(batch);
+                        batch.clear();
+                    }
+                }
+            }
+            if (!batch.isEmpty()) {
+                consumer.accept(batch);
+            }
+        }
+    }
+
+    /**
+     * Creates an HttpClient instance bypassing standard public CA certification paths.
+     * Perfect for internal dev boxes (10.x.x.x) using self-signed certs.
+     */
+    private HttpClient createSslConfiguredHttpClient() {
+        try {
+            // Create a trust manager that does not validate certificate chains
+            TrustManager[] trustAllCerts = new TrustManager[]{
+                    new X509TrustManager() {
+                        public X509Certificate[] getAcceptedIssuers() {
+                            return new X509Certificate[0];
+                        }
+
+                        public void checkClientTrusted(X509Certificate[] certs, String authType) {
+                        }
+
+                        public void checkServerTrusted(X509Certificate[] certs, String authType) {
+                        }
+                    }
+            };
+
+            // Install the all-trusting trust manager
+            SSLContext sslContext = SSLContext.getInstance("TLS");
+            sslContext.init(null, trustAllCerts, new SecureRandom());
+
+            return HttpClient.newBuilder()
+                    .sslContext(sslContext)
+                    .build();
+
+        } catch (NoSuchAlgorithmException | KeyManagementException e) {
+            log.error("Fatal Error initializing Druid REST Client SSL Context", e);
+            throw new IllegalStateException("Failed to configure secure transport layer for Druid client.", e);
+        }
+    }
+}
