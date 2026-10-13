@@ -1,32 +1,97 @@
-@PostMapping("/get-technical-suspense-glif-details")
-public ResponseEntity<ApiResponse<List<Map<String, Object>>>> getTechnicalSuspenseGlifDetails(
-        @Valid @RequestBody TechnicalSuspenseGlifRequest request) {
+@Transactional(readOnly = true)
+public StreamingResponseBody exportTechnicalSuspenseGlifDetails(
+        TechnicalSuspenseGlifRequest request) {
 
-    return ResponseEntity.ok(
-            ApiResponse.success(
-                    branchPositionService.getTechnicalSuspenseGlifDetails(request),
-                    "Technical Suspense GLIF details fetched successfully!"
-            )
-    );
+    List<Map<String, Object>> records =
+            technicalSuspenseGlifRepository.findTechnicalSuspenseGlifDetails(
+                    request.getDate(), request.getBranch());
+
+    SXSSFWorkbook workbook = new SXSSFWorkbook(100);
+
+    try {
+        List<String> columns = records.isEmpty()
+                ? List.of()
+                : records.get(0).keySet().stream()
+                    .filter(key -> !"SUSPENSE_TYPE".equalsIgnoreCase(key))
+                    .toList();
+
+        CellStyle numberStyle = getCellStyles(workbook).get("numeric");
+
+        writeSuspenseSheet(workbook, "Batch Details",
+                records, columns, "BATCH", numberStyle);
+
+        writeSuspenseSheet(workbook, "Journal Details",
+                records, columns, "JOURNAL", numberStyle);
+
+    } catch (Exception e) {
+        workbook.dispose();
+        throw new RuntimeException("Failed to create Technical Suspense Excel", e);
+    }
+
+    return outputStream -> {
+        try (workbook) {
+            workbook.write(outputStream);
+            outputStream.flush();
+        } finally {
+            workbook.dispose();
+        }
+    };
+}
+
+private void writeSuspenseSheet(
+        SXSSFWorkbook workbook,
+        String sheetName,
+        List<Map<String, Object>> records,
+        List<String> columns,
+        String type,
+        CellStyle numberStyle) {
+
+    SXSSFSheet sheet = workbook.createSheet(sheetName);
+    sheet.trackAllColumnsForAutoSizing();
+
+    Row header = sheet.createRow(0);
+
+    for (int i = 0; i < columns.size(); i++) {
+        header.createCell(i).setCellValue(columns.get(i).replace("_", " "));
+    }
+
+    int rowNum = 1;
+
+    for (Map<String, Object> record : records) {
+        Object suspenseType = record.entrySet().stream()
+                .filter(entry -> "SUSPENSE_TYPE".equalsIgnoreCase(entry.getKey()))
+                .map(Map.Entry::getValue)
+                .findFirst()
+                .orElse(null);
+
+        if (suspenseType == null ||
+                !type.equalsIgnoreCase(suspenseType.toString())) {
+            continue;
+        }
+
+        Row row = sheet.createRow(rowNum++);
+
+        for (int i = 0; i < columns.size(); i++) {
+            Object value = record.get(columns.get(i));
+            Cell cell = row.createCell(i);
+
+            if (value instanceof Number number) {
+                cell.setCellValue(number.doubleValue());
+                cell.setCellStyle(numberStyle);
+            } else {
+                cell.setCellValue(value == null ? "" : value.toString());
+            }
+        }
+    }
+
+    if (rowNum == 1) {
+        header.createCell(0).setCellValue(
+                columns.isEmpty() ? "No records found" : header.getCell(0).getStringCellValue()
+        );
+    }
+
+    autoSizeSheetAndUntrack(sheet);
 }
 
 
 
-
-
-@PostMapping("/export-technical-suspense-glif-details")
-public ResponseEntity<StreamingResponseBody> exportTechnicalSuspenseGlifDetails(
-        @Valid @RequestBody TechnicalSuspenseGlifRequest request) {
-
-    return ResponseEntity.ok()
-            .header(
-                    HttpHeaders.CONTENT_DISPOSITION,
-                    "attachment; filename=TechnicalSuspenseGlifDetails.xlsx"
-            )
-            .contentType(MediaType.parseMediaType(
-                    "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-            ))
-            .body(
-                    branchPositionService.exportTechnicalSuspenseGlifDetails(request)
-            );
-}
