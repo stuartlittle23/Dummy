@@ -1,97 +1,550 @@
-@Transactional(readOnly = true)
-public StreamingResponseBody exportTechnicalSuspenseGlifDetails(
-        TechnicalSuspenseGlifRequest request) {
+import React, { useEffect, useState, useCallback, useMemo } from "react";
+import {
+  Box,
+  Typography,
+  Chip,
+  Paper,
+  Tabs,
+  Tab,
+  Button,
+  IconButton,
+  Dialog,
+  DialogContent,
+  DialogTitle,
+} from "@mui/material";
+import { LocalizationProvider } from "@mui/x-date-pickers/LocalizationProvider";
+import { DatePicker } from "@mui/x-date-pickers/DatePicker";
+import { AdapterDayjs } from "@mui/x-date-pickers/AdapterDayjs";
+import dayjs from "dayjs";
+import DisplayTab from "./DisplayTab";
+import useApi from "../../hooks/useApi";
+import {
+  AccountBalance,
+  Public,
+  Download,
+  Delete,
+  Close,
+  CalendarMonthOutlined,
+  ReceiptLongOutlined,
+  VerifiedUserOutlined,
+  CompareArrowsOutlined,
+  AdjustOutlined,
+  StorageOutlined,
+  AccountBalanceOutlined,
+  InfoOutlined,
+  AutoAwesome,
+  FilterAltOutlined,
+  PlaylistAddCheckOutlined,
+  VisibilityOutlined,
+  SearchOutlined,
+  RestartAltOutlined,
+} from "@mui/icons-material";
+import downloadFile from "../../utils/DownloadUtils";
+import useCustomSnackbar from "../../utils/useCustomSnackbar";
+import styles from "./BranchPosition.module.css";
+import Filter from "./Filter";
+import { useSelector } from "react-redux";
+import { Autocomplete, TextField } from "@mui/material";
 
-    List<Map<String, Object>> records =
-            technicalSuspenseGlifRepository.findTechnicalSuspenseGlifDetails(
-                    request.getDate(), request.getBranch());
+const alterDateFormat = (date) => {
+  if (!date) return "";
 
-    SXSSFWorkbook workbook = new SXSSFWorkbook(100);
+  if (dayjs.isDayjs(date)) {
+    return date.format("YYYY-MM-DD");
+  }
+
+  const dateRegex = /^(0[1-9]|[12][0-9]|3[01])([-/.])(0[1-9]|1[0-2])\2(\d{4})$/;
+
+  return date.replace(dateRegex, "$4$2$3$2$1");
+};
+
+const categoryMeta = {
+  TSD: {
+    label: "Technical Suspense",
+    category: "Technical Suspense Difference",
+    description:
+      "Contra account for non-cash intra-branch transactions. Balance must always be zero. Any non-zero balance indicates unmatched legs requiring reconciliation.",
+    icon: <ReceiptLongOutlined fontSize="small" />,
+    role: "rolePurple",
+  },
+  BCD: {
+    label: "Balance Compare",
+    category: "Balance Compare Difference",
+    description:
+      "Compares bank account balances against their corresponding Fincore CGL balances. No entries should appear in Balance Compare. Any discrepancy indicates a mismatch requiring investigation.",
+    icon: <CompareArrowsOutlined fontSize="small" />,
+    role: "roleAmber",
+  },
+  CSD: {
+    label: "CGL Suspense",
+    category: "CGL Suspense Difference",
+    description:
+      "Temporary holding account for CGL entries that cannot be immediately posted or matched. Balance must always be zero. Any non-zero balance indicates unresolved entries requiring reconciliation.",
+    icon: <VerifiedUserOutlined fontSize="small" />,
+    role: "roleTeal",
+  },
+};
+
+const filterFieldColors = {
+  CURRENCY: { bg: "#E1F5EE", text: "#0F8A6C" },
+  CGL: { bg: "#EEEDFE", text: "#6C5CE7" },
+  JOURNAL_NUMBER: { bg: "#E6F1FB", text: "#1D6FB8" },
+  TRANSACTION_CODE: { bg: "#FBEAF0", text: "#C23E70" },
+  BATCH_ID: { bg: "#F1EFE8", text: "#6B6A63" },
+  ACCOUNT: { bg: "#FFF1E0", text: "#C9761A" },
+};
+
+function SummaryCard({ meta, count, isLoading, onViewDetails, onDownload }) {
+  const hasCount = typeof count === "number";
+  const isMatched = hasCount && count === 0;
+  return (
+    <Paper
+      elevation={0}
+      className={`${styles.summaryCard} ${styles[meta.role]}`}
+    >
+      <Box className={styles.summaryCardHeader}>
+        <Box className={styles.summaryCardIcon}>{meta.icon}</Box>
+        <Typography className={styles.summaryCardLabel}>
+          {meta.label}
+        </Typography>
+      </Box>
+
+      <Typography className={styles.summaryCardDescription}>
+        {meta.description}
+      </Typography>
+
+      <Box className={styles.summaryCardCenter}>
+        <Typography
+          className={styles.summaryCardCount}
+          sx={{
+            color: isMatched ? "#10A37F" : hasCount ? "#D32F2F" : "inherit",
+          }}
+        >
+          {isLoading ? "—" : hasCount ? count : "—"}
+        </Typography>
+        <Typography className={styles.summaryCardCaption}>
+          {isLoading
+            ? "Checking…"
+            : hasCount
+            ? count === 0
+              ? "No Differences"
+              : `${count} record${count > 1 ? "s" : ""} found`
+            : "Search to check Differences"}
+        </Typography>
+      </Box>
+
+      <Box className={styles.summaryCardActions}>
+        <Button
+          className={styles.viewDetailsButton}
+          variant="contained"
+          size="small"
+          startIcon={<VisibilityOutlined sx={{ fontSize: 16 }} />}
+          onClick={onViewDetails}
+          disabled={!hasCount || count === 0}
+        >
+          View Details
+        </Button>
+        <Button
+          className={styles.downloadButtonOutlined}
+          variant="contained"
+          size="small"
+          startIcon={<Download sx={{ fontSize: 14 }} />}
+          disabled={!hasCount || count === 0}
+          onClick={onDownload}
+        >
+          Download
+        </Button>
+      </Box>
+    </Paper>
+  );
+}
+
+export default function BranchPosition() {
+  const [userDate, setUserDate] = useState(null);
+  const [etlDate, setEtlDate] = useState(null);
+  const [reportDateError, setReportDateError] = useState(null);
+  const [dataRows, setDataRows] = useState({});
+  const [breakupDataRows, setBreakupDataRows] = useState({});
+  const { callApi } = useApi();
+  const [glifDataFilter, setGlifDataFilter] = useState({});
+  const [loading, setLoading] = useState("N"); //"N","Y","BCD","TSD","CSD"
+  const showSnackBar = useCustomSnackbar();
+  const [mode, setMode] = useState("DD");
+  const user = useSelector((state) => state.auth.user);
+
+  const hasWholeBank = user?.roleAccess === "W";
+  const isCircleUser = user?.roleAccess === "C";
+  const isBranchUser = user?.roleAccess === "B";
+
+  const [selectedBranch, setSelectedBranch] = useState(null); // { code, name } or null
+  const [branchInput, setBranchInput] = useState("");
+  const [branchOptions, setBranchOptions] = useState([]);
+  const [branchLoading, setBranchLoading] = useState(false);
+
+  const effectiveBranchCode = (selectedBranch?.code || user?.branch)
+    ?.toString()
+    .padStart(5, 0);
+  const effectiveBranchName = selectedBranch?.name || user?.branchName;
+
+  const [dialogType, setDialogType] = useState(null);
+  const [dialogView, setDialogView] = useState("category");
+  const isDialogOpen = dialogType !== null;
+  const MIN_ALLOWED_DATE = useMemo(() => dayjs("2026-03-31"), []);
+
+  const [selectedGlcc, setSelectedGlcc] = useState("");
+
+  const fetchBranchOptions = async (term) => {
+    if (isBranchUser) return;
+    if (!term || term.length < 3) {
+      setBranchOptions([]);
+      return;
+    }
+    try {
+      setBranchLoading(true);
+      // const circleValue = hasWholeBank ? '' : (user?.circleCode || '');
+      let circleValue = "";
+
+      switch (user?.roleAccess) {
+        case "W":
+          circleValue = "";
+          break;
+        case "C":
+        case "B":
+          circleValue = user?.circleCode || "";
+          break;
+        default:
+          circleValue = "";
+      }
+
+      const url = `/CM/common-master/branches-code-name-only?q=${encodeURIComponent(
+        term
+      )}&circleCode=${circleValue}`;
+      const res = await callApi(url, null, "GET");
+      if (res?.data?.length > 0) {
+        setBranchOptions(res.data.map((i) => ({ code: i.code, name: i.name })));
+      } else {
+        setBranchOptions([]);
+      }
+    } catch (e) {
+      showSnackBar(e.message, "error");
+    } finally {
+      setBranchLoading(false);
+    }
+  };
+
+  async function fetchDifference() {
+    const payload = {
+      date: userDate?.format("YYYY-MM-DD"),
+      branch: effectiveBranchCode,
+      paginationModel: { page: 0, pageSize: 100 },
+    };
+    try {
+      setLoading("Y");
+      const res = await callApi(
+        "/ES/branch-position/get-difference",
+        payload,
+        "POST"
+      );
+      if (res && res.success) {
+        setDataRows(res.data);
+      } else {
+        showSnackBar(res.message, "error");
+        setDataRows({});
+      }
+      setLoading("N");
+    } catch (e) {
+      setLoading("N");
+      showSnackBar(
+        e?.response?.message ||
+          e?.message ||
+          "Something went wrong. Please try again.",
+        "error"
+      );
+    }
+  }
+
+  async function fetchIndividualDifference(type, paginationModel) {
+    const payload = {
+      date: userDate?.format("YYYY-MM-DD"),
+      branch: effectiveBranchCode,
+      differenceType: type,
+      paginationModel,
+    };
+    try {
+      setLoading(type);
+      const res = await callApi(
+        "/ES/branch-position/get-difference",
+        payload,
+        "POST"
+      );
+      if (res && res.success) {
+        setDataRows((prev) => {
+          return { ...prev, [type]: res.data[type] || [] };
+        });
+      } else {
+        showSnackBar(res.message, "error");
+      }
+      setLoading("N");
+    } catch (e) {
+      setLoading("N");
+      showSnackBar(
+        e?.response?.message ||
+          e?.message ||
+          "Something went wrong. Please try again.",
+        "error"
+      );
+    }
+  }
+
+  const fetchDetailedData = async (type, { cgl, currency, firstErrorDate }) => {
+    setSelectedGlcc(`${effectiveBranchCode}${currency}${cgl}`);
+
+    const payload = {
+      branch: effectiveBranchCode,
+      cgl,
+      currency,
+      startDate: alterDateFormat(firstErrorDate),
+      endDate: userDate?.format("YYYY-MM-DD"),
+      differenceType: type,
+    };
 
     try {
-        List<String> columns = records.isEmpty()
-                ? List.of()
-                : records.get(0).keySet().stream()
-                    .filter(key -> !"SUSPENSE_TYPE".equalsIgnoreCase(key))
-                    .toList();
-
-        CellStyle numberStyle = getCellStyles(workbook).get("numeric");
-
-        writeSuspenseSheet(workbook, "Batch Details",
-                records, columns, "BATCH", numberStyle);
-
-        writeSuspenseSheet(workbook, "Journal Details",
-                records, columns, "JOURNAL", numberStyle);
-
-    } catch (Exception e) {
-        workbook.dispose();
-        throw new RuntimeException("Failed to create Technical Suspense Excel", e);
+      const res = await callApi(
+        "/ES/branch-position/get-detailed-difference",
+        payload,
+        "POST"
+      );
+      if (res && res.success) {
+        setBreakupDataRows({ type, content: res.data || [] });
+        setDialogView("breakup");
+      } else {
+        showSnackBar(res.message, "error");
+      }
+    } catch (e) {
+      showSnackBar(
+        e?.response?.message ||
+          e?.message ||
+          "Something went wrong. Please try again.",
+        "error"
+      );
     }
+  };
 
-    return outputStream -> {
-        try (workbook) {
-            workbook.write(outputStream);
-            outputStream.flush();
-        } finally {
-            workbook.dispose();
-        }
+ 
+
+  const exportData = async (filePref, differenceType) => {
+    const payload = {
+      branch: effectiveBranchCode,
+      date: userDate?.format("YYYY-MM-DD"),
+      differenceType,
     };
-}
+    try {
+      const res = await callApi(
+        "/ES/branch-position/export-difference",
+        payload,
+        "POST",
+        "blob",
+        "application/json"
+      );
+      if (res) {
+        const filename = `${filePref}_${payload.branch}_${alterDateFormat(
+          userDate
+        )}`;
+        const fileData = new Blob([res]);
+        downloadFile(fileData, "xlsx", filename, false);
+      } else {
+        throw new Error("Failed to download file!");
+      }
+    } catch (e) {
+      console.error(e);
+      showSnackBar(e?.message, "error");
+    }
+  };
 
-private void writeSuspenseSheet(
-        SXSSFWorkbook workbook,
-        String sheetName,
-        List<Map<String, Object>> records,
-        List<String> columns,
-        String type,
-        CellStyle numberStyle) {
-
-    SXSSFSheet sheet = workbook.createSheet(sheetName);
-    sheet.trackAllColumnsForAutoSizing();
-
-    Row header = sheet.createRow(0);
-
-    for (int i = 0; i < columns.size(); i++) {
-        header.createCell(i).setCellValue(columns.get(i).replace("_", " "));
+  const exportDetailedData = async () => {
+    if (breakupDataRows?.content.length == 0) {
+      showSnackBar("No Rows to download!", "error");
+    }
+    const cgl = breakupDataRows.content[0].cgl;
+    const currency = breakupDataRows.content[0].currency;
+    const branch = effectiveBranchCode;
+    const differenceType = breakupDataRows.type;
+    const firstErrorDate = breakupDataRows.content[0].firstErrorDate;
+    const payload = {
+      branch,
+      cgl,
+      currency,
+      startDate: alterDateFormat(firstErrorDate),
+      endDate: userDate?.format("YYYY-MM-DD"),
+      differenceType,
+    };
+    try {
+      const res = await callApi(
+        "/ES/branch-position/export-detailed-difference",
+        payload,
+        "POST",
+        "blob",
+      );
+      if (res) {
+        const filename = `${differenceType}_${branch}_${currency}_${cgl}_${alterDateFormat(
+          userDate
+        )}`;
+        const fileData = new Blob([res]);
+        downloadFile(fileData, "xlsx", filename, false);
+      } else {
+        throw new Error("Failed to download file!");
+      }
+    } catch (e) {
+      showSnackBar(e?.message, "error");
+    }
+  };
+  const exportGlifData = async () => {
+    if (!selectedBranch || !userDate) {
+      showSnackBar(
+        "Please select Branch and Report Date before downloading.",
+        "error"
+      );
+      return;
     }
 
-    int rowNum = 1;
-
-    for (Map<String, Object> record : records) {
-        Object suspenseType = record.entrySet().stream()
-                .filter(entry -> "SUSPENSE_TYPE".equalsIgnoreCase(entry.getKey()))
-                .map(Map.Entry::getValue)
-                .findFirst()
-                .orElse(null);
-
-        if (suspenseType == null ||
-                !type.equalsIgnoreCase(suspenseType.toString())) {
-            continue;
-        }
-
-        Row row = sheet.createRow(rowNum++);
-
-        for (int i = 0; i < columns.size(); i++) {
-            Object value = record.get(columns.get(i));
-            Cell cell = row.createCell(i);
-
-            if (value instanceof Number number) {
-                cell.setCellValue(number.doubleValue());
-                cell.setCellStyle(numberStyle);
-            } else {
-                cell.setCellValue(value == null ? "" : value.toString());
-            }
-        }
+    if (!glifDataFilter || Object.keys(glifDataFilter).length === 0) {
+      showSnackBar(
+        "Please select atleast one filter before downloading.",
+        "error"
+      );
+      return;
     }
 
-    if (rowNum == 1) {
-        header.createCell(0).setCellValue(
-                columns.isEmpty() ? "No records found" : header.getCell(0).getStringCellValue()
+    const payload = {
+      branch: effectiveBranchCode,
+      date: userDate?.format("YYYY-MM-DD"),
+      filters: [
+        {
+          field: "BRANCH_CODE",
+          operator: "EQUALS",
+          value: effectiveBranchCode,
+        },
+        { field: "TRANS_DATE", operator: "EQUALS", value: userDate },
+        ...Object.entries(glifDataFilter).map(([key, entry]) => {
+          return {
+            ["field"]: key,
+            ["operator"]: entry.operator,
+            ["value"]: entry.value,
+          };
+        }),
+      ],
+    };
+    console.log(payload);
+    try {
+      const res = await callApi(
+        "/ES/branch-position/export-glif-data",
+        payload,
+        "POST",
+        "arraybuffer"
+      );
+      if (res?.byteLength) {
+        downloadFile(res, "excel", "xyzz");
+      } else {
+        showSnackBar(
+          "Failed to download, Something went wrong Kindly try again",
+          "error"
         );
+      }
+    } catch (error) {
+      showSnackBar(error?.message, "error");
+    }
+  };
+
+  const fetchData = useCallback(async () => {
+    try {
+      const res = await callApi("/ES/branch-position/user-date");
+      if (res && res.success) {
+        setUserDate(dayjs(res.data.substring(0, 10)));
+      } else {
+        showSnackBar(res.message, "error");
+      }
+    } catch (e) {
+      showSnackBar(e.message, "error");
+    }
+  }, [callApi, showSnackBar]);
+
+  useEffect(() => {
+    fetchData();
+    // fetchCircleOptions();
+  }, [fetchData]);
+
+  const openCategoryDialog = (type) => {
+    setDialogType(type);
+    setDialogView("category");
+  };
+
+  const closeDialog = () => {
+    if (dialogView === "breakup") {
+      setDialogView("category");
+      setBreakupDataRows({});
+      return;
     }
 
-    autoSizeSheetAndUntrack(sheet);
-}
+    setDialogType(null);
+    setDialogView("category");
+    setBreakupDataRows({});
+    setSelectedGlcc("");
+  };
 
+  useEffect(() => {
+    const fetchEtlDate = async () => {
+      try {
+        const res = await callApi("/PS/file/fincore-date", {}, "GET");
+        const etlRaw = res?.data?.userDate;
+        setEtlDate(etlRaw ? dayjs(etlRaw.split("T")[0]) : null);
+      } catch (e) {
+        showSnackBar(e.message || "Unable to fetch Fincore ETL Date", "error");
+        setEtlDate(null);
+      }
+    };
 
+    fetchEtlDate();
+  }, [callApi, showSnackBar]);
 
+  const isSearchDisabled = !selectedBranch || !userDate;
+
+  const handleFilter = (filter) => {
+    if (!filter.multiValue) {
+      setGlifDataFilter((prev) => {
+        return {
+          ...prev,
+          [filter.field]: { operator: "EQUALS", value: filter.value },
+        };
+      });
+      return;
+    }
+    if (glifDataFilter[filter.field]) {
+      if (glifDataFilter[filter.field].value.length >= 10) {
+        showSnackBar("only 10 filter values allowed!", "error");
+        return;
+      } else {
+        if (new Set(glifDataFilter[filter.field].value).has(filter.value)) {
+          showSnackBar("value already present in the filter!", "error");
+          return;
+        }
+      }
+      setGlifDataFilter((prev) => {
+        return {
+          ...prev,
+          [filter.field]: {
+            operator: "IN",
+            value: [...prev[filter.field].value, filter.value],
+          },
+        };
+      });
+      return;
+    }
+    setGlifDataFilter((prev) => {
+      return {
+        ...prev,
+        [filter.field]: { operator: "IN", value: [filter.value] },
+      };
+    });
+  };
+
+  c
