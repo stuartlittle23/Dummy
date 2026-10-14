@@ -1,1 +1,313 @@
+export default function DisplayTab({
+    level,
+    type,
+    data = {},
+    category,
+    clickHandler = () => {},
+    downloadHandler = () => {},
+    requestData = () => {},
+    loading = false,
+    hideHeader = false,
+    flat = false,
+    reportDate,
+    glcc = "",
+    glifMode = false,
+}) {
+
+
+
+
+
+
+
+
+const rows = glifMode
+    ? (Array.isArray(data) ? data : [])
+    : (data?.content || []);
+
+
+
+
+if (glifMode) {
+    if (!rows.length) return [];
+
+    return Object.keys(rows[0])
+        .filter((field) => field.toUpperCase() !== "SUSPENSE_TYPE")
+        .map((field) => ({
+            field,
+            headerName: field.replaceAll("_", " "),
+            minWidth: 150,
+            flex: 1,
+            headerAlign: "center",
+            align: "left",
+        }));
+}
+
+
+
+
+
+
+
+}, [rows, level, type, clickHandler, glifMode]);
+
+
+
+const technicalSuspenseGlifMeta = {
+  label: "Technical Suspense GLIF Details",
+  category: "Technical Suspense GLIF Details",
+  description:
+    "View GLIF transactions with non-zero batch or journal balances in Technical Suspense.",
+  icon: <StorageOutlined fontSize="small" />,
+  role: "rolePurple",
+  emptyCaption: "No Records",
+};
+
+: count === 0
+  ? (meta.emptyCaption || "No Differences")
+
+
+const [technicalSuspenseRows, setTechnicalSuspenseRows] = useState([]);
+const [technicalSuspenseCount, setTechnicalSuspenseCount] = useState(null);
+const [technicalSuspenseLoading, setTechnicalSuspenseLoading] = useState(false);
+const [technicalSuspenseDialogOpen, setTechnicalSuspenseDialogOpen] = useState(false);
+
+
+
+const fetchTechnicalSuspenseGlifDetails = async () => {
+  if (!userDate || !effectiveBranchCode || reportDateError) {
+    showSnackBar("Please select a valid Branch and Report Date.", "error");
+    return;
+  }
+
+  try {
+    setTechnicalSuspenseLoading(true);
+    setTechnicalSuspenseCount(null);
+    setTechnicalSuspenseRows([]);
+
+    const res = await callApi(
+      "/ES/branch-position/get-technical-suspense-glif-details",
+      {
+        date: userDate.format("YYYY-MM-DD"),
+        branch: effectiveBranchCode,
+      },
+      "POST"
+    );
+
+    if (res?.success) {
+      const records = Array.isArray(res.data) ? res.data : [];
+      setTechnicalSuspenseRows(records);
+      setTechnicalSuspenseCount(records.length);
+    } else {
+      showSnackBar(
+        res?.message || "Unable to fetch Technical Suspense GLIF details.",
+        "error"
+      );
+    }
+  } catch (e) {
+    showSnackBar(
+      e?.message || "Unable to fetch Technical Suspense GLIF details.",
+      "error"
+    );
+  } finally {
+    setTechnicalSuspenseLoading(false);
+  }
+};
+
+
+
+const exportTechnicalSuspenseGlifDetails = async () => {
+  if (!userDate || !effectiveBranchCode || reportDateError) {
+    showSnackBar("Please select a valid Branch and Report Date.", "error");
+    return;
+  }
+
+  try {
+    const payload = {
+      date: userDate.format("YYYY-MM-DD"),
+      branch: effectiveBranchCode,
+    };
+
+    const res = await callApi(
+      "/ES/branch-position/export-technical-suspense-glif-details",
+      payload,
+      "POST",
+      "blob"
+    );
+
+    if (res) {
+      const filename =
+        `TechnicalSuspenseGLIF_${effectiveBranchCode}_${userDate.format("YYYY-MM-DD")}`;
+
+      downloadFile(new Blob([res]), "xlsx", filename, false);
+    } else {
+      showSnackBar("Failed to download Excel file.", "error");
+    }
+  } catch (e) {
+    showSnackBar(
+      e?.message || "Failed to download Excel file.",
+      "error"
+    );
+  }
+};
+
+
+
+
+onClick={() => {
+  setBreakupDataRows({});
+  fetchDifference();
+  fetchTechnicalSuspenseGlifDetails();
+}}
+
+
+
+
+
+const isSearchDisabled =
+  (!isBranchUser && !selectedBranch) ||
+  !effectiveBranchCode ||
+  !userDate ||
+  !!reportDateError;
+
+
+
+
+<Box className={styles.summaryRow}>
+  {Object.entries(categoryMeta).map(([type, meta]) => (
+    <SummaryCard
+      key={type}
+      meta={meta}
+      count={getCategoryCount(type)}
+      isLoading={loading === "Y" || loading === type}
+      onViewDetails={() => openCategoryDialog(type)}
+      onDownload={() => exportData(type, type)}
+    />
+  ))}
+
+  <SummaryCard
+    meta={technicalSuspenseGlifMeta}
+    count={technicalSuspenseCount}
+    isLoading={technicalSuspenseLoading}
+    onViewDetails={() => setTechnicalSuspenseDialogOpen(true)}
+    onDownload={exportTechnicalSuspenseGlifDetails}
+  />
+</Box>
+
+
+
+<Dialog
+  open={technicalSuspenseDialogOpen}
+  onClose={() => setTechnicalSuspenseDialogOpen(false)}
+  maxWidth="xl"
+  fullWidth
+  PaperProps={{ className: styles.dialogPaper }}
+>
+  <DialogTitle className={styles.dialogTitle}>
+    <Typography className={styles.dialogTitleText}>
+      Technical Suspense GLIF Details
+    </Typography>
+
+    <Chip
+      label={`${technicalSuspenseRows.length.toLocaleString("en-IN")} Records Found`}
+      size="small"
+      sx={{
+        fontWeight: 700,
+        color: "#58469f",
+        bgcolor: "rgba(88, 70, 159, 0.1)",
+        borderRadius: "8px",
+      }}
+    />
+
+    <Chip
+      label={`Report Date: ${formattedDate}`}
+      size="small"
+      sx={{
+        fontWeight: 700,
+        color: "#58469f",
+        bgcolor: "rgba(88, 70, 159, 0.1)",
+        borderRadius: "8px",
+      }}
+    />
+
+    <Box sx={{ flexGrow: 1 }} />
+
+    <IconButton
+      className={styles.dialogButton}
+      onClick={exportTechnicalSuspenseGlifDetails}
+      title="Download Excel"
+    >
+      <Download fontSize="small" />
+    </IconButton>
+
+    <IconButton
+      className={styles.dialogButton}
+      onClick={() => setTechnicalSuspenseDialogOpen(false)}
+      title="Close"
+    >
+      <Close fontSize="small" />
+    </IconButton>
+  </DialogTitle>
+
+  <DialogContent>
+    <DisplayTab
+      data={technicalSuspenseRows}
+      category="Technical Suspense GLIF Details"
+      type="TSG"
+      level={2}
+      hideHeader
+      flat
+      glifMode
+      loading={technicalSuspenseLoading}
+    />
+  </DialogContent>
+</Dialog>
+
+
+
+
+
+
+setTechnicalSuspenseRows([]);
+setTechnicalSuspenseCount(null);
+setTechnicalSuspenseDialogOpen(false);
+
+
+.summaryRow {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 12px;
+  align-items: stretch;
+  flex: 1;
+}
+
+
+
+@media (max-width: 1200px) {
+  .summaryRow {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 650px) {
+  .summaryRow {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
