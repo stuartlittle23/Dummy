@@ -1,1 +1,14 @@
+private HttpClient createSslConfiguredHttpClient() {
+    try {
+        SSLContext sslContext = SSLContext.getInstance("TLSv1.2");
+        sslContext.init(null, null, null);
 
+        return HttpClient.newBuilder()
+                .sslContext(sslContext)
+                .build();
+
+    } catch (NoSuchAlgorithmException | KeyManagementException e) {
+        log.error("Error initializing Druid SSL Context", e);
+        throw new IllegalStateException("Failed to configure SSL", e);
+    }
+}
