@@ -1,14 +1,262 @@
-private HttpClient createSslConfiguredHttpClient() {
-    try {
-        SSLContext sslContext = SSLContext.getInstance("TLSv1.2");
-        sslContext.init(null, null, null);
-
-        return HttpClient.newBuilder()
-                .sslContext(sslContext)
-                .build();
-
-    } catch (NoSuchAlgorithmException | KeyManagementException e) {
-        log.error("Error initializing Druid SSL Context", e);
-        throw new IllegalStateException("Failed to configure SSL", e);
-    }
+Mass Assignment: Insecure Binder Configuration (4 issues)
+Abstract
+The framework binder used for binding the HTTP request parameters to the model class has not been explicitly 
+configured to allow, or disallow certain attributes.
+Explanation
+To ease development and increase productivity, most modern frameworks allow an object to be automatically 
+instantiated and populated with the HTTP request parameters whose names match an attribute of the class to be 
+bound. Automatic instantiation and population of objects speeds up development, but can lead to serious problems if 
+implemented without caution. Any attribute in the bound classes, or nested classes, will be automatically bound to the 
+HTTP request parameters. Therefore, malicious users will be able to assign a value to any attribute in bound or nested 
+classes, even if they are not exposed to the client through web forms or API contracts. Example 1: Using Spring 
+MVC with no additional configuration, the following controller method will bind the HTTP request parameters to any 
+attribute in the User or Details classes: 
+@RequestMapping(method = RequestMethod.POST)
+public String registerUser(@ModelAttribute("user") User user, BindingResult 
+result, SessionStatus status) {
+  if (db.save(user).hasErrors()) {
+    return "CustomerForm";
+  } else {
+    status.setComplete();
+    return "CustomerSuccess";
+  }
 }
+Where User class is defined as: 
+public class User {
+  private String name;
+  private String lastname;
+  private int age;
+  private Details details;
+  // Public Getters and Setters
+  ...
+}
+and Details class is defined as: 
+public class Details {
+  private boolean is_admin;
+  private int id;
+  private Date login_date;
+  // Public Getters and Setters
+  ...
+}
+Recommendation
+When using frameworks that provide automatic model binding capabilities, it is a best practice to control which 
+attributes will be bound to the model object so that even if attackers figure out other non-exposed attributes of the 
+model or nested classes, they will not be able to bind arbitrary values from HTTP request parameters. Depending on 
+the framework used there will be different ways to control the model binding process: Spring MVC: It is possible to 
+control which HTTP request parameters will be used in the binding process and which ones will be ignored. In Spring 
+MVC applications using @ModelAttribute annotated parameters, the binder can be configured to control which 
+Oct 27, 2026, 11:44 AM
+© Copyright [2008-2026] Micro Focus or one of its affiliates.
+117
+attributes should be bound. In order to do so, a method can be annotated with @InitBinder so that the framework 
+will inject a reference to the Spring Model Binder. The Spring Model Binder can be configured to control the attribute 
+binding process with the setAllowedFields and setDisallowedFields methods. Spring MVC applications 
+extending BaseCommandController can override the initBinder(HttpServletRequest request, 
+ServletRequestDataBinder binder) method in order to get a reference to the Spring Model Binder. 
+Example 2: The Spring Model Binder (3.x) is configured to disallow the binding of sensitive attributes: 
+final String[] DISALLOWED_FIELDS = new String[]{"details.role", "details.age", 
+"is_admin"};
+@InitBinder
+public void initBinder(WebDataBinder binder) {
+    binder.setDisallowedFields(DISALLOWED_FIELDS);
+}
+Example 3: The Spring Model Binder (2.x) is configured to disallow the binding of sensitive attributes: 
+@Override
+protected void initBinder(HttpServletRequest request, ServletRequestDataBinder 
+binder) throws Exception {
+    binder.setDisallowedFields(new String[]{"details.role", "details.age", 
+"is_admin"});
+}
+In Spring MVC Applications using @RequestBody annotated parameters, the binding process is handled by 
+HttpMessageConverter instances which will use libraries such as Jackson and JAXB to convert the HTTP 
+request body into Java Objects. These libraries offer annotations to control which fields should be allowed or 
+disallowed. For example, for the Jackson JSON library, the @JsonIgnore annotation can be used to prevent a field 
+from being bound to the request. Example 4: A controller method binds an HTTP request to an instance of the 
+Employee class using the @RequestBody annotation. 
+    @RequestMapping(value="/add/employee", method=RequestMethod.POST, 
+consumes="text/html")
+    public void addEmployee(@RequestBody Employee employee){
+        // Do something with the employee object.
+    }
+The application uses the default Jackson HttpMessageConverter to bind JSON HTTP requests to the 
+Employee class. In order to prevent the binding of the is_admin sensitive field, use the @JsonIgnore 
+annotation: 
+public class Employee {
+  @JsonIgnore
+  private boolean is_admin;
+  ...
+  // Public Getters and Setters
+  ...
+}
+Note: Check the following REST frameworks information for more details on how to configure Jackson and JAXB 
+annotations. Apache Struts: Struts 1 and 2 will only bind HTTP request parameters to those Actions or 
+ActionForms attributes which have an associated public setter accessor. If an attribute should not be bound to the 
+request, its setter should be made private. Example 5: Configure a private setter so that Struts framework will not 
+automatically bind any HTTP request parameter: 
+private String role;
+private void setRole(String role)  {
+   this.role = role;
+}
+REST frameworks: Most REST frameworks will automatically bind any HTTP request bodies with content type 
+JSON or XML to a model object. Depending on the libraries used for JSON and XML processing, there will be different 
+ways of controlling the binding process. The following are some examples for JAXB (XML) and Jackson (JSON): 
+Example 6: Models bound from XML documents using Oracle's JAXB library can control the binding process using 
+Oct 27, 2026, 11:44 AM
+© Copyright [2008-2026] Micro Focus or one of its affiliates.
+118
+different annotations such as @XmlAccessorType, @XmlAttribute, @XmlElement and @XmlTransient. 
+The binder can be told not to bind any attributes by default, by annotating the models using the 
+@XmlAccessorType annotation with the value XmlAccessType.NONE and then selecting which fields should 
+be bound using @XmlAttribute and @XmlElement annotations: 
+@XmlRootElement
+@XmlAccessorType(XmlAccessType.NONE)
+public class User {
+    private String role;
+    private String name;
+    @XmlAttribute
+    public String getName() {
+        return name;
+    }
+    public void setName(String name) {
+        this.name = name;
+    }
+    public String getRole() {
+        return role;
+    }
+    public void setRole(String role) {
+        this.role = role;
+    }
+Example 7: Models bound from JSON documents using the Jackson library can control the binding process using 
+different annotations such as @JsonIgnore, @JsonIgnoreProperties, @JsonIgnoreType and 
+@JsonInclude. The binder can be told to ignore certain attributes by annotating them with @JsonIgnore 
+annotation: 
+public class User {
+    @JsonIgnore
+    private String role;
+    private String name;
+    public String getName() {
+        return name;
+    }
+    public void setName(String name) {
+        this.name = name;
+    }
+    public String getRole() {
+        return role;
+    }
+    public void setRole(String role) {
+        this.role = role;
+    }
+A different approach to protecting against mass assignment vulnerabilities is using a layered architecture where the 
+HTTP request parameters are bound to DTO objects. The DTO objects are only used for that purpose, exposing only 
+those attributes defined in the web forms or API contracts, and then mapping these DTO objects to Domain Objects 
+where the rest of the private attributes can be defined. 
+Issue Summary
+Oct 27, 2026, 11:44 AM
+© Copyright [2008-2026] Micro Focus or one of its affiliates.
+119
+Engine Breakdown
+Mass Assignment: Insecure Binder Configuration
+Total
+Mass Assignment: Insecure Binder Configuration
+SCA
+4
+4
+WebInspect
+0
+0
+SecurityScope
+0
+0
+Total
+4
+4
+High
+Package: com.fincore.enquiry_service.controller
+src/main/java/com/fincore/enquiry_service/controller/BranchPositionController.java, line 
+52 (Mass Assignment: Insecure Binder Configuration)
+High
+Issue Details
+Kingdom: API Abuse
+Scan Engine: SCA (Structural)
+Sink Details
+Sink: Function: exportDifferenceDate
+Enclosing Method: exportDifferenceDate()
+File: src/main/java/com/fincore/enquiry_service/controller/BranchPositionController.java:52
+Taint Flags: 
+49 
+50  /* Exports the Difference data for the Date and Branch in EXCEL format */
+51  @PostMapping("/export-difference")
+52  public ResponseEntity<StreamingResponseBody> exportDifferenceDate(
+53  @RequestBody BranchPosDifferenceReqDTO req
+54  ){
+55  return ResponseEntity.ok()
+src/main/java/com/fincore/enquiry_service/controller/BranchPositionController.java, line 
+90 (Mass Assignment: Insecure Binder Configuration)
+Issue Details
+High
+Kingdom: API Abuse
+Scan Engine: SCA (Structural)
+Sink Details
+Sink: Function: exportGlifData
+Oct 27, 2026, 11:44 AM
+© Copyright [2008-2026] Micro Focus or one of its affiliates.
+120
+Oct 27, 2026, 11:44 AM
+© Copyright [2008-2026] Micro Focus or one of its affiliates.
+121
+Mass Assignment: Insecure Binder Configuration High
+Package: com.fincore.enquiry_service.controller
+src/main/java/com/fincore/enquiry_service/controller/BranchPositionController.java, line 
+90 (Mass Assignment: Insecure Binder Configuration) High
+Enclosing Method: exportGlifData()
+File: src/main/java/com/fincore/enquiry_service/controller/BranchPositionController.java:90
+Taint Flags: 
+87 
+88  /* Exports the GLIF data for the Date and Branch in EXCEL format */
+89  @PostMapping("/export-glif-data")
+90  public ResponseEntity<StreamingResponseBody> exportGlifData(@RequestBody BranchPosGlifExtractReqDTO dto) throws 
+IOException {
+91  return ResponseEntity.ok()
+92  .header(
+93  HttpHeaders.CONTENT_DISPOSITION,
+src/main/java/com/fincore/enquiry_service/controller/BranchPositionController.java, line 
+72 (Mass Assignment: Insecure Binder Configuration) High
+Issue Details
+Kingdom: API Abuse
+Scan Engine: SCA (Structural)
+Sink Details
+Sink: Function: exportDetailedDiff
+Enclosing Method: exportDetailedDiff()
+File: src/main/java/com/fincore/enquiry_service/controller/BranchPositionController.java:72
+Taint Flags: 
+69 
+70  /* Exports the breakup of the difference observed for the Date and Branch */
+71  @PostMapping("/export-detailed-difference")
+72  public ResponseEntity<StreamingResponseBody> exportDetailedDiff(@RequestBody DetailedDifferenceReqDTO dto){
+73  return ResponseEntity.ok()
+74  .header(
+75  HttpHeaders.CONTENT_DISPOSITION,
+src/main/java/com/fincore/enquiry_service/controller/BranchPositionController.java, line 
+84 (Mass Assignment: Insecure Binder Configuration) High
+Issue Details
+Kingdom: API Abuse
+Scan Engine: SCA (Structural)
+Sink Details
+Sink: Function: getGlifData
+Enclosing Method: getGlifData()
+File: src/main/java/com/fincore/enquiry_service/controller/BranchPositionController.java:84
+Taint Flags: 
+Mass Assignment: Insecure Binder Configuration
+High
+Package: com.fincore.enquiry_service.controller
+src/main/java/com/fincore/enquiry_service/controller/BranchPositionController.java, line 
+84 (Mass Assignment: Insecure Binder Configuration)
+High
+81 
+82  /* Fetches the GLIF data for the Date and Branch*/
+83  @PostMapping("/get-glif-data")
+84  public ResponseEntity<List<Map<String,Object>>> getGlifData(@RequestBody BranchPosGlifExtractReqDTO dto) throws 
+IOException {
+85  return ResponseEntity.ok().body(branchPositionService.fetchGlifData(dto));
+86  }
+87
