@@ -1,1377 +1,514 @@
-2	Solution
-2.1	Technical Feasibility of the Proposed Solution
-The solution proposed in this document is technically feasible subject to assumptions and limitations. 
-2.2	Scope of changes
-Currently on entering the valid User ID and password user is allowed to access the FinCore application. With this change upon submitting the valid credentials application will send the One Time Passcode. To implement the OTP verification in FinCore application following changes are in scope. 
-•	Mobile/Email Check
-•	Code generation
-•	Code sending
-•	Resending
-•	Wrong Attempts
-•	Expiry
-•	Verification
-OTP will be compulsory for every user trying to login in the FinCore application. The login screen shall undergo changes in order to accommodate this functionality.
-2.2.1	Mobile/Email Check
-Upon valid credentials entered by the user, application to check if mobile number and/or email address present in database. If neither is present code shall not be sent.
-2.2.2	Code generation
-Application to generate 6-digit random code when user id has either mobile number or email id. The code to be hashed using bcrypt before storing and not in plain text.
-2.2.3	Code Input
-After sending the code, the application shall display the input for 6-digit code and await user input for validation. Only numeric inputs to be allowed.
-2.2.4	Code Sending
-The code to be sent to both the registered mobile number and email id or whichever is present. Application shall show masked mobile and/or email to which code has been sent.
-2.2.5	Resending
-Application to enable resend button after 60 seconds. A maximum of 3 resends shall be allowed per user within a 10-minute window. Every resend to regenerate a new code and reset the attempt counter.
-2.2.6	Wrong Attempts
-Every generated code to have 5 attempts for verification. Upon entering a wrong code for 5 times, it will be marked as expired and user need to click on resend code button for receiving a new code.
-2.2.7	 Code Expiry
-An OTP to be considered as Expired under either of the following conditions:
-1.	After 5 minutes from the time of its generation
-2.	5 consecutive failed verification attempts
-User can’t login with the expired code. 
-2.2.8	Verification
-Upon successful verification of the code user is allowed to use the application. The validated code to be immediately invalidated and deleted to ensure that it is for one-time use only.
-2.2.9	OTP entry Screen time-out
-In case the user remains idle on OTP entry screen for 15 minutes, the user will be prompted to enter user ID and password again.
-
-
-Message	Scenario
-Code cannot be sent: No valid mobile number or email address is mapped with User ID.	Neither mobile nor email present
-Please enter a valid 6-digit numeric code.	Input is not 6 digits / non-numeric
-The code is invalid or has expired. Please request a new code.	Code expired (> 5 min) or invalid
-Invalid code. {N} attempts remaining.	Wrong code, attempts < 5
-Too many incorrect attempts. The code has been expired. Please request a new code.	On 5th failed attempt
-Maximum resend limit reached. Kindly Wait.	3 resend in 10-min exceeded
-Code sent to ***1234 and a***o@sbi.co.in	Both mobile & email 
-Code sent to ***1234	Only mobile present
-Code sent to a***o@sbi.co.in	Only email present
-New Code sent to ***1234 and a***o@sbi.co.in	Resend both mobile & email
-New Code sent to ***1234	Resend Only mobile
-New Code sent to a***o@sbi.co.in	Resend Only email
-Please wait {N} seconds before requesting another code.	Resend clicked before 60-sec
-Unable to reach the SMS/email provider. Please try again after some time.	SMS/Email API returns error
-Your session has timed out. Please log in again.	OTP entry screen idle > 15 min
-
-
-import React, { useEffect, useRef, useState, useCallback } from "react";
-import axios from "axios";
-import api from "../../config/axiosConfig";
-import { useDispatch, useSelector } from "react-redux";
-import { useNavigate } from "react-router-dom";
-import { Box, InputAdornment, IconButton } from "@mui/material";
-import PersonIcon from "@mui/icons-material/Person";
-import LockIcon from "@mui/icons-material/Lock";
-import Visibility from "@mui/icons-material/Visibility";
-import VisibilityOff from "@mui/icons-material/VisibilityOff";
-import JSEncrypt from "jsencrypt";
-import { jwtDecrypt } from "jose"; // <-- Added jose import for JWE
-import LogoImg from "../../assets/Logos/Fincore_transperent.svg";
-import LoginErrorDialog from "./components/LoginErrorDialog";
-import LoginWithOTP from "./components/LoginWithOTP";
-import fTitle from "../../assets/Logos/Fincore_title.png";
-import UpdatePassword from "./components/UpdatePassword";
+import React, { useEffect, useState, useCallback, useMemo } from "react";
 import {
-  Root,
-  ContainerInner,
-  Content,
-  LeftCol,
-  RightCol,
-  LogoWrap,
-  BrandSub,
-  BigHeading,
-  SubText,
-  FeatureList,
-  FeatureItem,
-  Bullet,
-  GlassCard,
-  FormTitle,
-  StyledTextField,
-  PrimaryButton,
-  SubHeadingText,
-} from "./components/LoginStyles";
-import { resolveConfig } from "../../config/EnvironmentConfig";
-import Copyright from "../../components/Copyright";
-import { loginSuccess } from "../../store/slices/authSlice";
-import { setMenus, setSelectedMenuItem } from "../../store/slices/menuSlice";
-import { setTabId } from "../../store/slices/tabSlice";
+  Box,
+  Typography,
+  Chip,
+  Paper,
+  Tabs,
+  Tab,
+  Button,
+  IconButton,
+  Dialog,
+  DialogContent,
+  DialogTitle,
+} from "@mui/material";
+import { LocalizationProvider } from "@mui/x-date-pickers/LocalizationProvider";
+import { DatePicker } from "@mui/x-date-pickers/DatePicker";
+import { AdapterDayjs } from "@mui/x-date-pickers/AdapterDayjs";
+import dayjs from "dayjs";
+import DisplayTab from "./DisplayTab";
+import useApi from "../../hooks/useApi";
+import {
+  AccountBalance,
+  Public,
+  Download,
+  Delete,
+  Close,
+  CalendarMonthOutlined,
+  ReceiptLongOutlined,
+  VerifiedUserOutlined,
+  CompareArrowsOutlined,
+  AdjustOutlined,
+  StorageOutlined,
+  AccountBalanceOutlined,
+  InfoOutlined,
+  AutoAwesome,
+  FilterAltOutlined,
+  PlaylistAddCheckOutlined,
+  VisibilityOutlined,
+  SearchOutlined,
+  RestartAltOutlined,
+} from "@mui/icons-material";
+import downloadFile from "../../utils/DownloadUtils";
+import useCustomSnackbar from "../../utils/useCustomSnackbar";
+import styles from "./BranchPosition.module.css";
+import Filter from "./Filter";
+import { useSelector } from "react-redux";
+import { Autocomplete, TextField } from "@mui/material";
 
-export default function Login() {
-  const [content, setContent] = useState(null);
-  const { publicKey } = useSelector((state) => state.appConfig);
+const alterDateFormat = (date) => {
+  if (!date) return "";
 
-  const dispatch = useDispatch();
-  const navigate = useNavigate();
-  const menus = useSelector((state) => state.menus.menus);
+  if (dayjs.isDayjs(date)) {
+    return date.format("YYYY-MM-DD");
+  }
 
-  const [userId, setUserId] = useState("");
-  const [password, setPassword] = useState("");
-  const [showPassword, setShowPassword] = useState(false);
+  const dateRegex = /^(0[1-9]|[12][0-9]|3[01])([-/.])(0[1-9]|1[0-2])\2(\d{4})$/;
 
-  const [error, setError] = useState("");
-  const [passwordError, setPasswordError] = useState("");
+  return date.replace(dateRegex, "$4$2$3$2$1");
+};
 
-  const [page, setPage] = useState("HOME"); // HOME | UPDATE | OTP
-  const [dialogConfig, setDialogConfig] = useState({
-    show: false,
-    heading: "",
-    content: "",
-    type: "error", // invalid | error | locked | restricted | rateLimit | denied | warning
-  });
-  const [loading, setLoading] = useState(false);
-  const [userIdDisabled, setUserIdDisabled] = useState(false);
-  const [otpData, setOtpData] = useState(null);
+const categoryMeta = {
+  TSD: {
+    label: "Technical Suspense",
+    category: "Technical Suspense Difference",
+    description:
+      "Contra account for non-cash intra-branch transactions. Balance must always be zero. Any non-zero balance indicates unmatched legs requiring reconciliation.",
+    icon: <ReceiptLongOutlined fontSize="small" />,
+    role: "rolePurple",
+  },
+  BCD: {
+    label: "Balance Compare",
+    category: "Balance Compare Difference",
+    description:
+      "Compares bank account balances against their corresponding Fincore CGL balances. No entries should appear in Balance Compare. Any discrepancy indicates a mismatch requiring investigation.",
+    icon: <CompareArrowsOutlined fontSize="small" />,
+    role: "roleAmber",
+  },
+  CSD: {
+    label: "CGL Suspense",
+    category: "CGL Suspense Difference",
+    description:
+      "Temporary holding account for CGL entries that cannot be immediately posted or matched. Balance must always be zero. Any non-zero balance indicates unresolved entries requiring reconciliation.",
+    icon: <VerifiedUserOutlined fontSize="small" />,
+    role: "roleTeal",
+  },
+};
 
-  const userIdInputRef = useRef(null);
-  const passwordInputRef = useRef(null);
+const technicalSuspenseGlifMeta = {
+  label: "Technical Suspense GLIF Details",
+  category: "Technical Suspense GLIF Details",
+  description:
+    "View GLIF transactions with non-zero batch or journal balances in Technical Suspense.",
+  icon: <StorageOutlined fontSize="small" />,
+  role: "rolePurple",
+  emptyCaption: "No Records",
+};
 
-  // Load static content JSON
-  useEffect(() => {
-    const loadContent = async () => {
-      try {
-        const res = await axios.get("/loginContent.json");
-        setContent(res.data);
-      } catch (err) {
-        console.error("Failed to load content JSON:", err);
-      }
-    };
-    loadContent();
-  }, []);
+const filterFieldColors = {
+  CURRENCY: { bg: "#E1F5EE", text: "#0F8A6C" },
+  CGL: { bg: "#EEEDFE", text: "#6C5CE7" },
+  JOURNAL_NUMBER: { bg: "#E6F1FB", text: "#1D6FB8" },
+  TRANSACTION_CODE: { bg: "#FBEAF0", text: "#C23E70" },
+  BATCH_ID: { bg: "#F1EFE8", text: "#6B6A63" },
+  ACCOUNT: { bg: "#FFF1E0", text: "#C9761A" },
+};
 
-  // Focus User ID initially
-  useEffect(() => {
-    let timer;
-    if (page === "HOME" && userIdInputRef.current && !loading) {
-      timer = setTimeout(() => {
-        userIdInputRef.current.focus();
-      }, 100);
-    }
-    return () => clearTimeout(timer);
-  }, [page, loading]);
-
-  // Post-authentication navigation handler
-  useEffect(() => {
-    if (menus?.length > 0 && menus[0]?.route) {
-      const targetRoute = menus[0].hasChildren
-        ? `/choose-option${menus[0].route}`
-        : menus[0].route;
-      navigate(targetRoute, { replace: true });
-    }
-  }, [menus, navigate]);
-
-  const handleDialogClose = useCallback(() => {
-    setDialogConfig({ show: false, heading: "", content: "", type: "error" });
-  }, []);
-
-  const openLoginErrorDialog = useCallback(
-    (heading, content, type = "error") => {
-      setDialogConfig({ show: true, heading, content, type });
-    },
-    [],
-  );
-
-  const validateId = (id) => {
-    if (!id) return false;
-    const regex = /^(?:\d{7}|v\d{7}|tcs\d{7}|tcsv\d{7})$/;
-    return regex.test(id.trim().toLowerCase());
-  };
-
-  const handleUserIdChange = (raw) => {
-    if (userIdDisabled) return;
-    const val = (raw || "").replace(/\s+/g, "");
-    const m = val.match(/^([A-Za-z]*)(.*)$/);
-    let prefixCandidate = (m?.[1] || "").toLowerCase();
-    const rest = m?.[2] || "";
-
-    const allowedPrefixList = ["", "t", "tc", "tcs", "tcsv", "v"];
-    if (!allowedPrefixList.some((p) => prefixCandidate.startsWith(p))) {
-      prefixCandidate = "";
-    }
-
-    let digitsPart = rest.replace(/\D/g, "");
-    if (digitsPart.length > 7) digitsPart = digitsPart.slice(0, 7);
-
-    const newVal = prefixCandidate + digitsPart;
-    if (digitsPart.length <= 7) {
-      setUserId(newVal);
-    }
-    if (error) setError("");
-  };
-
-  const handleUserIdPaste = (e) => {
-    e.preventDefault();
-    const paste = (e.clipboardData || window.clipboardData).getData("text");
-    handleUserIdChange(paste);
-  };
-
-  // Unified Login & Validation Execution
-  const handleLogin = async (e) => {
-    if (e) e.preventDefault();
-    if (loading) return; // Prevent double-clicks
-
-    setError("");
-    setPasswordError("");
-
-    if (!validateId(userId)) {
-      setError("Invalid User ID");
-      userIdInputRef.current?.focus();
-      return;
-    }
-
-    if (!password || password.trim().length < 8) {
-      setPasswordError("Password must be at least 8 characters.");
-      passwordInputRef.current?.focus();
-      return;
-    }
-
-    if (!publicKey) {
-      openLoginErrorDialog(
-        "Initialization Error",
-        "Encryption key failed to fetch. Please refresh the page and try again.",
-        "warning",
-      );
-      return;
-    }
-
-    try {
-      setLoading(true);
-      const payloadUserId = userId.trim();
-
-      // Encrypt the password using the fetched key
-      const encryptor = new JSEncrypt();
-      encryptor.setPublicKey(publicKey);
-      const encryptedPassword = encryptor.encrypt(password);
-
-      if (!encryptedPassword) throw new Error("Encryption failed.");
-
-      const res = await api.post(`${resolveConfig("/LS")}/auth/login`, {
-        userId: payloadUserId,
-        password: encryptedPassword,
-      });
-
-      const result = res?.data?.data || {};
-
-      // Support fetching AES key mapped from Axios headers (Axios lowercases header keys)
-      if (!result.payloadEncryptionKey) {
-        result.payloadEncryptionKey = res.headers["x-payload-key"];
-      }
-
-      if (res.status === 202 && res?.data?.success) {
-        setOtpData(result);
-        setPage("OTP");
-      } else if (res.status === 200 && res?.data?.success) {
-        await handleDirectSessionEstablish(result); // <-- Added await for JWE decryption
-      } else {
-        openLoginErrorDialog(
-          "Login Failed",
-          result.message ||
-            res?.data?.message ||
-            "Something went wrong, please try again.",
-          "error",
-        );
-      }
-    } catch (err) {
-      console.error("Login error:", err);
-
-      // Handle Network / CORS Errors
-      if (!err.response) {
-        openLoginErrorDialog(
-          "Network Error",
-          "Unable to reach the server. Please check your internet connection.",
-          "error",
-        );
-        return;
-      }
-
-      // Handle specific HTTP Status codes
-      const status = err.response.status;
-      const errResult = err.response.data?.data || {};
-      const msg =
-        err.response.data?.message || "Something went wrong, please try again.";
-
-      if (status === 429) {
-        const retryTime =
-          err.response.headers["retry-after"] || "a few minutes";
-        openLoginErrorDialog(
-          "Too Many Requests",
-          `Maximum login attempts exceeded. Please try after ${retryTime} seconds.`,
-          "rateLimit",
-        );
-        return;
-      }
-
-      if (status === 401) {
-        openLoginErrorDialog("Invalid Credentials", msg, "invalid");
-        return;
-      }
-
-      if (status === 428) {
-        setPage("UPDATE");
-        setUserIdDisabled(true);
-        return;
-      }
-
-      // Handle API-specific business logic errors
-      if (errResult?.userStatus === "RESTRICTED") {
-        openLoginErrorDialog(
-          "Access Restricted",
-          "This system is restricted to use FinCore. Please contact the administrator.",
-          "restricted",
-        );
-        return;
-      }
-
-      if (errResult?.passwordLoginStatus === "INACTIVE") {
-        openLoginErrorDialog(
-          "Account Locked",
-          "This account is locked and cannot sign in to FinCore. Please contact the administrator.",
-          "locked",
-        );
-        return;
-      }
-
-      // Default fallback error
-      openLoginErrorDialog("Login Failed", msg, "error");
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleKeyDown = (e) => {
-    if (e.key === "Enter" && !loading) {
-      e.preventDefault();
-      handleLogin();
-    }
-  };
-
-  const handlePasswordUpdateSuccess = () => {
-    setPage("HOME");
-    setUserIdDisabled(false);
-    setPassword("");
-  };
-
-  const enableEditingBackToHome = () => {
-    setPage("HOME");
-    setUserIdDisabled(false);
-    setError("");
-    setPasswordError("");
-    setPassword("");
-    setOtpData(null);
-  };
-
-  // Shared token payload & redux session hydration (Updated for JWE parsing)
-  const handleDirectSessionEstablish = async (result) => {
-    if (!result?.roleData?.root_menus?.length) {
-      openLoginErrorDialog(
-        "Access Denied",
-        "You don't have enough permissions to access this application.",
-        "denied",
-      );
-      return;
-    }
-
-    const encryptedToken = result.accessToken;
-    const base64AesKey = result.payloadEncryptionKey;
-
-    if (!base64AesKey) {
-      console.error("Missing Decryption Key in Headers!");
-      openLoginErrorDialog("Login Error", "Missing Decryption Key.", "error");
-      return;
-    }
-
-    let user;
-    try {
-      // Convert the Base64 AES Key into a Cryptographic Buffer
-      const secretKey = Uint8Array.from(atob(base64AesKey), (c) =>
-        c.charCodeAt(0),
-      );
-
-      // Decrypt the token in the browser's memory using jose
-      const { payload } = await jwtDecrypt(encryptedToken, secretKey);
-      user = payload;
-    } catch (error) {
-      console.error("Failed to decrypt the JWE token!", error);
-      openLoginErrorDialog(
-        "Login Error",
-        "Failed to securely read user profile.",
-        "error",
-      );
-      return;
-    }
-
-    const tabId = crypto.randomUUID();
-
-    dispatch(
-      loginSuccess({
-        token: encryptedToken, // Storing raw encrypted token
-        user,
-        payloadEncryptionKey: base64AesKey,
-      }),
-    );
-
-    dispatch(setTabId(tabId));
-    dispatch(setMenus(result.roleData.root_menus));
-    dispatch(setSelectedMenuItem(result.roleData.root_menus[0]));
-
-    const bc = new BroadcastChannel("auth");
-    setTimeout(() => {
-      bc.postMessage({ type: "USER_LOGGED_IN", tabId, userId: user.userId });
-      bc.close(); // Memory cleanup
-    }, 1000);
-  };
-
-  if (!content) return null;
-
+function SummaryCard({ meta, count, isLoading, onViewDetails, onDownload }) {
+  const hasCount = typeof count === "number";
+  const isMatched = hasCount && count === 0;
   return (
-    <Root sx={{ justifyContent: "space-between", padding: 0 }}>
-      {/* ... Existing Layout Containers ... */}
-      <Box
-        sx={{
-          flexGrow: 1,
-          display: "flex",
-          alignItems: "center",
-          width: "100%",
-          py: { xs: 4, md: 6 },
-          px: { xs: 2.5, sm: 4, md: 6 },
-        }}
-      >
-        <ContainerInner>
-          <Content
-            sx={{
-              display: "flex",
-              flexDirection: { xs: "column", md: "row" },
-              gap: { xs: 5, md: 4 },
-            }}
-          >
-            <LeftCol>
-              <LogoWrap>
-                <Box
-                  component="img"
-                  src={LogoImg}
-                  alt="Logo Icon"
-                  sx={{ width: { xs: 100, sm: 130, md: 150 }, height: "auto" }}
-                />
-                <Box sx={{ textAlign: { xs: "center", md: "left" } }}>
-                  <Box
-                    component="img"
-                    src={fTitle}
-                    alt="FinCore"
-                    sx={{
-                      height: { xs: 28, md: 35 },
-                      width: "auto",
-                      mx: { xs: "auto", md: 0 },
-                      mt: { xs: 2, md: 5 },
-                      mb: 1,
-                    }}
-                  />
-                  <BrandSub>{content?.brand?.subtitle}</BrandSub>
-                </Box>
-              </LogoWrap>
-
-              <Box
-                sx={{
-                  display: { xs: "none", md: "block" },
-                  mt: 2,
-                  mb: 1,
-                  textAlign: { xs: "center", md: "left" },
-                }}
-              >
-                <BigHeading>
-                  {(content?.hero?.welcomeTitle || "").split(" - ")[0]}
-                </BigHeading>
-                {content?.hero?.welcomeTitle?.includes(" - ") && (
-                  <SubHeadingText>
-                    {content?.hero?.welcomeTitle.split(" - ")[1]}
-                  </SubHeadingText>
-                )}
-              </Box>
-
-              <SubText
-                sx={{
-                  display: { xs: "none", md: "block" },
-                  textAlign: { xs: "center", md: "left" },
-                }}
-              >
-                {content?.hero?.subText}
-              </SubText>
-
-              <Box sx={{ display: { xs: "none", md: "block" }, mt: 3 }}>
-                <BigHeading>{content?.legal?.title}</BigHeading>
-                <FeatureList sx={{ mt: 2 }}>
-                  {content?.legal?.items.map((item, idx) => (
-                    <FeatureItem key={idx}>
-                      <Bullet /> {item}
-                    </FeatureItem>
-                  ))}
-                </FeatureList>
-              </Box>
-            </LeftCol>
-
-            <RightCol
-              sx={{
-                display: "flex",
-                flexDirection: "column",
-                alignItems: "center",
-                width: "100%",
-              }}
-            >
-              <GlassCard elevation={3} sx={{ width: "100%" }}>
-                <FormTitle align="center">
-                  {page === "OTP"
-                    ? "Two-Factor Verification"
-                    : content?.form?.signIn}
-                </FormTitle>
-
-                {page === "HOME" && (
-                  <form onSubmit={handleLogin}>
-                    <StyledTextField
-                      fullWidth
-                      required
-                      inputRef={userIdInputRef}
-                      label="User ID"
-                      placeholder={content?.form?.userIdPlaceholder}
-                      margin="dense"
-                      value={userId}
-                      onChange={(e) => handleUserIdChange(e.target.value)}
-                      onPaste={handleUserIdPaste}
-                      onKeyDown={handleKeyDown}
-                      error={Boolean(error)}
-                      helperText={error || " "}
-                      disabled={userIdDisabled || loading}
-                      autoComplete="username"
-                      InputProps={{
-                        startAdornment: (
-                          <InputAdornment position="start">
-                            <PersonIcon />
-                          </InputAdornment>
-                        ),
-                      }}
-                    />
-
-                    <StyledTextField
-                      fullWidth
-                      required
-                      inputRef={passwordInputRef}
-                      label="Password"
-                      placeholder="Enter your Password"
-                      type={showPassword ? "text" : "password"}
-                      margin="dense"
-                      value={password}
-                      onChange={(e) => {
-                        setPassword(e.target.value);
-                        if (passwordError) setPasswordError("");
-                      }}
-                      onKeyDown={handleKeyDown}
-                      error={Boolean(passwordError)}
-                      helperText={passwordError || " "}
-                      disabled={loading}
-                      autoComplete="current-password"
-                      InputProps={{
-                        startAdornment: (
-                          <InputAdornment position="start">
-                            <LockIcon />
-                          </InputAdornment>
-                        ),
-                        endAdornment: password.trim() && (
-                          <InputAdornment position="end">
-                            <IconButton
-                              onClick={() => setShowPassword(!showPassword)}
-                              edge="end"
-                              disabled={loading}
-                              type="button"
-                              aria-label={
-                                showPassword ? "Hide password" : "Show password"
-                              }
-                            >
-                              {showPassword ? (
-                                <Visibility />
-                              ) : (
-                                <VisibilityOff />
-                              )}
-                            </IconButton>
-                          </InputAdornment>
-                        ),
-                      }}
-                    />
-
-                    <PrimaryButton
-                      type="submit"
-                      variant="contained"
-                      disabled={
-                        loading || !userId || password.trim().length < 8
-                      }
-                    >
-                      {loading
-                        ? content?.form?.checking || "Verifying..."
-                        : content?.form?.signInButton}
-                    </PrimaryButton>
-                  </form>
-                )}
-
-                {page === "OTP" && (
-                  <LoginWithOTP
-                    userId={userId}
-                    otpData={otpData}
-                    openLoginErrorDialog={openLoginErrorDialog}
-                    onBackToHome={enableEditingBackToHome}
-                    onSessionEstablished={handleDirectSessionEstablish}
-                  />
-                )}
-
-                {page === "UPDATE" && (
-                  <UpdatePassword
-                    userId={userId}
-                    publicKey={publicKey}
-                    openLoginErrorDialog={openLoginErrorDialog}
-                    onUpdateSuccess={handlePasswordUpdateSuccess}
-                  />
-                )}
-              </GlassCard>
-
-              {/* Mobile Legal Box */}
-              <Box
-                sx={{
-                  display: { xs: "block", md: "none" },
-                  mt: 5,
-                  width: "100%",
-                }}
-              >
-                <BigHeading
-                  sx={{
-                    fontSize: { xs: "1.2rem", md: "1.5rem" },
-                    textAlign: "center",
-                    mb: 2,
-                  }}
-                >
-                  {content?.legal?.title}
-                </BigHeading>
-                <FeatureList>
-                  {content?.legal?.items.map((item, idx) => (
-                    <FeatureItem
-                      key={idx}
-                      sx={{ fontSize: { xs: "0.875rem", sm: "1rem" } }}
-                    >
-                      <Bullet /> <span style={{ flex: 1 }}>{item}</span>
-                    </FeatureItem>
-                  ))}
-                </FeatureList>
-              </Box>
-            </RightCol>
-          </Content>
-        </ContainerInner>
+    <Paper
+      elevation={0}
+      className={`${styles.summaryCard} ${styles[meta.role]}`}
+    >
+      <Box className={styles.summaryCardHeader}>
+        <Box className={styles.summaryCardIcon}>{meta.icon}</Box>
+        <Typography className={styles.summaryCardLabel}>
+          {meta.label}
+        </Typography>
       </Box>
 
-      <Box sx={{ width: "100%", zIndex: 2 }}>
-        <Copyright />
+      <Typography className={styles.summaryCardDescription}>
+        {meta.description}
+      </Typography>
+
+      <Box className={styles.summaryCardCenter}>
+        <Typography
+          className={styles.summaryCardCount}
+          sx={{
+            color: isMatched ? "#10A37F" : hasCount ? "#D32F2F" : "inherit",
+          }}
+        >
+          {isLoading ? "—" : hasCount ? count : "—"}
+        </Typography>
+        <Typography className={styles.summaryCardCaption}>
+          {isLoading
+            ? "Checking…"
+            : hasCount
+            ? count === 0
+            ? (meta.emptyCaption || "No Differences")
+              : `${count} record${count > 1 ? "s" : ""} found`
+            : "Search to check Differences"}
+        </Typography>
       </Box>
 
-      {/* Passed type dynamically here */}
-      <LoginErrorDialog
-        showErrorDialog={dialogConfig.show}
-        title={dialogConfig.heading}
-        content={dialogConfig.content}
-        type={dialogConfig.type}
-        onDialogClose={handleDialogClose}
-      />
-    </Root>
+      <Box className={styles.summaryCardActions}>
+        <Button
+          className={styles.viewDetailsButton}
+          variant="contained"
+          size="small"
+          startIcon={<VisibilityOutlined sx={{ fontSize: 16 }} />}
+          onClick={onViewDetails}
+          disabled={!hasCount || count === 0}
+        >
+          View Details
+        </Button>
+        <Button
+          className={styles.downloadButtonOutlined}
+          variant="contained"
+          size="small"
+          startIcon={<Download sx={{ fontSize: 14 }} />}
+          disabled={!hasCount || count === 0}
+          onClick={onDownload}
+        >
+          Download
+        </Button>
+      </Box>
+    </Paper>
   );
 }
 
+export default function BranchPosition() {
+  const [userDate, setUserDate] = useState(null);
+  const [etlDate, setEtlDate] = useState(null);
+  const [reportDateError, setReportDateError] = useState(null);
+  const [dataRows, setDataRows] = useState({});
+  const [breakupDataRows, setBreakupDataRows] = useState({});
+  const { callApi } = useApi();
+  const [glifDataFilter, setGlifDataFilter] = useState({});
+  const [loading, setLoading] = useState("N"); //"N","Y","BCD","TSD","CSD"
+  const showSnackBar = useCustomSnackbar();
+  const [mode, setMode] = useState("DD");
+  const user = useSelector((state) => state.auth.user);
+
+  const [technicalSuspenseRows, setTechnicalSuspenseRows] = useState([]);
+  const [technicalSuspenseCount, setTechnicalSuspenseCount] = useState(null);
+  const [technicalSuspenseLoading, setTechnicalSuspenseLoading] = useState(false);
+  const [technicalSuspenseDialogOpen, setTechnicalSuspenseDialogOpen] = useState(false);
 
 
-import React, { useState, useEffect, useRef } from "react";
-import {
-  Typography,
-  Button,
-  Box,
-  InputBase,
-  Stack,
-  CircularProgress,
-} from "@mui/material";
-import ArrowBackIcon from "@mui/icons-material/ArrowBack";
-import RefreshIcon from "@mui/icons-material/Refresh";
-import EmailIcon from "@mui/icons-material/Email";
-import PhoneAndroidIcon from "@mui/icons-material/PhoneAndroid";
-import AccessTimeIcon from "@mui/icons-material/AccessTime";
-import WarningAmberIcon from "@mui/icons-material/WarningAmber";
-import api from "../../../config/axiosConfig";
-import { resolveConfig } from "../../../config/EnvironmentConfig";
-import { PrimaryButton } from "./LoginStyles";
-import useCustomSnackbar from "../../../utils/useCustomSnackbar";
+  const hasWholeBank = user?.roleAccess === "W";
+  const isCircleUser = user?.roleAccess === "C";
+  const isBranchUser = user?.roleAccess === "B";
 
-const LoginWithOTP = ({
-  userId,
-  otpData,
-  openLoginErrorDialog,
-  onBackToHome,
-  onSessionEstablished,
-}) => {
-  const showSnackbar = useCustomSnackbar();
+  const [selectedBranch, setSelectedBranch] = useState(null); // { code, name } or null
+  const [branchInput, setBranchInput] = useState("");
+  const [branchOptions, setBranchOptions] = useState([]);
+  const [branchLoading, setBranchLoading] = useState(false);
 
-  const [otpValues, setOtpValues] = useState(["", "", "", "", "", ""]);
-  const [isLoading, setIsLoading] = useState(false);
-  const [wrongAttempts, setWrongAttempts] = useState(0);
-  const [isSessionUnauthorized, setIsSessionUnauthorized] = useState(false);
+  const effectiveBranchCode = (selectedBranch?.code || user?.branch)
+    ?.toString()
+    .padStart(5, 0);
+  const effectiveBranchName = selectedBranch?.name || user?.branchName;
 
-  // --- API Driven Timers & Limits ---
-  const [currentTxnId, setCurrentTxnId] = useState(
-    otpData?.transactionId || "",
-  );
-  const [expiresIn, setExpiresIn] = useState(otpData?.expiresInSeconds || 300);
-  const [cooldown, setCooldown] = useState(
-    otpData?.resendCooldownSeconds || 30,
-  );
-  const [resendsLeft, setResendsLeft] = useState(
-    otpData?.resendsRemaining ?? 5,
-  );
+  const [dialogType, setDialogType] = useState(null);
+  const [dialogView, setDialogView] = useState("category");
+  const isDialogOpen = dialogType !== null;
+  const MIN_ALLOWED_DATE = useMemo(() => dayjs("2026-03-31"), []);
 
-  const inputRefs = useRef([]);
+  const [selectedGlcc, setSelectedGlcc] = useState("");
 
-  const isExpired = expiresIn <= 0 || isSessionUnauthorized;
-  const isExhausted = resendsLeft <= 0;
-  const otpString = otpValues.join("");
-
-  // Focus management
-  useEffect(() => {
-    if (!isExpired && inputRefs.current[0]) {
-      inputRefs.current[0].focus();
+  const fetchBranchOptions = async (term) => {
+    if (isBranchUser) return;
+    if (!term || term.length < 3) {
+      setBranchOptions([]);
+      return;
     }
-  }, [isExpired]);
-
-  // Global Tick Timer
-  useEffect(() => {
-    const timer = setInterval(() => {
-      setExpiresIn((prev) => (prev > 0 ? prev - 1 : 0));
-      setCooldown((prev) => (prev > 0 ? prev - 1 : 0));
-    }, 1000);
-    return () => clearInterval(timer);
-  }, []);
-
-  const formatTime = (seconds) => {
-    const m = Math.floor(seconds / 60)
-      .toString()
-      .padStart(2, "0");
-    const s = (seconds % 60).toString().padStart(2, "0");
-    return `${m}:${s}`;
-  };
-
-  const updateTimersFromResponse = (data) => {
-    if (data?.transactionId) setCurrentTxnId(data.transactionId);
-    if (data?.expiresInSeconds) setExpiresIn(data.expiresInSeconds);
-    if (data?.resendCooldownSeconds) setCooldown(data.resendCooldownSeconds);
-    if (data?.resendsRemaining !== undefined)
-      setResendsLeft(data.resendsRemaining);
-  };
-
-  const forceResendOTP = async () => {
     try {
-      const res = await api.post(
-        `${resolveConfig("/LS") || ""}/auth/resend-otp`,
-        {
-          userId,
-          transactionId: currentTxnId,
-        },
-      );
+      setBranchLoading(true);
+      // const circleValue = hasWholeBank ? '' : (user?.circleCode || '');
+      let circleValue = "";
 
-      updateTimersFromResponse(res?.data?.data);
-      setWrongAttempts(0);
-      setOtpValues(["", "", "", "", "", ""]);
-      showSnackbar(
-        "3 invalid attempts. A fresh verification code was sent.",
-        "warning",
-      );
-      inputRefs.current[0]?.focus();
-    } catch (err) {
-      console.error("Forced OTP Generation Error:", err);
-      openLoginErrorDialog(
-        "Session Terminated",
-        "Could not generate a new code. Please restart login.",
-      );
-    }
-  };
-
-  const handleResendClick = async () => {
-    if (isExhausted || cooldown > 0 || isExpired) return;
-
-    setIsLoading(true);
-    try {
-      const res = await api.post(
-        `${resolveConfig("/LS") || ""}/auth/resend-otp`,
-        {
-          userId,
-          transactionId: currentTxnId,
-        },
-      );
-
-      updateTimersFromResponse(res?.data?.data);
-      setWrongAttempts(0);
-      setOtpValues(["", "", "", "", "", ""]);
-      showSnackbar(
-        res?.data?.message || "A new code has been sent successfully.",
-        "success",
-      );
-      inputRefs.current[0]?.focus();
-    } catch (err) {
-      const status = err.response?.status;
-      if (status === 401) {
-        setIsSessionUnauthorized(true);
-        setExpiresIn(0);
-      } else {
-        const msg =
-          err.response?.data?.message || "Failed to resend verification code.";
-        showSnackbar(msg, "error");
-      }
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  const handleVerifyOTP = async () => {
-    if (otpString.length !== 6 || isExpired) return;
-
-    setIsLoading(true);
-
-    try {
-      const response = await api.post(
-        `${resolveConfig("/LS") || ""}/auth/verify-otp`,
-        {
-          userId,
-          transactionId: currentTxnId,
-          otp: otpString,
-        },
-      );
-
-      const isSuccess = response?.data?.success === true;
-      const result = response?.data?.data || {};
-
-      // Support fetching AES key mapped from Axios headers (Axios lowercases header keys)
-      if (!result.payloadEncryptionKey) {
-        result.payloadEncryptionKey = response.headers["x-payload-key"];
+      switch (user?.roleAccess) {
+        case "W":
+          circleValue = "";
+          break;
+        case "C":
+        case "B":
+          circleValue = user?.circleCode || "";
+          break;
+        default:
+          circleValue = "";
       }
 
-      if (isSuccess) {
-        if (onSessionEstablished) {
-          onSessionEstablished(result);
-        }
+      const url = `/CM/common-master/branches-code-name-only?q=${encodeURIComponent(
+        term
+      )}&circleCode=${circleValue}`;
+      const res = await callApi(url, null, "GET");
+      if (res?.data?.length > 0) {
+        setBranchOptions(res.data.map((i) => ({ code: i.code, name: i.name })));
       } else {
-        const targetFailures = wrongAttempts + 1;
-        setWrongAttempts(targetFailures);
-
-        if (targetFailures >= 3) {
-          await forceResendOTP();
-        } else {
-          showSnackbar(
-            response?.data?.message ||
-              `Invalid code. Attempt ${targetFailures} of 3.`,
-            "error",
-          );
-        }
+        setBranchOptions([]);
       }
     } catch (e) {
-      const status = e.response?.status;
-
-      // 401: Unauthorized / Expired -> Render expired state
-      if (status === 401) {
-        setIsSessionUnauthorized(true);
-        setExpiresIn(0);
-      }
-      // 400: Invalid OTP
-      else if (status === 400) {
-        const targetFailures = wrongAttempts + 1;
-        setWrongAttempts(targetFailures);
-
-        if (targetFailures >= 3) {
-          await forceResendOTP();
-        } else {
-          showSnackbar(
-            e.response?.data?.message ||
-              `Invalid OTP. Attempt ${targetFailures} of 3.`,
-            "error",
-          );
-        }
-      } else {
-        console.error("OTP Verification Exception:", e);
-        const msg =
-          e.response?.data?.message ||
-          "Verification request failed. Try again.";
-        showSnackbar(msg, "error");
-      }
+      showSnackBar(e.message, "error");
     } finally {
-      setIsLoading(false);
+      setBranchLoading(false);
     }
   };
 
-  const handleKeyDown = (index, e) => {
-    if (e.key === "Backspace") {
-      e.preventDefault();
-      const updated = [...otpValues];
-      if (updated[index]) {
-        updated[index] = "";
-        setOtpValues(updated);
-      } else if (index > 0) {
-        updated[index - 1] = "";
-        setOtpValues(updated);
-        inputRefs.current[index - 1]?.focus();
+  async function fetchDifference() {
+    const payload = {
+      date: userDate?.format("YYYY-MM-DD"),
+      branch: effectiveBranchCode,
+      paginationModel: { page: 0, pageSize: 100 },
+    };
+    try {
+      setLoading("Y");
+      const res = await callApi(
+        "/ES/branch-position/get-difference",
+        payload,
+        "POST"
+      );
+      if (res && res.success) {
+        setDataRows(res.data);
+      } else {
+        showSnackBar(res.message, "error");
+        setDataRows({});
       }
-    } else if (e.key === "ArrowLeft" && index > 0) {
-      e.preventDefault();
-      inputRefs.current[index - 1]?.focus();
-    } else if (e.key === "ArrowRight" && index < 5) {
-      e.preventDefault();
-      inputRefs.current[index + 1]?.focus();
-    } else if (e.key === "Enter" && otpString.length === 6 && !isLoading) {
-      e.preventDefault();
-      handleVerifyOTP();
+      setLoading("N");
+    } catch (e) {
+      setLoading("N");
+      showSnackBar(
+        e?.response?.message ||
+          e?.message ||
+          "Something went wrong. Please try again.",
+        "error"
+      );
     }
-  };
+  }
 
-  const handleChange = (index, e) => {
-    const rawVal = e.target.value;
-    const digitsOnly = rawVal.replace(/\D/g, "");
-
-    if (!digitsOnly) {
-      const updated = [...otpValues];
-      updated[index] = "";
-      setOtpValues(updated);
+  const fetchTechnicalSuspenseGlifDetails = async () => {
+    if (!userDate || !effectiveBranchCode || reportDateError) {
+      showSnackBar("Please select a valid Branch and Report Date.", "error");
       return;
     }
 
-    const updated = [...otpValues];
+    try {
+      setTechnicalSuspenseLoading(true);
+      setTechnicalSuspenseCount(null);
+      setTechnicalSuspenseRows([]);
 
-    if (digitsOnly.length === 1) {
-      updated[index] = digitsOnly;
-      setOtpValues(updated);
-      if (index < 5) {
-        inputRefs.current[index + 1]?.focus();
+      const res = await callApi(
+        "/ES/branch-position/get-technical-suspense-glif-details",
+        {
+          date: userDate.format("YYYY-MM-DD"),
+          branch: effectiveBranchCode,
+        },
+        "POST"
+      );
+
+      if (res?.success) {
+        const records = Array.isArray(res.data) ? res.data : [];
+        setTechnicalSuspenseRows(records);
+        setTechnicalSuspenseCount(records.length);
+      } else {
+        showSnackBar(
+          res?.message || "Unable to fetch Technical Suspense GLIF details.",
+          "error"
+        );
       }
-    } else {
-      const chars = digitsOnly.split("").slice(0, 6);
-      chars.forEach((char, idx) => {
-        if (index + idx < 6) {
-          updated[index + idx] = char;
-        }
-      });
-      setOtpValues(updated);
-      const nextTarget = Math.min(index + chars.length, 5);
-      inputRefs.current[nextTarget]?.focus();
+    } catch (e) {
+      showSnackBar(
+        e?.message || "Unable to fetch Technical Suspense GLIF details.",
+        "error"
+      );
+    } finally {
+      setTechnicalSuspenseLoading(false);
     }
   };
 
-  const handlePaste = (e) => {
-    e.preventDefault();
-    const pasted = e.clipboardData
-      .getData("text/plain")
-      .replace(/\D/g, "")
-      .slice(0, 6);
-    if (!pasted) return;
 
-    const updated = [...otpValues];
-    for (let i = 0; i < pasted.length; i++) {
-      updated[i] = pasted[i];
+  async function fetchIndividualDifference(type, paginationModel) {
+    const payload = {
+      date: userDate?.format("YYYY-MM-DD"),
+      branch: effectiveBranchCode,
+      differenceType: type,
+      paginationModel,
+    };
+    try {
+      setLoading(type);
+      const res = await callApi(
+        "/ES/branch-position/get-difference",
+        payload,
+        "POST"
+      );
+      if (res && res.success) {
+        setDataRows((prev) => {
+          return { ...prev, [type]: res.data[type] || [] };
+        });
+      } else {
+        showSnackBar(res.message, "error");
+      }
+      setLoading("N");
+    } catch (e) {
+      setLoading("N");
+      showSnackBar(
+        e?.response?.message ||
+          e?.message ||
+          "Something went wrong. Please try again.",
+        "error"
+      );
     }
-    setOtpValues(updated);
+  }
 
-    const targetIdx = pasted.length < 6 ? pasted.length : 5;
-    inputRefs.current[targetIdx]?.focus();
+  const fetchDetailedData = async (type, { cgl, currency, firstErrorDate }) => {
+    setSelectedGlcc(`${effectiveBranchCode}${currency}${cgl}`);
+
+    const payload = {
+      branch: effectiveBranchCode,
+      cgl,
+      currency,
+      startDate: alterDateFormat(firstErrorDate),
+      endDate: userDate?.format("YYYY-MM-DD"),
+      differenceType: type,
+    };
+
+    try {
+      const res = await callApi(
+        "/ES/branch-position/get-detailed-difference",
+        payload,
+        "POST"
+      );
+      if (res && res.success) {
+        setBreakupDataRows({ type, content: res.data || [] });
+        setDialogView("breakup");
+      } else {
+        showSnackBar(res.message, "error");
+      }
+    } catch (e) {
+      showSnackBar(
+        e?.response?.message ||
+          e?.message ||
+          "Something went wrong. Please try again.",
+        "error"
+      );
+    }
   };
 
-  return (
-    <Box sx={{ width: "100%", maxWidth: "420px", mx: "auto" }}>
-      {/* Information Header */}
-      <Box
-        sx={{
-          mb: 3,
-          p: { xs: 1.5, sm: 2 },
-          borderRadius: 2,
-          bgcolor: "rgba(0,0,0,0.03)",
-          border: "1px solid rgba(0,0,0,0.06)",
-        }}
-      >
-        <Box
-          sx={{
-            display: "flex",
-            justifyContent: "space-between",
-            alignItems: "center",
-            mb: 1.5,
-          }}
-        >
-          <Typography
-            variant="body2"
-            color="text.secondary"
-            sx={{ fontWeight: 500, fontSize: { xs: "0.8rem", sm: "0.875rem" } }}
-          >
-            {isExpired ? "Status" : "Security Code Sent To"}
-          </Typography>
+ 
 
-          <Box
-            sx={{
-              display: "inline-flex",
-              alignItems: "center",
-              justifyContent: "center",
-              gap: 0.5,
-              width: "76px",
-              py: 0.3,
-              px: 0.8,
-              borderRadius: 1.5,
-              bgcolor: isExpired
-                ? "error.50"
-                : expiresIn > 60
-                  ? "primary.50"
-                  : "warning.50",
-              color: isExpired
-                ? "error.main"
-                : expiresIn > 60
-                  ? "primary.main"
-                  : "error.main",
-              border: "1px solid",
-              borderColor: isExpired
-                ? "error.100"
-                : expiresIn > 60
-                  ? "primary.100"
-                  : "warning.100",
-            }}
-          >
-            <AccessTimeIcon sx={{ fontSize: 14 }} />
-            <Typography
-              component="span"
-              sx={{
-                fontFamily: "monospace",
-                fontWeight: 700,
-                fontSize: "0.75rem",
-                width: "36px",
-                textAlign: "center",
-              }}
-            >
-              {formatTime(expiresIn)}
-            </Typography>
-          </Box>
-        </Box>
+  const exportData = async (filePref, differenceType) => {
+    const payload = {
+      branch: effectiveBranchCode,
+      date: userDate?.format("YYYY-MM-DD"),
+      differenceType,
+    };
+    try {
+      const res = await callApi(
+        "/ES/branch-position/export-difference",
+        payload,
+        "POST",
+        "blob",
+        "application/json"
+      );
+      if (res) {
+        const filename = `${filePref}_${payload.branch}_${alterDateFormat(
+          userDate
+        )}`;
+        const fileData = new Blob([res]);
+        downloadFile(fileData, "xlsx", filename, false);
+      } else {
+        throw new Error("Failed to download file!");
+      }
+    } catch (e) {
+      console.error(e);
+      const message = e?.response?.data?.message || e?.data?.message || e?.message || "Export failed. Authentication failed or token is invalid."
+      showSnackBar(message, "error");
+    }
+  };
 
-        {!isExpired && (
-          <Stack spacing={0.75}>
-            {otpData?.maskedMobile && (
-              <Box sx={{ display: "flex", alignItems: "center", gap: 1.25 }}>
-                <PhoneAndroidIcon
-                  sx={{ fontSize: 18, color: "text.secondary" }}
-                />
-                <Typography
-                  variant="subtitle2"
-                  color="text.primary"
-                  sx={{ fontSize: { xs: "0.8rem", sm: "0.875rem" } }}
-                >
-                  {otpData.maskedMobile}
-                </Typography>
-              </Box>
-            )}
+  const exportDetailedData = async () => {
+    if (breakupDataRows?.content.length == 0) {
+      showSnackBar("No Rows to download!", "error");
+    }
+    const cgl = breakupDataRows.content[0].cgl;
+    const currency = breakupDataRows.content[0].currency;
+    const branch = effectiveBranchCode;
+    const differenceType = breakupDataRows.type;
+    const firstErrorDate = breakupDataRows.content[0].firstErrorDate;
+    const payload = {
+      branch,
+      cgl,
+      currency,
+      startDate: alterDateFormat(firstErrorDate),
+      endDate: userDate?.format("YYYY-MM-DD"),
+      differenceType,
+    };
+    try {
+      const res = await callApi(
+        "/ES/branch-position/export-detailed-difference",
+        payload,
+        "POST",
+        "blob",
+      );
+      if (res) {
+        const filename = `${differenceType}_${branch}_${currency}_${cgl}_${alterDateFormat(
+          userDate
+        )}`;
+        const fileData = new Blob([res]);
+        downloadFile(fileData, "xlsx", filename, false);
+      } else {
+        throw new Error("Failed to download file!");
+      }
+    } catch (e) {
+      showSnackBar(e?.message, "error");
+    }
+  };
+  const exportGlifData = async () => {
+    if (!selectedBranch || !userDate) {
+      showSnackBar(
+        "Please select Branch and Report Date before downloading.",
+        "error"
+      );
+      return;
+    }
 
-            {otpData?.maskedEmail && (
-              <Box sx={{ display: "flex", alignItems: "center", gap: 1.25 }}>
-                <EmailIcon sx={{ fontSize: 18, color: "text.secondary" }} />
-                <Typography
-                  variant="subtitle2"
-                  color="text.primary"
-                  sx={{
-                    fontSize: { xs: "0.8rem", sm: "0.875rem" },
-                    wordBreak: "break-all",
-                  }}
-                >
-                  {otpData.maskedEmail}
-                </Typography>
-              </Box>
-            )}
-          </Stack>
-        )}
+    if (!glifDataFilter || Object.keys(glifDataFilter).length === 0) {
+      showSnackBar(
+        "Please select atleast one filter before downloading.",
+        "error"
+      );
+      return;
+    }
 
-        {isExpired && (
-          <Typography
-            variant="body2"
-            color="error.main"
-            sx={{
-              fontWeight: 600,
-              fontSize: { xs: "0.825rem", sm: "0.875rem" },
-            }}
-          >
-            {isSessionUnauthorized
-              ? "Your validation session has expired."
-              : "Your verification token has timed out."}
-          </Typography>
-        )}
-      </Box>
-
-      {/* STATE 1: Active Entry */}
-      {!isExpired ? (
-        <>
-          <Box
-            sx={{
-              display: "grid",
-              gridTemplateColumns: "repeat(6, 1fr)",
-              gap: { xs: 0.75, sm: 1.25 },
-              mb: 3,
-            }}
-          >
-            {otpValues.map((val, idx) => (
-              <Box
-                key={idx}
-                sx={{
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  borderRadius: 2,
-                  bgcolor: "background.paper",
-                  border: "1.5px solid",
-                  borderColor: val ? "primary.main" : "rgba(0, 0, 0, 0.15)",
-                  boxShadow: val
-                    ? "0 0 0 3px rgba(25, 118, 210, 0.12)"
-                    : "none",
-                  transition: "all 0.15s ease-in-out",
-                  height: { xs: 48, sm: 54, md: 58 },
-                  "&:focus-within": {
-                    borderColor: "primary.main",
-                    boxShadow: "0 0 0 3px rgba(25, 118, 210, 0.2)",
-                  },
-                }}
-              >
-                <InputBase
-                  inputRef={(el) => (inputRefs.current[idx] = el)}
-                  value={val}
-                  onChange={(e) => handleChange(idx, e)}
-                  onKeyDown={(e) => handleKeyDown(idx, e)}
-                  onPaste={handlePaste}
-                  disabled={isLoading}
-                  inputProps={{
-                    maxLength: 1,
-                    inputMode: "numeric",
-                    pattern: "[0-9]*",
-                    style: {
-                      textAlign: "center",
-                      fontSize: "1.25rem",
-                      fontWeight: 700,
-                      padding: 0,
-                      width: "100%",
-                      height: "100%",
-                    },
-                  }}
-                />
-              </Box>
-            ))}
-          </Box>
-
-          <PrimaryButton
-            fullWidth
-            variant="contained"
-            onClick={handleVerifyOTP}
-            disabled={isLoading || otpString.length !== 6}
-            sx={{ py: 1.25, fontSize: "0.95rem" }}
-          >
-            {isLoading ? (
-              <CircularProgress size={22} color="inherit" />
-            ) : (
-              "Verify OTP & Sign In"
-            )}
-          </PrimaryButton>
-
-          <Box
-            sx={{
-              display: "flex",
-              justifyContent: "space-between",
-              alignItems: "center",
-              mt: 2.5,
-            }}
-          >
-            <Button
-              startIcon={<ArrowBackIcon />}
-              onClick={onBackToHome}
-              sx={{
-                textTransform: "none",
-                color: "text.secondary",
-                fontSize: { xs: "0.75rem", sm: "0.85rem" },
-                p: 0.5,
-              }}
-              size="small"
-            >
-              Back To Sign In
-            </Button>
-
-            {!isExhausted && (
-              <Button
-                onClick={handleResendClick}
-                disabled={cooldown > 0 || isLoading}
-                loading={isLoading}
-                startIcon={<RefreshIcon />}
-                size="small"
-                sx={{
-                  fontWeight: 600,
-                  px: 1.5, // Consistent padding
-                  py: 0.5,
-                  minWidth: 100, // Prevent layout shift
-                }}
-              >
-                {cooldown ? `Resend in ${cooldown}s` : "Resend Code"}
-              </Button>
-            )}
-          </Box>
-        </>
-      ) : (
-        /* STATE 2: Expired Clean View */
-        <Box
-          sx={{
-            display: "flex",
-            flexDirection: "column",
-            alignItems: "center",
-            textAlign: "center",
-            py: 2,
-            px: 1,
-          }}
-        >
-          <Box
-            sx={{
-              width: 56,
-              height: 56,
-              borderRadius: "50%",
-              bgcolor: "error.50",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              color: "error.main",
-              mb: 2,
-            }}
-          >
-            <WarningAmberIcon sx={{ fontSize: 32 }} />
-          </Box>
-
-          <Typography variant="h6" fontWeight={700} gutterBottom>
-            Session Expired
-          </Typography>
-
-          <Typography
-            variant="body2"
-            color="text.secondary"
-            sx={{ mb: 3, maxWidth: "320px", lineHeight: 1.5 }}
-          >
-            {isSessionUnauthorized
-              ? "Your authentication session is no longer active. Please return to the login screen."
-              : "The OTP validity period has expired for security reasons. Please return to the login page to authenticate again."}
-          </Typography>
-
-          <PrimaryButton
-            fullWidth
-            variant="contained"
-            startIcon={<ArrowBackIcon />}
-            onClick={onBackToHome}
-            sx={{ py: 1.25 }}
-          >
-            Back to User ID
-          </PrimaryButton>
-        </Box>
-      )}
-    </Box>
-  );
-};
-
-export default LoginWithOTP;
-
-
-import React from "react";
-import {
-  Dialog,
-  DialogContent,
-  DialogContentText,
-  DialogTitle,
-  IconButton,
-  Typography,
-  Box,
-  Fade,
-} from "@mui/material";
-import CloseSharpIcon from "@mui/icons-material/CloseSharp";
-import ErrorOutlineIcon from "@mui/icons-material/ErrorOutline";
-import LockIcon from "@mui/icons-material/Lock";
-import BlockIcon from "@mui/icons-material/Block";
-import SecurityIcon from "@mui/icons-material/Security";
-import AccessTimeIcon from "@mui/icons-material/AccessTime";
-import WarningAmberIcon from "@mui/icons-material/WarningAmber";
-import DoNotDisturbIcon from "@mui/icons-material/DoNotDisturb";
-
-// Normalized keys to match standard camelCase convention
-const iconMap = {
-  invalid: { icon: <SecurityIcon />, color: "error.main" },
-  error: { icon: <ErrorOutlineIcon />, color: "error.main" },
-  locked: { icon: <LockIcon />, color: "error.main" },
-  restricted: { icon: <BlockIcon />, color: "warning.main" },
-  rateLimit: { icon: <AccessTimeIcon />, color: "warning.main" },
-  denied: { icon: <DoNotDisturbIcon />, color: "error.main" },
-  warning: { icon: <WarningAmberIcon />, color: "warning.main" },
-};
-
-// Added smooth fade transition
-const Transition = React.forwardRef(function Transition(props, ref) {
-  return <Fade ref={ref} {...props} />;
-});
-
-const LoginErrorDialog = ({
-  showErrorDialog,
-  onDialogClose,
-  title,
-  content,
-  type = "error",
-}) => {
-  // Safety fallback if an unknown type is passed
-  const { icon, color } = iconMap[type] || iconMap.error;
-
-  return (
-    <Dialog
-      open={showErrorDialog}
-      fullWidth
-      maxWidth="sm"
-      onClose={onDialogClose}
-      TransitionComponent={Transition}
-      aria-labelledby="login-error-dialog-title"
-      aria-describedby="login-error-dialog-description"
-      sx={{
-        backdropFilter: "blur(4px)",
-        "& .MuiDialog-paper": { borderRadius: 2 },
-      }}
-    >
-      <DialogTitle
-        id="login-error-dialog-title"
-        sx={{
-          backgroundColor: color,
-          color: "white",
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "space-between",
-          padding: 2,
-        }}
-      >
-        <Box display="flex" alignItems="center">
-          {React.cloneElement(icon, {
-            sx: { mr: 1.5, fontSize: "1.75rem" },
-            "aria-hidden": true,
-          })}
-          <Typography
-            variant="h6"
-            component="span"
-            sx={{ fontWeight: 600, fontSize: "1.1rem" }}
-          >
-            {title || "Error"}
-          </Typography>
-        </Box>
-        <IconButton
-          onClick={onDialogClose}
-          sx={{ color: "white" }}
-          aria-label="close dialog"
-        >
-          <CloseSharpIcon />
-        </IconButton>
-      </DialogTitle>
-
-      <DialogContent sx={{ padding: 3, pt: "24px !important" }}>
-        <DialogContentText
-          id="login-error-dialog-description"
-          sx={{ color: "text.primary" }}
-        >
-          <Typography variant="body1">{content}</Typography>
-        </DialogContentText>
-      </DialogContent>
-    </Dialog>
-  );
-};
-
-export default LoginErrorDialog;
+    const payload = {
+      branch: effectiveBranchCode,
+      date: userDate?.format("YYYY-MM-DD"),
+      filters: [
+        {
+          field: "BRANCH_CODE",
+          operator: "EQUALS",
+          value: effectiveBranchCode,
+        },
+        { field: "TRANS_DATE", operator: "EQUALS", value: userDate },
+        ...Object.entries(glifDataFilter).map(([key, entry]) => {
+          return {
+            ["field"]: key,
+            ["operator"]: entry.operator,
+            ["value"]: entry.value,
+          };
+        }),
+      ],
+    };
+    console.log(payload);
+    try {
+      const res = await callApi(
+        "/ES/branch-position/export-glif-data",
+        payload,
+        "POST",
+        "arraybuffer"
+      );
+      if (res?.byteLength) {
+        downloadFile(res, "excel", "xyzz");
+      } else {
+        showSnackBar(
+          "Failed to download, Something went wrong Kindly try again",
+          "error"
+        );
+      }
+    } catch (error) {
+      showSnackBar(error?.message, "error");
+    }
+  };
