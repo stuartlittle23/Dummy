@@ -1,757 +1,435 @@
+import styled from '@emotion/styled';
+import HistoryOutlinedIcon from '@mui/icons-material/HistoryOutlined';
+import InboxOutlinedIcon from '@mui/icons-material/InboxOutlined';
+import SearchOffOutlinedIcon from '@mui/icons-material/SearchOffOutlined';
+import { Box, Chip, IconButton, Paper, Typography } from '@mui/material';
+import { DataGrid, GridOverlay } from '@mui/x-data-grid';
+import React, { useMemo, useState } from 'react';
 
-  const fetchData = useCallback(async () => {
-    try {
-      const res = await callApi("/ES/branch-position/user-date");
-      if (res && res.success) {
-        setUserDate(dayjs(res.data.substring(0, 10)));
-      } else {
-        showSnackBar(res.message, "error");
-      }
-    } catch (e) {
-      showSnackBar(e.message, "error");
+const StyledDataGrid = styled(DataGrid)(() => ({
+    height: '460px',
+    border: 'none',
+    '& .MuiDataGrid-cell:focus, & .MuiDataGrid-columnHeader:focus': {
+        outline: 'none',
+    },
+    '& .MuiDataGrid-cell:focus-within, & .MuiDataGrid-columnHeader:focus-within': {
+        outline: 'none',
+    },
+    '& .MuiDataGrid-columnHeader': {
+        backgroundColor: '#FBFAFF',
+    },
+    '& .MuiDataGrid-columnHeaderTitle': {
+        fontWeight: 600,
+        color: 'rgba(30, 20, 60, 0.7)',
+    },
+    '& .MuiDataGrid-row:hover': {
+        backgroundColor: 'rgba(108, 92, 231, 0.04)',
+    },
+    '& .MuiDataGrid-row.Mui-selected': {
+        backgroundColor: 'transparent',
+    },
+    '& .MuiDataGrid-row.Mui-selected:hover': {
+        backgroundColor: 'rgba(108, 92, 231, 0.04)',
+    },
+}));
+
+
+const rawColumns = [
+    {
+        field: "firstErrorDate",
+        headerName: "1st Error",
+        width: 120,
+        headerAlign: 'center',
+        align: 'center',
+        disableColumnMenu: true,
+        sortable: true,
+        filterable: true
+    },
+    {
+        field: "glcc",
+        headerName: "GLCC",
+        minWidth: 180,
+        flex: 1,
+        headerAlign: 'center',
+        align: 'center',
+        disableColumnMenu: true,
+        sortable: true,
+        filterable: true,
+        valueGetter: (value, row) =>
+            `${row?.branchCode || ""}${row?.currency || ""}${row?.cgl || ""}`
+    },
+    {
+        field: "balance",
+        headerName: "Amount",
+        minWidth: 130,
+        align: 'right',
+        headerAlign: 'center',
+        sortable: true,
+        filterable: true,
+        flex: 1
+    },
+    // {
+    //     field: "inrBalance",
+    //     headerName: "INR Balance",
+    //     minWidth: 130,
+    //     align: 'right',
+    //     headerAlign: 'center',
+    //     sortable: true,
+    //     filterable: true,
+    //     flex: 1
+    // },
+    {
+        field: "cbsBalance",
+        headerName: "CBS Balance",
+        minWidth: 140,
+        align: 'right',
+        headerAlign: 'center',
+        sortable: false,
+        filterable: false,
+        flex: 1
+    },
+    {
+        field: "glBalance",
+        headerName: "GL Balance",
+        minWidth: 200,
+        align: 'right',
+        headerAlign: 'center',
+        sortable: false,
+        filterable: false,
+        flex: 1
+    },
+    {
+        field: "differenceAmount",
+        headerName: "Difference Amount",
+        minWidth: 200,
+        align: 'right',
+        headerAlign: 'center',
+        sortable: false,
+        filterable: false,
+        flex: 1
+    },
+    {
+        field: "diffBwYesterday",
+        headerName: "Diff Bw Yesterday",
+        minWidth: 200,
+        align: 'right',
+        headerAlign: 'center',
+        sortable: false,
+        filterable: false,
+        flex: 1
+    },
+    {
+        field: "head",
+        headerName: "Type",
+        minWidth: 100,
+        align: 'center',
+        headerAlign: 'center',
+        sortable: true,
+        filterable: true,
+        flex: 1
+    },
+    {
+        field: "type",
+        headerName: "Head",
+        align: 'center',
+        headerAlign: 'center',
+        minWidth: 100,
+        sortable: true,
+        filterable: true,
+        flex: 1
     }
-  }, [callApi, showSnackBar]);
+];
 
-  useEffect(() => {
-    fetchData();
-    // fetchCircleOptions();
-  }, [fetchData]);
+export default function DisplayTab({
+    level,
+    type,
+    data = {},
+    category,
+    clickHandler = () => {},
+    downloadHandler = () => {},
+    requestData = () => {},
+    loading = false,
+    hideHeader = false,
+    flat = false,
+    reportDate,
+    glcc = "",
+    glifMode = false,
+}) {
+    const [paginationModel, setPaginationModel] = useState({
+        page: 0,
+        pageSize: 10,
+    });
 
-  const openCategoryDialog = (type) => {
-    setDialogType(type);
-    setDialogView("category");
-  };
+    const rows = glifMode
+    ? (Array.isArray(data) ? data : [])
+    : (data?.content || []);
 
-  const closeDialog = () => {
-    if (dialogView === "breakup") {
-      setDialogView("category");
-      setBreakupDataRows({});
-      return;
+    const rowsWithId = useMemo(() => {
+        return rows.map((row, index) => ({
+            ...row,
+            __displayTabId:
+                row?.id ||
+                `${type || "row"}-${index}-${row?.branchCode || ""}-${row?.currency || ""}-${row?.cgl || ""}-${row?.date || ""}-${row?.firstErrorDate || ""}-${row?.head || ""}-${row?.type || ""}`
+        }));
+    }, [rows, type]);
+
+   const columns = useMemo(() => {
+    if (!rows || rows.length === 0) {
+        if (glifMode) {
+    if (!rows.length) return [];
+
+    return Object.keys(rows[0])
+        .filter((field) => field.toUpperCase() !== "SUSPENSE_TYPE")
+        .map((field) => ({
+            field,
+            headerName: field.replaceAll("_", " "),
+            minWidth: 150,
+            flex: 1,
+            headerAlign: "center",
+            align: "left",
+        }));
+}
+        return rawColumns.filter((column) =>
+            ["firstErrorDate", "glcc", "balance", "cbsBalance", "glBalance", "differenceAmount", "diffBwYesterday", "head", "type"].includes(column.field)
+        );
     }
 
-    setDialogType(null);
-    setDialogView("category");
-    setBreakupDataRows({});
-    setSelectedGlcc("");
-  };
+    const fields = Object.keys(rows[0]);
 
-  useEffect(() => {
-    const fetchEtlDate = async () => {
-      try {
-        const res = await callApi("/PS/file/fincore-date", {}, "GET");
-        const etlRaw = res?.data?.userDate;
-        setEtlDate(etlRaw ? dayjs(etlRaw.split("T")[0]) : null);
-      } catch (e) {
-        showSnackBar(e.message || "Unable to fetch Fincore ETL Date", "error");
-        setEtlDate(null);
-      }
+        let cols = rawColumns.filter((column) => {
+            if (column.field === "glcc") {
+                return (
+                    fields.includes("branchCode") ||
+                    fields.includes("currency") ||
+                    fields.includes("cgl")
+                );
+            }
+
+            return fields.includes(column.field);
+        });
+
+        if (level === 2) {
+            cols = cols.filter(
+                (column) =>
+                    column.field !== "glcc"
+            );
+            cols.unshift({
+                field: "reconRunDate",
+                headerName: "Report Date",
+                width: 120,
+                headerAlign: 'center',
+                align: 'center',
+                disableColumnMenu: true,
+                sortable: true,
+                filterable: true,
+                    });
+        }
+
+        if (level === 1) {
+            cols.push({
+                field: "action",
+                headerName: "History",
+                headerAlign: 'center',
+                align: 'center',
+                width: 80,
+                sortable: false,
+                filterable: false,
+                disableColumnMenu: true,
+                renderCell: (params) => (
+                    <IconButton
+                        onClick={() => clickHandler(type, params.row)}
+                        size="small"
+                        title="History"
+                    >
+                        <HistoryOutlinedIcon fontSize="small" />
+                    </IconButton>
+                )
+            });
+        }
+
+        return cols;
+    }, [rows, level, type, clickHandler , glifMode]);
+
+    const handlePaginationModelChange = (newModel) => {
+        setPaginationModel(newModel);
+
+        if (level === 1) {
+            requestData(type, { ...newModel });
+        }
     };
 
-    fetchEtlDate();
-  }, [callApi, showSnackBar]);
+    
 
-  const isSearchDisabled =
-    (!isBranchUser && !selectedBranch) ||
-    !effectiveBranchCode ||
-    !userDate ||
-    !!reportDateError;
-
-  const handleFilter = (filter) => {
-    if (!filter.multiValue) {
-      setGlifDataFilter((prev) => {
-        return {
-          ...prev,
-          [filter.field]: { operator: "EQUALS", value: filter.value },
-        };
-      });
-      return;
-    }
-    if (glifDataFilter[filter.field]) {
-      if (glifDataFilter[filter.field].value.length >= 10) {
-        showSnackBar("only 10 filter values allowed!", "error");
-        return;
-      } else {
-        if (new Set(glifDataFilter[filter.field].value).has(filter.value)) {
-          showSnackBar("value already present in the filter!", "error");
-          return;
-        }
-      }
-      setGlifDataFilter((prev) => {
-        return {
-          ...prev,
-          [filter.field]: {
-            operator: "IN",
-            value: [...prev[filter.field].value, filter.value],
-          },
-        };
-      });
-      return;
-    }
-    setGlifDataFilter((prev) => {
-      return {
-        ...prev,
-        [filter.field]: { operator: "IN", value: [filter.value] },
-      };
-    });
-  };
-
-  const deleteFilter = (key) => {
-    const { [key]: _, ...rem } = glifDataFilter;
-    setGlifDataFilter(rem);
-  };
-
-  const deleteFilterValue = (key, deleteVal) => {
-    const newArray = glifDataFilter[key].value.filter(
-      (val) => val != deleteVal
-    );
-    if (newArray.length > 0) {
-      setGlifDataFilter((prev) => {
-        return { ...prev, [key]: { ...prev[key], value: newArray } };
-      });
-    } else {
-      deleteFilter(key);
-    }
-  };
-
-  const getFiterData = (field) => {
-    return glifDataFilter[field]?.value || [];
-  };
-
-  const getCategoryCount = (type) => {
-    const bucket = dataRows?.[type];
-    if (!bucket) return null;
-    if (typeof bucket?.page?.totalElements === "number")
-      return bucket.page.totalElements;
-    if (Array.isArray(bucket?.content)) return bucket.content.length;
-    return null;
-  };
-
-  const activeFilterCount = Object.keys(glifDataFilter).length;
-  const formattedDate = userDate ? dayjs(userDate).format("DD-MM-YYYY") : "—";
-  const activeMeta = dialogType ? categoryMeta[dialogType] : null;
-  const dialogCategoryCount = dialogType ? getCategoryCount(dialogType) : null;
-
-  const handleReset = () => {
-    // // Clear Circle only when editable
-    // if (hasWholeBank) {
-    //   setSelectedCircle(null);
-    //   setCircleInput('');
-    // }
-
-    // Clear Branch only when editable
-    if (!isBranchUser) {
-      setSelectedBranch(null);
-      setBranchInput("");
-      setBranchOptions([]);
-    }
-
-    // Clear Report Date
-    setUserDate(null);
-
-    // Clear results and filters
-    setGlifDataFilter({});
-    setReportDateError(null);
-    setDataRows({});
-    setBreakupDataRows({});
-    setSelectedGlcc("");
-    setTechnicalSuspenseRows([]);
-    setTechnicalSuspenseCount(null);
-    setTechnicalSuspenseDialogOpen(false);
-  };
-  return (
-    <>
-      <Box className={styles.appShell}>
-        {/* ---- Sidebar ---- */}
-        <Box className={styles.sidebar}>
-          <Box className={styles.sidebarBrand}>
-            <Box className={styles.sidebarBrandIconWrap}>
-              <Box className={styles.sidebarBrandIcon}>
-                <AccountBalanceOutlined fontSize="small" />
-              </Box>
-            </Box>
-            <Typography className={styles.sidebarBrandText}>
-              Branch Position
+const CustomNoRowsOverlay = () => (
+    <GridOverlay>
+        <Box sx={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            gap: 1,
+            height: '100%',
+            width: '100%'
+        }}>
+            <SearchOffOutlinedIcon
+                sx={{ fontSize: 24, color: '#6C5CE7' }}
+            />
+            <Typography sx={{
+                fontSize: 13,
+                fontWeight: 600,
+                color: 'rgba(30,20,60,0.65)'
+            }}>
+                No data found for the selected criteria
             </Typography>
-          </Box>
+        </Box>
+    </GridOverlay>
+);
 
-          {/* <Box className={styles.dateCard}>
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '2px' }}>
-            <Public sx={{ fontSize: 15, color: '#6C5CE7' }} />
-            <Typography className={styles.infoCardLabel} sx={{ margin: 0 }}>Circle</Typography>
-          </Box>
-
-          {!hasWholeBank ? (
-            <TextField
-              size="small"
-              fullWidth
-              disabled
-              value={`${user?.circleCode} - ${user?.circleName}`}
-            />
-          ) : (
-            <Autocomplete
-            autoHighlight
-              size="small"
-              fullWidth
-              value={selectedCircle}
-              options={circleOptions}
-              loading={circleLoading}
-              getOptionLabel={(o) => o ? `${o.circleCode} - ${o.circleName}` : ''}
-              onChange={(e, val) => {setSelectedCircle(val);
-                setSelectedBranch(null);
-                setBranchInput('');
-                setBranchOptions([]);
-              }
-              }
-              renderInput={(params) => (
-              <TextField
-                {...params}
-                label="Select Circle"
-                sx={{mt:1}}
-                inputProps={{
-                  ...params.inputProps,
-                }}
-              />
-            )}
-            />
-          )}
-        </Box> */}
-          <Box className={styles.dateCard}>
-            <Box
-              sx={{
-                display: "flex",
-                alignItems: "center",
-                gap: "8px",
-                marginBottom: "2px",
-              }}
-            >
-              <AccountBalance sx={{ fontSize: 15, color: "#6C5CE7" }} />
-              <Typography className={styles.infoCardLabel} sx={{ margin: 0 }}>
-                Branch
-              </Typography>
-            </Box>
-
-            {isBranchUser ? (
-              <TextField
-                size="small"
-                fullWidth
-                disabled
-                value={`${effectiveBranchCode} - ${effectiveBranchName}`}
-              />
-            ) : (
-              <Autocomplete
-                autoHighlight
-                size="small"
-                fullWidth
-                value={selectedBranch}
-                options={branchOptions}
-                loading={branchLoading}
-                getOptionLabel={(o) => (o ? `${o.code} - ${o.name}` : "")}
-                isOptionEqualToValue={(o, v) => o.code === v?.code}
-                inputValue={branchInput}
-                onInputChange={(e, val, reason) => {
-                  setBranchInput(val);
-                  if (reason === "input") fetchBranchOptions(val);
-                }}
-                onChange={(e, val) => setSelectedBranch(val)}
-                noOptionsText={
-                  branchInput.length < 3
-                    ? "Enter at least 3 characters"
-                    : "No Options"
-                }
-                renderInput={(params) => (
-                  <TextField
-                    {...params}
-                    label="Select Branch"
-                    sx={{ mt: 1 }}
-                    inputProps={{
-                      ...params.inputProps,
-                      title: selectedBranch?.name || "",
+    const CustomNoDataOverlay = () => (
+        <GridOverlay>
+            <Box sx={{
+                display: 'flex',
+                flexDirection: 'column',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: '6px',
+                padding: '32px 16px',
+                width: 'calc(100% - 32px)',
+                margin: '8px 16px',
+                border: '1px dashed rgba(108, 92, 231, 0.25)',
+                borderRadius: '12px',
+                backgroundColor: '#FBFAFF'
+            }}>
+                <SearchOffOutlinedIcon
+                    sx={{
+                        fontSize: 30,
+                        color: 'rgba(30, 20, 60, 0.35)'
                     }}
-                  />
-                )}
-              />
-            )}
-          </Box>
-
-          <Box className={styles.dateCard}>
-            <Box
-              sx={{
-                display: "flex",
-                alignItems: "center",
-                gap: "8px",
-                marginBottom: "2px",
-              }}
-            >
-              <CalendarMonthOutlined sx={{ fontSize: 15, color: "#6C5CE7" }} />
-              <Typography className={styles.infoCardLabel} sx={{ margin: 0 }}>
-                Report Date
-              </Typography>
-            </Box>
-            <LocalizationProvider dateAdapter={AdapterDayjs}>
-              <DatePicker
-                value={userDate}
-                format="DD-MM-YYYY"
-                minDate={MIN_ALLOWED_DATE}
-                maxDate={etlDate}
-                views={["year", "month", "day"]}
-                onChange={(value) => {
-                  setUserDate(value);
-                }}
-                onError={(error) => {
-                  setReportDateError(error || null);
-                }}
-                slotProps={{
-                  textField: {
-                    size: "small",
-                    fullWidth: true,
-                    placeholder: "DD-MM-YYYY",
-                    error: !!reportDateError,
-                    helperText:
-                      reportDateError === "maxDate"
-                        ? "Report Date cannot be in future"
-                        : reportDateError === "minDate"
-                        ? `Report Date cannot be before ${MIN_ALLOWED_DATE.format(
-                            "DD-MM-YYYY"
-                          )}`
-                        : reportDateError === "invalidDate"
-                        ? "Please enter a valid Report Date"
-                        : "",
-                  },
-                }}
-              />
-            </LocalizationProvider>
-          </Box>
-
-          <Box className={styles.searchResetRow}>
-            <Button
-              variant="contained"
-              size="small"
-              startIcon={<SearchOutlined />}
-              disabled={isSearchDisabled}
-              onClick={() => {
-              setBreakupDataRows({});
-              fetchDifference();
-              fetchTechnicalSuspenseGlifDetails();
-            }}
-            >
-              Search
-            </Button>
-
-            <Button
-              variant="outlined"
-              size="small"
-              onClick={handleReset}
-              startIcon={<RestartAltOutlined />}
-            >
-              Reset
-            </Button>
-          </Box>
-
-          <Box className={styles.sidebarFooter}>
-            <Box className={styles.sidebarIllustration}>
-              <AutoAwesome className={styles.sparkleTopRight} />
-              <AutoAwesome className={styles.sparkleBottomLeft} />
-              <AutoAwesome className={styles.sparkleMidRight} />
-              <Box className={styles.bankIllustration}>
-                <Box className={styles.bankGlow}>
-                  <AccountBalance className={styles.bankIcon} />
-                </Box>
-                <AutoAwesome className={styles.bankSparkle1} />
-                <AutoAwesome className={styles.bankSparkle2} />
-                <AutoAwesome className={styles.bankSparkle3} />
-              </Box>
-            </Box>
-          </Box>
-        </Box>
-
-        {/* ---- Main content ---- */}
-        <Box className={styles.mainContent}>
-          <Tabs
-            orientation="horizontal"
-            className={styles.navTabs}
-            value={mode}
-            sx={{ "& .MuiTabs-flexContainer": { gap: "8px" } }}
-            onChange={() => {
-              setMode(mode === "DD" ? "GE" : "DD");
-              setGlifDataFilter({});
-            }}
-            TabIndicatorProps={{ style: { display: "none" } }}
-            aria-label="branch position mode navigation"
-          >
-            <Tab
-              value="DD"
-              className={styles.navTab}
-              icon={<AdjustOutlined fontSize="small" />}
-              iconPosition="start"
-              label="Reconciliation Status"
-              disabled={loading != "N" && mode != "DD"}
-            />
-            <Tab
-              value="GE"
-              className={styles.navTab}
-              icon={<StorageOutlined fontSize="small" />}
-              iconPosition="start"
-              label="GLIF Data"
-              disabled={loading != "N" && mode != "GE"}
-            />
-          </Tabs>
-          {mode === "DD" && (
-            <>
-              <Box className={styles.pageHeaderRow}>
-                <Typography className={styles.pageHeaderTitle}>
-                  Reconciliation Status
-                </Typography>
-                <AutoAwesome className={styles.headerSparkle} />
-              </Box>
-              <Typography className={styles.pageHeaderSubtitle}>
-                Reconciliation status for{" "}
-                <Box component="span" className={styles.highlightDate}>
-                  {formattedDate}
-                </Box>
-              </Typography>
-
-              <Box className={styles.summaryRow}>
-                {Object.entries(categoryMeta).map(([type, meta]) => (
-                  <SummaryCard
-                    key={type}
-                    meta={meta}
-                    count={getCategoryCount(type)}
-                    isLoading={loading === "Y" || loading === type}
-                    onViewDetails={() => openCategoryDialog(type)}
-                    onDownload={() => exportData(type, type)}
-                  />
-                ))}
-
-                <SummaryCard
-                  meta={technicalSuspenseGlifMeta}
-                  count={technicalSuspenseCount}
-                  isLoading={technicalSuspenseLoading}
-                  onViewDetails={() => setTechnicalSuspenseDialogOpen(true)}
-                  onDownload={exportTechnicalSuspenseGlifDetails}
                 />
-              </Box>
-
-              {/* <Box className={styles.infoBanner}>
-                <InfoOutlined fontSize="small" sx={{ color: '#6C5CE7', mt: '1px' }} />
-                <Typography className={styles.infoBannerText}>
-                  Download will include Reconciliation Status for branch {user?.branch?.toString().padStart(5, 0)} on {formattedDate}.
-                </Typography>
-              </Box> */}
-            </>
-          )}
-
-          {mode === "GE" && (
-            <>
-              <Box className={styles.pageHeaderRow}>
-                <Typography className={styles.pageHeaderTitle}>
-                  GLIF data
-                </Typography>
-                <AutoAwesome className={styles.headerSparkle} />
-              </Box>
-              <Typography className={styles.pageHeaderSubtitle}>
-                Download GLIF data for your branch and selected date.
-              </Typography>
-
-              <Box className={styles.glifSection}>
-                <Box className={styles.glifSectionHeader}>
-                  <Box className={styles.glifSectionIcon}>
-                    <FilterAltOutlined fontSize="small" />
-                  </Box>
-                  <Typography className={styles.glifSectionTitle}>
-                    Add Filter
-                  </Typography>
-                  <Typography className={styles.typographyLabel}>
-                    ( Add up to 10 values per filter field. )
-                  </Typography>
-                </Box>
-                <Filter handleFilter={handleFilter} getValues={getFiterData} />
-              </Box>
-
-              <Box className={styles.glifSection}>
-                <Box
-                  className={styles.glifSectionHeader}
-                  sx={{ marginBottom: 0 }}
+                <Typography
+                    variant="body2"
+                    sx={{
+                        fontWeight: 600,
+                        color: 'rgba(30, 20, 60, 0.75)'
+                    }}
                 >
-                  <Box className={styles.glifSectionIcon}>
-                    <PlaylistAddCheckOutlined fontSize="small" />
-                  </Box>
-                  <Typography className={styles.glifSectionTitle}>
-                    Applied Filters ({activeFilterCount})
-                  </Typography>
-                  {activeFilterCount > 0 && (
-                    <button
-                      className={styles.clearAllLink}
-                      onClick={() => setGlifDataFilter({})}
-                    >
-                      Clear All
-                    </button>
-                  )}
-                </Box>
-                <Box sx={{ marginTop: "14px" }}>
-                  {activeFilterCount === 0 ? (
-                    <Typography
-                      variant="caption"
-                      sx={{ color: "rgba(30,20,60,0.45)" }}
-                    >
-                      No filters applied yet — results will include the full
-                      branch and date.
-                    </Typography>
-                  ) : (
-                    <Box className={styles.chipValues}>
-                      {Object.entries(glifDataFilter).map(([key, val]) => {
-                        const color = filterFieldColors[key] || {
-                          bg: "#F1EFE8",
-                          text: "#6B6A63",
-                        };
-                        const items = Array.isArray(val.value)
-                          ? val.value
-                          : [val.value];
-                        return items.map((ent, index) => (
-                          <Chip
-                            key={`${key}-${index}`}
-                            size="small"
-                            className={styles.filterFieldChip}
-                            label={`${key.replaceAll("_", " ")}: ${ent}`}
-                            onDelete={() =>
-                              Array.isArray(val.value)
-                                ? deleteFilterValue(key, ent)
-                                : deleteFilter(key)
-                            }
-                            deleteIcon={<Delete fontSize="small" />}
-                            sx={{
-                              backgroundColor: color.bg,
-                              color: color.text,
-                            }}
-                          />
-                        ));
-                      })}
-                    </Box>
-                  )}
-                </Box>
-              </Box>
-
-              <Box className={styles.downloadRow}>
-                {/* <Typography className={styles.downloadRowText}>
-                  Includes all GLIF data for branch {user?.branch?.toString().padStart(5, 0)} on {formattedDate} with the applied filters.
-                </Typography> */}
-                <Button
-                  variant="contained"
-                  size="small"
-                  className={styles.downloadRowButton}
-                  startIcon={<Download fontSize="small" />}
-                  onClick={() => exportGlifData()}
-                  sx={{ marginLeft: "auto" }}
+                    No data available
+                </Typography>
+                <Typography
+                    variant="caption"
+                    sx={{
+                        color: 'rgba(30, 20, 60, 0.5)'
+                    }}
                 >
-                  Download GLIF Data
-                </Button>
-              </Box>
-            </>
-          )}
-        </Box>
-      </Box>
+                    There are no records to display for this selection.
+                </Typography>
+            </Box>
+        </GridOverlay>
+    );
 
-      <Dialog
-        open={isDialogOpen}
-        onClose={closeDialog}
-        maxWidth="xl"
-        fullWidth
-        PaperProps={{ className: styles.dialogPaper }}
-      >
-        <DialogTitle className={styles.dialogTitle}>
-          <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
-            <Typography className={styles.dialogTitleText}>
-              {dialogView === "category"
-                ? activeMeta?.category || "Details"
-                : "Difference Break-up"}
-            </Typography>
-
-            <Chip
-              label={
-                dialogView === "category"
-                  ? dialogCategoryCount > 0
-                    ? `${dialogCategoryCount.toLocaleString(
-                        "en-IN"
-                      )} Records Found`
-                    : "No Records"
-                  : breakupDataRows?.content?.length > 0
-                  ? `${breakupDataRows.content.length.toLocaleString(
-                      "en-IN"
-                    )} Records Found`
-                  : "No Records"
-              }
-              size="small"
-              sx={{
-                fontWeight: 700,
-                color: "#58469f",
-                bgcolor: "rgba(88, 70, 159, 0.1)",
-                borderRadius: "8px",
-              }}
-            />
-
-            {dialogView === "category" && (
-              <Chip
-                label={`Report Date: ${dayjs(userDate).format("DD-MM-YYYY")}`}
-                size="small"
-                sx={{
-                  fontWeight: 700,
-                  color: "#58469f",
-                  bgcolor: "rgba(88, 70, 159, 0.1)",
-                  borderRadius: "8px",
-                }}
-              />
+    return (
+        <Paper
+            elevation={0}
+            sx={flat
+                ? {
+                    border: 'none',
+                    boxShadow: 'none',
+                    margin: 0,
+                    borderRadius: 0
+                }
+                : {
+                    marginTop: '8px',
+                    marginBottom: '8px',
+                    borderRadius: '12px',
+                    overflow: 'hidden',
+                    border: '1px solid rgba(108, 92, 231, 0.1)',
+                    boxShadow: '0 1px 6px rgba(76, 60, 150, 0.06)'
+                }
+            }
+        >
+            {!hideHeader && level === 1 && (
+                <Box sx={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    padding: '8px 14px',
+                    backgroundColor: '#F7F6FD',
+                    borderBottom: '1px solid rgba(108, 92, 231, 0.1)'
+                }}>
+                    <Chip
+                        label={`Report Date: ${reportDate || '—'}`}
+                        size="small"
+                        sx={{
+                            fontWeight: 700,
+                            color: "#58469f",
+                            bgcolor: "rgba(88, 70, 159, 0.1)",
+                            borderRadius: "8px"
+                        }}
+                    />
+                </Box>
             )}
 
-            {dialogView === "breakup" && (
-              <>
-                <Chip
-                  label={`GLCC: ${selectedGlcc}`}
-                  size="small"
-                  sx={{
-                    fontWeight: 700,
-                    color: "#58469f",
-                    bgcolor: "rgba(88, 70, 159, 0.1)",
-                    borderRadius: "8px",
-                  }}
-                />
-              </>
+            {!hideHeader && level === 2 && (
+                <Box sx={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 1,
+                    padding: '8px 14px',
+                    backgroundColor: '#F7F6FD',
+                    borderBottom: '1px solid rgba(108, 92, 231, 0.1)'
+                }}>
+                    <Chip
+                        label={`Report Date: ${reportDate || '—'}`}
+                        size="small"
+                        sx={{
+                            fontWeight: 700,
+                            color: "#58469f",
+                            bgcolor: "rgba(88, 70, 159, 0.1)",
+                            borderRadius: "8px"
+                        }}
+                    />
+
+                    <Chip
+                        label={`GLCC: ${glcc || '—'}`}
+                        size="small"
+                        sx={{
+                            fontWeight: 700,
+                            color: "#58469f",
+                            bgcolor: "rgba(88, 70, 159, 0.1)",
+                            borderRadius: "8px"
+                        }}
+                    />
+                </Box>
             )}
-          </Box>
 
-          {/* This empty Box is the spacer that pushes everything after it to the right */}
-          <Box sx={{ flexGrow: 1 }} />
-
-          {dialogView === "category" && (
-            <IconButton
-              className={styles.dialogButton}
-              disabled={!dialogCategoryCount}
-              onClick={() => exportData(dialogType, dialogType)}
-              size="small"
-              title="Download"
-            >
-              <Download fontSize="small" />
-            </IconButton>
-          )}
-          {dialogView === "breakup" && (
-            <IconButton
-              className={styles.dialogButton}
-              disabled={breakupDataRows?.data?.length == 0}
-              onClick={exportDetailedData}
-              size="small"
-              title="Download breakup"
-            >
-              <Download fontSize="small" />
-            </IconButton>
-          )}
-
-          <IconButton
-            className={styles.dialogButton}
-            onClick={closeDialog}
-            size="small"
-            title="Close"
-          >
-            <Close fontSize="small" />
-          </IconButton>
-        </DialogTitle>
-
-        <DialogContent>
-          {dialogView === "category" && dialogType && (
-            <DisplayTab
-              category={activeMeta.category}
-              type={dialogType}
-              level={1}
-              hideHeader
-              flat
-              data={dataRows[dialogType] || []}
-              clickHandler={fetchDetailedData}
-              downloadHandler={exportData}
-              loading={loading === "Y" || loading === dialogType}
-              requestData={fetchIndividualDifference}
+            <StyledDataGrid
+                rows={rowsWithId}
+                columns={columns}
+                pagination
+                paginationMode={level === 1 ? 'server' : 'client'}
+                paginationModel={paginationModel}
+                rowCount={
+                    level === 1
+                        ? (data?.page?.totalElements || 0)
+                        : rowsWithId.length
+                }
+                getRowId={(row) => row.__displayTabId}
+                pageSizeOptions={[10, 50, 100, 150]}
+                columnHeaderHeight={56}
+                onPaginationModelChange={handlePaginationModelChange}
+                hideFooter={rows.length === 0}
+                disableRowSelectionOnClick
+                checkboxSelection={false}
+                slots={{
+    noRowsOverlay:
+        level === 2
+            ? CustomNoDataOverlay
+            : CustomNoRowsOverlay,
+    noResultsOverlay:
+        level === 2
+            ? CustomNoDataOverlay
+            : CustomNoRowsOverlay,
+}}
+                loading={loading || false}
             />
-          )}
-
-          {dialogView === "breakup" && (
-            <DisplayTab
-              data={breakupDataRows || []}
-              category="Difference Breakup"
-              type={breakupDataRows?.type}
-              level={2}
-              hideHeader
-              flat
-              downloadHandler={exportDetailedData}
-            />
-          )}
-        </DialogContent>
-      </Dialog>
-
-
-      <Dialog
-        open={technicalSuspenseDialogOpen}
-        onClose={() => setTechnicalSuspenseDialogOpen(false)}
-        maxWidth="xl"
-        fullWidth
-        PaperProps={{ className: styles.dialogPaper }}
-      >
-        <DialogTitle className={styles.dialogTitle}>
-          <Typography className={styles.dialogTitleText}>
-            Technical Suspense GLIF Details
-          </Typography>
-
-          <Chip
-            label={`${technicalSuspenseRows.length.toLocaleString("en-IN")} Records Found`}
-            size="small"
-            sx={{
-              fontWeight: 700,
-              color: "#58469f",
-              bgcolor: "rgba(88, 70, 159, 0.1)",
-              borderRadius: "8px",
-            }}
-          />
-
-          <Chip
-            label={`Report Date: ${formattedDate}`}
-            size="small"
-            sx={{
-              fontWeight: 700,
-              color: "#58469f",
-              bgcolor: "rgba(88, 70, 159, 0.1)",
-              borderRadius: "8px",
-            }}
-          />
-
-          <Box sx={{ flexGrow: 1 }} />
-
-          <IconButton
-            className={styles.dialogButton}
-            onClick={exportTechnicalSuspenseGlifDetails}
-            title="Download Excel"
-          >
-            <Download fontSize="small" />
-          </IconButton>
-
-          <IconButton
-            className={styles.dialogButton}
-            onClick={() => setTechnicalSuspenseDialogOpen(false)}
-            title="Close"
-          >
-            <Close fontSize="small" />
-          </IconButton>
-        </DialogTitle>
-
-        <DialogContent>
-          <DisplayTab
-            data={technicalSuspenseRows}
-            category="Technical Suspense GLIF Details"
-            type="TSG"
-            level={2}
-            hideHeader
-            flat
-            glifMode
-            loading={technicalSuspenseLoading}
-          />
-        </DialogContent>
-      </Dialog>
-
-
-    </>
-  );
+        </Paper>
+    );
 }
