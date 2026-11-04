@@ -1,1 +1,57 @@
+<DialogTitle
+  className={styles.dialogTitle}
+  sx={{
+    display: "flex",
+    alignItems: "center",
+    width: "100%",
+    gap: 1,
+  }}
+>
+  {/* Left side: Heading and chips */}
+  <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+    <Typography className={styles.dialogTitleText}>
+      Technical Suspense GLIF Details
+    </Typography>
 
+    <Chip
+      label={`${technicalSuspenseRows.length.toLocaleString("en-IN")} Records Found`}
+      size="small"
+      sx={{
+        fontWeight: 700,
+        color: "#58469f",
+        bgcolor: "rgba(88, 70, 159, 0.1)",
+        borderRadius: "8px",
+      }}
+    />
+
+    <Chip
+      label={`Report Date: ${formattedDate}`}
+      size="small"
+      sx={{
+        fontWeight: 700,
+        color: "#58469f",
+        bgcolor: "rgba(88, 70, 159, 0.1)",
+        borderRadius: "8px",
+      }}
+    />
+  </Box>
+
+  {/* Right side: Download and Close */}
+  <Box sx={{ display: "flex", alignItems: "center", gap: 1, ml: "auto" }}>
+    <IconButton
+      className={styles.dialogButton}
+      onClick={exportTechnicalSuspenseGlifDetails}
+      title="Download Excel"
+    >
+      <Download fontSize="small" />
+    </IconButton>
+
+    <IconButton
+      className={styles.dialogButton}
+      onClick={() => setTechnicalSuspenseDialogOpen(false)}
+      title="Close"
+    >
+      <Close fontSize="small" />
+    </IconButton>
+  </Box>
+</DialogTitle>
