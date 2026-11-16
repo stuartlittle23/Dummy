@@ -40,8 +40,6 @@
 
 
 
-
-
   const exportGlifData = async () => {
     if (!selectedBranch || !userDate) {
       showSnackBar(
@@ -101,5 +99,6 @@
       showSnackBar(error?.message, "error");
     }
   };
+
 
 
