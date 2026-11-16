@@ -1,1 +1,14 @@
+const reportDateField = fields.includes("reconRunDate")
+    ? "reconRunDate"
+    : "balance_date";
 
+cols.unshift({
+    field: reportDateField,
+    headerName: "Report Date",
+    width: 120,
+    headerAlign: "center",
+    align: "center",
+    disableColumnMenu: true,
+    sortable: true,
+    filterable: true,
+});
