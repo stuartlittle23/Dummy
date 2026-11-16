@@ -1,14 +1,105 @@
-const reportDateField = fields.includes("reconRunDate")
-    ? "reconRunDate"
-    : "balance_date";
+  const exportTechnicalSuspenseRow = async (row) => {
+    if (!userDate || !effectiveBranchCode) {
+      showSnackBar("Please select a valid Branch and Report Date.", "error");
+      return;
+    }
 
-cols.unshift({
-    field: reportDateField,
-    headerName: "Report Date",
-    width: 120,
-    headerAlign: "center",
-    align: "center",
-    disableColumnMenu: true,
-    sortable: true,
-    filterable: true,
-});
+    try {
+      const payload = {
+        date: userDate.format("YYYY-MM-DD"),
+        branch: effectiveBranchCode,
+      };
+
+      const res = await callApi(
+        "/ES/branch-position/export-technical-suspense-glif-details",
+        payload,
+        "POST",
+        "blob"
+      );
+
+      if (res) {
+        // Extract row-specific values (handling changing dates and GLCC/CGL/Currency)
+        const rowDate = row?.reconRunDate || row?.date || alterDateFormat(userDate);
+        const rowGlcc = row?.glcc || `${row?.branchCode || effectiveBranchCode}${row?.currency || ""}${row?.cgl || ""}`;
+        const uniqueSuffix = rowGlcc ? `_${rowGlcc}` : (row?.cgl ? `_${row?.cgl}` : "");
+
+        const filename = `TechnicalSuspense_${effectiveBranchCode}${uniqueSuffix}_${rowDate}`;
+
+        downloadFile(new Blob([res]), "xlsx", filename, false);
+      } else {
+        throw new Error("Failed to download file!");
+      }
+    } catch (e) {
+      showSnackBar(
+        e?.message || "Unable to export Technical Suspense GLIF details.",
+        "error"
+      );
+    }
+  };
+
+
+
+
+
+
+  const exportGlifData = async () => {
+    if (!selectedBranch || !userDate) {
+      showSnackBar(
+        "Please select Branch and Report Date before downloading.",
+        "error"
+      );
+      return;
+    }
+
+    if (!glifDataFilter || Object.keys(glifDataFilter).length === 0) {
+      showSnackBar(
+        "Please select atleast one filter before downloading.",
+        "error"
+      );
+      return;
+    }
+
+    const payload = {
+      branch: effectiveBranchCode,
+      date: userDate?.format("YYYY-MM-DD"),
+      filters: [
+        {
+          field: "BRANCH_CODE",
+          operator: "EQUALS",
+          value: effectiveBranchCode,
+        },
+        { field: "TRANS_DATE", operator: "EQUALS", value: userDate },
+        ...Object.entries(glifDataFilter).map(([key, entry]) => {
+          return {
+            ["field"]: key,
+            ["operator"]: entry.operator,
+            ["value"]: entry.value,
+          };
+        }),
+      ],
+    };
+
+    try {
+      const res = await callApi(
+        "/ES/branch-position/export-glif-data",
+        payload,
+        "POST",
+        "arraybuffer"
+      );
+      if (res?.byteLength) {
+        // --- CLEAN & PROFESSIONAL FILENAME ---
+        const filename = `GLIF_Data_${effectiveBranchCode}_${userDate.format("YYYY-MM-DD")}`;
+        
+        downloadFile(res, "excel", filename, false); // Or pass "xlsx" depending on your downloadFile util extension handler
+      } else {
+        showSnackBar(
+          "Failed to download, Something went wrong Kindly try again",
+          "error"
+        );
+      }
+    } catch (error) {
+      showSnackBar(error?.message, "error");
+    }
+  };
+
+
