@@ -1,27 +1,49 @@
-const exportTechnicalSuspenseRow = async (row) => {
-  if (!userDate || !effectiveBranchCode) {
-    showSnackBar("Please select a valid Branch and Report Date.", "error");
-    return;
-  }
-  try {
-    const payload = {
-      date: userDate.format("YYYY-MM-DD"),
-      branch: effectiveBranchCode,
-    };
-    const res = await callApi(
-      "/ES/branch-position/export-technical-suspense-glif-details",
-      payload,
-      "POST",
-      "blob"
-    );
-    if (res) {
-      const filename = `TechnicalSuspenseGLIF_${effectiveBranchCode}_${alterDateFormat(userDate)}`;
-      downloadFile(new Blob([res]), "xlsx", filename, false);
-    } else {
-      throw new Error("Failed to download file!");
-    }
-  } catch (e) {
-    showSnackBar(e?.message || "Unable to export Technical Suspense GLIF details.", "error");
-  }
-};
+        if (level === 1) {
+            cols.push({
+                field: "action",
+                headerName: "History",
+                headerAlign: "center",
+                align: "center",
+                width: 80,
+                sortable: false,
+                filterable: false,
+                disableColumnMenu: true,
+                renderCell: (params) => (
+                    <IconButton
+                        onClick={() => clickHandler(type, params.row)}
+                        size="small"
+                        title="History"
+                    >
+                        <HistoryOutlinedIcon fontSize="small" />
+                    </IconButton>
+                ),
+            });
+        }
 
+        // --- ADD THIS NEW BLOCK RIGHT HERE ---
+        if ((level === 1 || level === 2) && type === "TSD") {
+            cols.push({
+                field: "rowDownload",
+                headerName: "Download",
+                headerAlign: "center",
+                align: "center",
+                width: 90,
+                sortable: false,
+                filterable: false,
+                disableColumnMenu: true,
+                renderCell: (params) => (
+                    <IconButton
+                        onClick={() => onDownloadRow(params.row)}
+                        size="small"
+                        title="Download GLIF Details"
+                    >
+                        <Download fontSize="small" />
+                    </IconButton>
+                ),
+            });
+        }
+        // -------------------------------------
+
+        return cols;
+
+    }, [rows, level, type, clickHandler, onDownloadRow, glifMode]); // Don't forget to add onDownloadRow to the dependency array
