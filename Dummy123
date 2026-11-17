@@ -1,113 +1,48 @@
         if ((level === 1 || level === 2) && type === "TSD") {
-            // Check if the record's head or type is 'ZERO_DIFFERENCE'
-            const isZeroDifference = 
-                (params?.row?.head || "").toUpperCase() === "ZERO_DIFFERENCE" || 
-                (params?.row?.type || "").toUpperCase() === "ZERO_DIFFERENCE";
+            cols.push({
+                field: "rowDownload",
+                headerName: "Download",
+                headerAlign: "center",
+                align: "center",
+                width: 90,
+                sortable: false,
+                filterable: false,
+                disableColumnMenu: true,
+                renderCell: (params) => {
+                    // 1. Check if head or type is 'ZERO_DIFFERENCE'
+                    const headVal = (params.row?.head || "").toUpperCase();
+                    const typeVal = (params.row?.type || "").toUpperCase();
+                    if (headVal === "ZERO_DIFFERENCE" || typeVal === "ZERO_DIFFERENCE") {
+                        return null;
+                    }
 
-            // Helper for Level 2 7-day restriction from ETL/Report date
-            let isWithin7Days = true;
-            if (level === 2) {
-                const recordDateStr = params.row?.reconRunDate || params.row?.date;
-                const baseDate = reportDate ? new Date(reportDate) : new Date();
-                const recDate = recordDateStr ? new Date(recordDateStr) : null;
-                
-                if (recDate) {
-                    const diffTime = baseDate - recDate;
-                    const diffDays = diffTime / (1000 * 60 * 60 * 24);
-                    isWithin7Days = diffDays >= 0 && diffDays <= 7;
-                }
-            }
-
-            // Only push download column if it's NOT 'ZERO_DIFFERENCE' and passes the 7-day rule for Level 2
-            if (!isZeroDifference && isWithin7Days) {
-                cols.push({
-                    field: "rowDownload",
-                    headerName: "Download",
-                    headerAlign: "center",
-                    align: "center",
-                    width: 90,
-                    sortable: false,
-                    filterable: false,
-                    disableColumnMenu: true,
-                    renderCell: (params) => {
-                        // Double-check per row inside renderCell as well
-                        const headVal = (params.row?.head || "").toUpperCase();
-                        const typeVal = (params.row?.type || "").toUpperCase();
-                        if (headVal === "ZERO_DIFFERENCE" || typeVal === "ZERO_DIFFERENCE") {
-                            return null;
+                    // 2. Level 2 7-day restriction from ETL/Report date
+                    if (level === 2) {
+                        const recordDateStr = params.row?.reconRunDate || params.row?.date;
+                        const baseDate = reportDate ? new Date(reportDate) : new Date();
+                        const recDate = recordDateStr ? new Date(recordDateStr) : null;
+                        
+                        if (recDate) {
+                            const diffTime = baseDate - recDate;
+                            const diffDays = diffTime / (1000 * 60 * 60 * 24);
+                            const isWithin7Days = diffDays >= 0 && diffDays <= 7;
+                            
+                            if (!isWithin7Days) {
+                                return null;
+                            }
                         }
+                    }
 
-                        return (
-                            <IconButton
-                                onClick={() => onDownloadRow(params.row)}
-                                size="small"
-                                title="Download GLIF Details"
-                            >
-                                <Download fontSize="small" />
-                            </IconButton>
-                        );
-                    },
-                });
-            }
+                    // 3. Render the download button if it passes all checks
+                    return (
+                        <IconButton
+                            onClick={() => onDownloadRow(params.row)}
+                            size="small"
+                            title="Download GLIF Details"
+                        >
+                            <Download fontSize="small" />
+                        </IconButton>
+                    );
+                },
+            });
         }
-
-
-
-
-  const exportTechnicalSuspenseRow = async (row) => {
-    if (!userDate || !effectiveBranchCode) {
-      showSnackBar("Please select a valid Branch and Report Date.", "error");
-      return;
-    }
-
-    try {
-      // Extract the individual currency from the row (falling back if needed)
-      const rowCurrency = row?.currency || "";
-      const rowCgl = row?.cgl || "";
-      const rowBranch = row?.branchCode || effectiveBranchCode;
-
-      const payload = {
-        date: userDate.format("YYYY-MM-DD"),
-        branch: effectiveBranchCode,
-        currency: rowCurrency, // <-- Sending the selected row's currency in the payload
-        cgl: rowCgl,
-      };
-
-      const res = await callApi(
-        "/ES/branch-position/export-technical-suspense-glif-details",
-        payload,
-        "POST",
-        "blob"
-      );
-
-      if (res) {
-        // Build GLCC identifier for filename
-        const rowGlcc = row?.glcc || `${rowBranch}${rowCurrency}${rowCgl}`;
-        
-        // Level 1 vs Level 2 filename differentiation
-        let filename = "";
-        if (row?.reconRunDate || row?.date) {
-          // Level 2: GLCC + Report Date
-          const reportDate = row?.reconRunDate || row?.date;
-          filename = `TechnicalSuspense_L2_${rowGlcc}_${reportDate}`;
-        } else {
-          // Level 1: GLCC + First Error Date
-          const errorDate = row?.firstErrorDate || alterDateFormat(userDate);
-          filename = `TechnicalSuspense_L1_${rowGlcc}_${errorDate}`;
-        }
-
-        downloadFile(new Blob([res]), "xlsx", filename, false);
-      } else {
-        throw new Error("Failed to download file!");
-      }
-    } catch (e) {
-      showSnackBar(
-        e?.message || "Unable to export Technical Suspense GLIF details.",
-        "error"
-      );
-    }
-  };
-
-
-
-
