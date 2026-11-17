@@ -1,22 +1,5 @@
-        if ((level === 1 || level === 2) && type === "TSD") {
-            cols.push({
-                field: "rowDownload",
-                headerName: "Download",
-                headerAlign: "center",
-                align: "center",
-                width: 90,
-                sortable: false,
-                filterable: false,
-                disableColumnMenu: true,
-                renderCell: (params) => {
-                    // 1. Check if head or type is 'ZERO_DIFFERENCE'
-                    const headVal = (params.row?.head || "").toUpperCase();
-                    const typeVal = (params.row?.type || "").toUpperCase();
-                    if (headVal === "ZERO_DIFFERENCE" || typeVal === "ZERO_DIFFERENCE") {
-                        return null;
-                    }
-
                     // 2. Level 2 7-day restriction from ETL/Report date
+                    let isWithin7Days = true;
                     if (level === 2) {
                         const recordDateStr = params.row?.reconRunDate || params.row?.date;
                         const baseDate = reportDate ? new Date(reportDate) : new Date();
@@ -25,24 +8,18 @@
                         if (recDate) {
                             const diffTime = baseDate - recDate;
                             const diffDays = diffTime / (1000 * 60 * 60 * 24);
-                            const isWithin7Days = diffDays >= 0 && diffDays <= 7;
-                            
-                            if (!isWithin7Days) {
-                                return null;
-                            }
+                            isWithin7Days = diffDays >= 0 && diffDays <= 7;
                         }
                     }
 
-                    // 3. Render the download button if it passes all checks
+                    // Render the download button (disabled if outside the 7-day window)
                     return (
                         <IconButton
-                            onClick={() => onDownloadRow(params.row)}
+                            onClick={() => isWithin7Days && onDownloadRow(params.row)}
+                            disabled={!isWithin7Days}
                             size="small"
-                            title="Download GLIF Details"
+                            title={isWithin7Days ? "Download GLIF Details" : "Download restricted to records within the last 7 days"}
                         >
-                            <Download fontSize="small" />
+                            <Download fontSize="small" color={isWithin7Days ? "inherit" : "disabled"} />
                         </IconButton>
                     );
-                },
-            });
-        }
